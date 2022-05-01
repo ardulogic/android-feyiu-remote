@@ -6,23 +6,16 @@
     android:layout_height="match_parent"
     tools:context=".ui.home.HomeFragment">
 
-    <Button
-        android:id="@+id/buttonConnect"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="104dp"
-        android:text="Connect"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
     <ListView
         android:id="@+id/listScanResults"
         android:layout_width="wrap_content"
-        android:layout_height="0dp"
+        android:layout_height="300dp"
         app:layout_constraintBottom_toTopOf="@+id/buttonConnect"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:layout_editor_absoluteX="1dp" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+    </ListView>
 
     <TextView
         android:id="@+id/textStatus"
@@ -34,6 +27,17 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/buttonConnect" />
+
+    <Button
+        android:id="@+id/buttonConnect"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="196dp"
+        android:text="Connect"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.501"
+        app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
         android:id="@+id/textPosition"
@@ -47,5 +51,45 @@
         app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textStatus" />
+
+    <Button
+        android:id="@+id/buttonMoveRight"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:text="Right"
+        app:layout_constraintBottom_toTopOf="@+id/textStatus"
+        app:layout_constraintStart_toEndOf="@+id/buttonConnect"
+        app:layout_constraintTop_toTopOf="@+id/buttonConnect" />
+
+    <Button
+        android:id="@+id/buttonMoveLeft"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="10dp"
+        android:text="Left"
+        app:layout_constraintBottom_toTopOf="@+id/textStatus"
+        app:layout_constraintEnd_toStartOf="@+id/buttonConnect"
+        app:layout_constraintTop_toTopOf="@+id/buttonConnect"
+        app:layout_constraintVertical_bias="0.0" />
+
+    <SeekBar
+        android:id="@+id/seekBarX"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:progress="50"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textPosition" />
+
+    <SeekBar
+        android:id="@+id/seekBarY"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:progress="50"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/seekBarX" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

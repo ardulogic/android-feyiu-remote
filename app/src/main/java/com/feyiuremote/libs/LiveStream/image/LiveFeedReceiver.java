@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory;
 import android.util.Log;
 
 import com.feyiuremote.R;
+import com.feyiuremote.libs.Feiyu.processors.IGimbalProcessor;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedProcessor;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedReceiver;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedStatusListener;
@@ -23,6 +24,7 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
 
     private Long frames = 0L;
     private ILiveFeedProcessor mImageProcessor;
+    private IGimbalProcessor mGimbalProcessor;
 
     public LiveFeedReceiver(Context context, ILiveFeedStatusListener statusListener) {
         this.context = context;
@@ -31,6 +33,10 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
 
     public void setImageProcessor(ILiveFeedProcessor processor) {
         this.mImageProcessor = processor;
+    }
+
+    public void setGimbalProcessor(IGimbalProcessor processor) {
+        this.mGimbalProcessor = processor;
     }
 
     @Override
@@ -47,6 +53,8 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
 
     @Override
     public Bitmap getImage(int index) {
+        Bitmap bitmap;
+
         if (rawImageCache.size() == 0) {
             return BitmapFactory.decodeResource(context.getResources(), R.drawable.video_unavailable);
         }
@@ -56,10 +64,12 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
 //        return rawImageCache.get(index).toBitmap();
 
         if (this.mImageProcessor != null) {
-            return mImageProcessor.process(rawImageCache.get(index).toBitmap());
+            bitmap = mImageProcessor.process(rawImageCache.get(index).toBitmap());
+        } else {
+            bitmap = rawImageCache.get(index).toBitmap();
         }
 
-        return rawImageCache.get(index).toBitmap();
+        return bitmap;
     }
 
     @Override

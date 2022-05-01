@@ -9,18 +9,41 @@ public class FeyiuUtils {
 
     private final static String TAG = FeyiuUtils.class.getSimpleName();
 
-    public static String move(int x_speed, int y_speed) {
-        String x_dir = x_speed < 0 ? "00" : "ff";
-        String y_dir = y_speed < 0 ? "00" : "ff";
+    public final static String CONTROL_CHARACTERISTIC_ID = "0000ff01-0000-1000-8000-00805f9b34fb";
+    public final static String NOTIFICATION_CHARACTERISTIC_ID = "0000ff02-0000-1000-8000-00805f9b34fb";
 
+    public final static String SERVICE_ID = "0000ffff-0000-1000-8000-00805f9b34fb";
+
+
+    public static String move(int x_speed, int y_speed) {
         String hex = "a55a03000e0000050000"
-                + toByteHex(x_speed) + x_dir
-                + toByteHex(y_speed) + y_dir;
+                + intToTwoByteReversedHex(x_speed)
+                + intToTwoByteReversedHex(y_speed);
 
         Log.d(TAG, "MOVE X:" + x_speed + " Y:" + y_speed);
         Log.d(TAG, "MOVE HEX:" + FeyiuCrc.calc(hex));
 
         return FeyiuCrc.calc(hex);
+    }
+
+    /**
+     * Gimbal is weird. It receives integer bytes in reverse order
+     * Speed is controlled by two bytes
+     *
+     * @param number
+     * @return
+     */
+    public static String intToTwoByteReversedHex(int number) {
+        byte[] y_speed_bytes = new byte[2];
+        y_speed_bytes[0] = (byte) (number & 0xFF);
+        y_speed_bytes[1] = (byte) ((number >> 8) & 0xFF);
+
+        StringBuilder sb = new StringBuilder();
+        for (byte b : y_speed_bytes) {
+            sb.append(String.format("%02x", b & 0xff));
+        }
+
+        return sb.toString();
     }
 
     public static String toByteHex(int num) {

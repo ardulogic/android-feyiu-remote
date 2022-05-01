@@ -18,6 +18,7 @@ import com.feyiuremote.libs.Cameras.Panasonic.IPanasonicCameraDiscoveryListener;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCameraDiscovery;
 import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
+import com.feyiuremote.libs.Feiyu.processors.GimbalFollowProcessor;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedStatusListener;
 import com.feyiuremote.libs.LiveStream.LiveImageView;
 import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
@@ -31,6 +32,7 @@ public class DashboardFragment extends Fragment {
     private DashboardViewModel dashboardViewModel;
     private LiveImageView mLiveView;
     private ObjectTrackingProcessor mObjectTrackingProcessor;
+    private MainActivity mainActivity;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -45,7 +47,7 @@ public class DashboardFragment extends Fragment {
 
         dashboardViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
 
-        MainActivity mainActivity = (MainActivity) getActivity();
+        mainActivity = (MainActivity) getActivity();
         PanasonicCameraDiscovery cameraDiscovery = new PanasonicCameraDiscovery(mainActivity.executor);
 
         mLiveView = binding.liveView;
@@ -108,6 +110,8 @@ public class DashboardFragment extends Fragment {
                                 mLiveView.refresh();
                             }
                         });
+
+                        mObjectTrackingProcessor.setOnPoiUpdateListener(new GimbalFollowProcessor(mainActivity.mBluetoothLeService));
                         liveFeedReceiver.setImageProcessor(mObjectTrackingProcessor);
 
                         dashboardViewModel.mText.postValue("Giving a bit of time...");

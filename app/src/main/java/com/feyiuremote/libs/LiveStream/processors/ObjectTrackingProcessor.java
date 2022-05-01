@@ -1,18 +1,21 @@
 package com.feyiuremote.libs.LiveStream.processors;
 
 import android.graphics.Bitmap;
+import android.graphics.Rect;
 
-import com.feyiuremote.libs.AI.ObjectTracker;
+import com.feyiuremote.libs.AI.BCVObjectTracker;
+import com.feyiuremote.libs.AI.OCVObjectTracker;
 import com.feyiuremote.libs.AI.views.IRectangleDrawViewListener;
 import com.feyiuremote.libs.AI.views.RectangleDrawView;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedProcessor;
+import com.feyiuremote.libs.LiveStream.interfaces.IPoiUpdateListener;
 
 import java.util.concurrent.ExecutorService;
 
 public class ObjectTrackingProcessor implements ILiveFeedProcessor {
 
     private final RectangleDrawView mRectDrawView;
-    private final ObjectTracker mObjectTracker;
+    private final BCVObjectTracker mObjectTracker;
 
     public ObjectTrackingProcessor(RectangleDrawView rectangleDrawView, ExecutorService executor) {
         this.mRectDrawView = rectangleDrawView;
@@ -29,11 +32,16 @@ public class ObjectTrackingProcessor implements ILiveFeedProcessor {
             }
         });
 
-        this.mObjectTracker = new ObjectTracker(mRectDrawView, executor);
+        this.mObjectTracker = new BCVObjectTracker(mRectDrawView, executor);
+    }
+
+    public void setOnPoiUpdateListener(IPoiUpdateListener listener) {
+        this.mObjectTracker.setOnPoiUpdateListener(listener);
     }
 
     @Override
     public Bitmap process(Bitmap bitmap) {
         return this.mObjectTracker.onNewFrame(bitmap);
     }
+
 }

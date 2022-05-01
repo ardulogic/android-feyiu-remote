@@ -17,7 +17,7 @@ import org.opencv.video.TrackerMIL;
 
 import java.util.concurrent.ExecutorService;
 
-public class ObjectTracker {
+public class OCVObjectTracker {
 
     public final static String TRACKER_MIL = "MIL";
     public final static String TRACKER_DASIAMRPN = "DaSiamRPN";
@@ -41,12 +41,12 @@ public class ObjectTracker {
     private boolean mIsProcessing = false;
     private Mat mImageGrabInit;
 
-    public ObjectTracker(RectangleDrawView rectDrawView, ExecutorService executor) {
+    public OCVObjectTracker(RectangleDrawView rectDrawView, ExecutorService executor) {
         this(TRACKER_MIL, rectDrawView);
         this.executor = executor;
     }
 
-    public ObjectTracker(String tracker, RectangleDrawView rectangleDrawView) {
+    public OCVObjectTracker(String tracker, RectangleDrawView rectangleDrawView) {
         this.mRectDrawView = rectangleDrawView;
 
         if (tracker.equals(TRACKER_MOSSE)) {

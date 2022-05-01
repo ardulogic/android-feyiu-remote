@@ -4,6 +4,8 @@ import com.feyiuremote.R;
 
 import org.opencv.core.Rect;
 
+import georegression.struct.shapes.Quadrilateral_F64;
+
 public class ObjectUtils {
 
     /**
@@ -59,5 +61,30 @@ public class ObjectUtils {
         r.height = (int) ((float) rect.height * heightRatio);
 
         return r;
+    }
+
+    /**
+     * Mediator between BCV and OCV shapes
+     *
+     * @param rect
+     * @return
+     */
+    public static Quadrilateral_F64 rectToPolygon(Rect rect) {
+        return new Quadrilateral_F64(
+                rect.x, rect.y,
+                rect.x + rect.width, rect.y,
+                rect.x + rect.width, rect.y + rect.height,
+                rect.x, rect.y + rect.height
+        );
+    }
+
+    /**
+     * Mediator between BCV and OCV shapes
+     *
+     * @param poly
+     * @return
+     */
+    public static Rect polygonToRect(Quadrilateral_F64 poly) {
+        return pointsToRect((int) poly.a.x, (int) poly.a.y, (int) poly.c.x, (int) poly.c.y);
     }
 }

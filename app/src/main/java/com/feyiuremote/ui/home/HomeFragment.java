@@ -28,6 +28,7 @@ import com.feyiuremote.databinding.FragmentHomeBinding;
 import com.feyiuremote.libs.Bluetooth.BluetoothModel;
 import com.feyiuremote.libs.Bluetooth.BluetoothPermissions;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
+import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -70,13 +71,34 @@ public class HomeFragment extends Fragment {
             }
         });
 
+        binding.buttonMoveLeft.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                MainActivity mainActivity = (MainActivity) getActivity();
+                mainActivity.mBluetoothLeService.send(FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
+                        FeyiuUtils.move(-binding.seekBarX.getProgress() - 50, -binding.seekBarY.getProgress() - 50)
+                );            }
+        });
+
+        binding.buttonMoveRight.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                MainActivity mainActivity = (MainActivity) getActivity();
+
+                mainActivity.mBluetoothLeService.send(FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
+                        FeyiuUtils.move(binding.seekBarX.getProgress() + 50, binding.seekBarY.getProgress() + 50)
+                );
+            }
+        });
+
         final ListView mListView = binding.listScanResults;
         mScanResultListAdapter = new ScanListAdapter(getContext());
         mListView.setAdapter(mScanResultListAdapter);
 
         mBluetoothViewModel.mServicesDiscovered.observe(getViewLifecycleOwner(), btServicesObserver);
-        mBluetoothViewModel.registerCharacteristic("0000ff02-0000-1000-8000-00805f9b34fb");
-        mBluetoothViewModel.mCharacteristics.get("0000ff02-0000-1000-8000-00805f9b34fb").observe(getViewLifecycleOwner(), btCharacteristicPositionObserver);
+        mBluetoothViewModel.registerCharacteristic(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID);
+        mBluetoothViewModel.mCharacteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)
+                .observe(getViewLifecycleOwner(), btCharacteristicPositionObserver);
 
         return root;
     }
@@ -99,10 +121,10 @@ public class HomeFragment extends Fragment {
             if (servicesDiscovered) {
                 MainActivity mainActivity = (MainActivity) getActivity();
 
-                BluetoothGattService gattService = mainActivity.mBluetoothLeService.getService("0000ffff-0000-1000-8000-00805f9b34fb");
+                BluetoothGattService gattService = mainActivity.mBluetoothLeService.getService(FeyiuUtils.SERVICE_ID);
 
                 if (gattService != null) {
-                    BluetoothGattCharacteristic gattCharacteristic = gattService.getCharacteristic(UUID.fromString("0000ff02-0000-1000-8000-00805f9b34fb"));
+                    BluetoothGattCharacteristic gattCharacteristic = gattService.getCharacteristic(UUID.fromString(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID));
                     mainActivity.mBluetoothLeService.setCharacteristicNotification(gattCharacteristic, true);
 
                     mBluetoothViewModel.mStatus.postValue("Successfully subscribed to characteristic");
@@ -123,8 +145,8 @@ public class HomeFragment extends Fragment {
 
             mTextPosition.setText(
                     FeyiuState.getInstance().pos_tilt.getValue().toString() + " | " +
-                    FeyiuState.getInstance().pos_pan.getValue().toString() + " | " +
-                    FeyiuState.getInstance().pos_yaw.getValue().toString());
+                            FeyiuState.getInstance().pos_pan.getValue().toString() + " | " +
+                            FeyiuState.getInstance().pos_yaw.getValue().toString());
         }
     };
 

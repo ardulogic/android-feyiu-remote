@@ -99,8 +99,7 @@ uint16_t crc16(uint8_t* bfr, size_t size)
  */
 extern "C"
 JNIEXPORT jstring JNICALL
-Java_com_example_android_bluetoothlegatt_CrcLib_calc(JNIEnv *env, jclass clazz,
-                                                     jstring hex_jstring) {
+Java_com_feyiuremote_libs_Feiyu_FeyiuCrc_calc(JNIEnv *env, jclass clazz, jstring hex_jstring) {
     uint8_t * hex_int;
     std::string hex_string = jStringToString(env, hex_jstring);
     size_t hex_size = hex_string.length() / 2;
@@ -118,4 +117,3 @@ Java_com_example_android_bluetoothlegatt_CrcLib_calc(JNIEnv *env, jclass clazz,
 
     return hex_jstring;
 }
-

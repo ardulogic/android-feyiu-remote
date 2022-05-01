@@ -2,6 +2,7 @@ plugins {
     id 'com.android.application'
 }
 apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
 
 android {
     compileSdk 32
@@ -55,4 +56,9 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 
     implementation project(':opencv')
+
+    ['boofcv-android', 'boofcv-core'].each {
+        String a -> implementation group: 'org.boofcv', name: a, version: '0.40'
+    }
+
 }

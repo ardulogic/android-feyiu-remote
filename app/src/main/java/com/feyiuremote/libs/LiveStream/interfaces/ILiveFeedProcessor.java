@@ -5,4 +5,5 @@ import android.graphics.Bitmap;
 public interface ILiveFeedProcessor {
 
     Bitmap process(Bitmap toBitmap);
+
 }

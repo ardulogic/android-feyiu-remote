@@ -174,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
                         bluetoothModel.mCharacteristics.put(id, new MutableLiveData<byte[]>(intent.getByteArrayExtra(EXTRA_DATA)));
                     }
 
-                    Log.d(TAG, "Characteristic updated:" + intent.getStringExtra(EXTRA_DATA));
+                    Log.d(TAG, "Characteristic updated:" + intent.getByteArrayExtra(EXTRA_DATA).toString());
             }
         }
     };
