@@ -13,7 +13,7 @@ import java.util.List;
 abstract public class SQLiteTableWrapper {
 
     protected static String getDatabaseName() {
-        return "sqlite_db";
+        return "sqlite_db.sqlite";
     }
 
     protected abstract String getDatabaseTableName();
@@ -29,10 +29,10 @@ abstract public class SQLiteTableWrapper {
     public SQLiteTableWrapper(Context context) {
         if (dbHandler == null) {
             dbHandler = context.openOrCreateDatabase(getDatabaseName(), Context.MODE_PRIVATE, null);
+        }
 
-            if (!tableExists(getDatabaseTableName())) {
-                dbHandler.execSQL(getTableCreateSQL());
-            }
+        if (!tableExists(getDatabaseTableName())) {
+            dbHandler.execSQL(getTableCreateSQL());
         }
     }
 
@@ -58,6 +58,10 @@ abstract public class SQLiteTableWrapper {
     }
 
     public void create(ContentValues values) {
+        if (values.containsKey("_id")) {
+            values.remove("_id");
+        }
+
         dbHandler.insert(getDatabaseTableName(), null, values);
     }
 
@@ -73,15 +77,7 @@ abstract public class SQLiteTableWrapper {
             Cursor c = dbHandler.query(getDatabaseTableName(), getColumnNames(),
                     null, null, null, null, null);
 
-            int numRows = c.getCount();
-            c.moveToFirst();
-
-            for (int i = 0; i < numRows; ++i) {
-                ret.add(parseRow(c));
-                ContentValues row = new ContentValues();
-                ret.add(row);
-                c.moveToNext();
-            }
+            return buildResults(c);
         } catch (SQLException e) {
             Log.e("Exception on query", e.toString());
         }
@@ -102,4 +98,21 @@ abstract public class SQLiteTableWrapper {
         dbHandler.update(getDatabaseTableName(), values, "_id=" + rowId, null);
     }
 
+    public void deleteAll() {
+        dbHandler.delete(getDatabaseTableName(), null, null);
+    }
+
+    protected ArrayList<ContentValues> buildResults(Cursor c) {
+        ArrayList<ContentValues> ret = new ArrayList<ContentValues>();
+
+        int numRows = c.getCount();
+        c.moveToFirst();
+
+        for (int i = 0; i < numRows; ++i) {
+            ret.add(parseRow(c));
+            c.moveToNext();
+        }
+
+        return ret;
+    }
 }
