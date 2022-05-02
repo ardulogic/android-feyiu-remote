@@ -13,6 +13,7 @@ import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -71,13 +72,54 @@ public class HomeFragment extends Fragment {
             }
         });
 
+        MainActivity mainActivity = (MainActivity) getActivity();
+        binding.seekBarX.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                mainActivity.mBluetoothLeService.send(
+                        FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
+                        FeyiuUtils.setPanSensitivity(binding.seekBarX.getProgress())
+                );
+            }
+        });
+
+        binding.seekBarY.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                mainActivity.mBluetoothLeService.send(
+                        FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
+                        FeyiuUtils.setTiltSensitivity(binding.seekBarY.getProgress())
+                );
+            }
+        });
+
         binding.buttonMoveLeft.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                MainActivity mainActivity = (MainActivity) getActivity();
                 mainActivity.mBluetoothLeService.send(FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
-                        FeyiuUtils.move(-binding.seekBarX.getProgress() - 50, -binding.seekBarY.getProgress() - 50)
-                );            }
+                        FeyiuUtils.move( -51, -51)
+                );
+            }
         });
 
         binding.buttonMoveRight.setOnClickListener(new View.OnClickListener() {
@@ -86,7 +128,7 @@ public class HomeFragment extends Fragment {
                 MainActivity mainActivity = (MainActivity) getActivity();
 
                 mainActivity.mBluetoothLeService.send(FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
-                        FeyiuUtils.move(binding.seekBarX.getProgress() + 50, binding.seekBarY.getProgress() + 50)
+                        FeyiuUtils.move( 51, 51)
                 );
             }
         });

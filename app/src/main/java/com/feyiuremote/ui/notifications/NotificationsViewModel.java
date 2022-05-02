@@ -6,14 +6,22 @@ import androidx.lifecycle.ViewModel;
 
 public class NotificationsViewModel extends ViewModel {
 
-    private final MutableLiveData<String> mText;
+    public final MutableLiveData<String> mPosText;
+    public final MutableLiveData<String> mCalResText;
 
     public NotificationsViewModel() {
-        mText = new MutableLiveData<>();
-        mText.setValue("This is notifications fragment");
+        mCalResText = new MutableLiveData<>();
+        mPosText = new MutableLiveData<>();
+
+        mPosText.setValue("Waiting for position...");
+        mCalResText.setValue("Waiting for calibration start...");
     }
 
-    public LiveData<String> getText() {
-        return mText;
+    public LiveData<String> getPosText() {
+        return mPosText;
+    }
+
+    public LiveData<String> getCalResultText() {
+        return mCalResText;
     }
 }
