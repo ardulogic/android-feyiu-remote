@@ -100,4 +100,34 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
         return new ArrayList<ContentValues>();
     }
 
+    public ContentValues getByClosestPanSpeed(float v, int dir) {
+        Cursor c = dbHandler.rawQuery(
+                "SELECT * FROM " + getDatabaseTableName() + " WHERE dir = ? ORDER BY ABS(? - pan_speed) " +
+                        "LIMIT 1;",
+                new String[]{String.valueOf(dir), String.valueOf(v)}
+        );
+
+        if (c.getCount() > 0) {
+            c.moveToFirst();
+            return parseRow(c);
+        }
+
+        return null;
+    }
+
+    public ContentValues getByClosestTIltSpeed(float v, int dir) {
+        Cursor c = dbHandler.rawQuery(
+                "SELECT * FROM " + getDatabaseTableName() + " WHERE dir = ? ORDER BY ABS(? - tilt_speed) " +
+                        "LIMIT 1;",
+                new String[]{String.valueOf(dir), String.valueOf(v)}
+        );
+
+        if (c.getCount() > 0) {
+            c.moveToFirst();
+            return parseRow(c);
+        }
+
+        return null;
+    }
+
 }

@@ -1,10 +1,8 @@
 package com.feyiuremote.libs.LiveStream.processors;
 
 import android.graphics.Bitmap;
-import android.graphics.Rect;
 
-import com.feyiuremote.libs.AI.BCVObjectTracker;
-import com.feyiuremote.libs.AI.OCVObjectTracker;
+import com.feyiuremote.libs.AI.trackers.BCVObjectTracker;
 import com.feyiuremote.libs.AI.views.IRectangleDrawViewListener;
 import com.feyiuremote.libs.AI.views.RectangleDrawView;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedProcessor;

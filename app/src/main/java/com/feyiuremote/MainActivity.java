@@ -9,9 +9,10 @@ import android.content.ServiceConnection;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.util.Log;
 
-import com.feyiuremote.libs.AI.FaceDetector;
+import com.feyiuremote.libs.AI.detectors.FaceDetector;
 import com.feyiuremote.libs.Bluetooth.BluetoothIntent;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Bluetooth.BluetoothModel;
@@ -45,6 +46,17 @@ public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
     public BluetoothLeService mBluetoothLeService;
     public ExecutorService executor = Executors.newFixedThreadPool(10);
+
+    static {
+        System.loadLibrary("mediapipe_jni");
+        try {
+            System.loadLibrary("opencv_java3");
+        } catch (UnsatisfiedLinkError e) {
+            System.loadLibrary("opencv_java4");
+        }
+    }
+
+    private PowerManager.WakeLock mWakeLock;
 
     @Override
     protected void onResume() {
@@ -83,6 +95,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
         FaceDetector.init(this);
+
+        final PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        this.mWakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "feyiuremote:main");
+        this.mWakeLock.acquire();
     }
 
     private void startBtService() {
@@ -174,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
                         bluetoothModel.mCharacteristics.put(id, new MutableLiveData<byte[]>(intent.getByteArrayExtra(EXTRA_DATA)));
                     }
 
-                    Log.d(TAG, "Characteristic updated:" + intent.getByteArrayExtra(EXTRA_DATA).toString());
+//                    Log.d(TAG, "Characteristic updated:" + intent.getByteArrayExtra(EXTRA_DATA).toString());
             }
         }
     };
@@ -185,6 +201,12 @@ public class MainActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(permsRequestCode, permissions, grantResults);
 
         startBtService();
+    }
+
+    @Override
+    public void onDestroy() {
+        this.mWakeLock.release();
+        super.onDestroy();
     }
 
 }

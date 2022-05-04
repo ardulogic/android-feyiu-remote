@@ -2,7 +2,7 @@ package com.feyiuremote.libs.LiveStream.processors;
 
 import android.graphics.Bitmap;
 
-import com.feyiuremote.libs.AI.FaceDetector;
+import com.feyiuremote.libs.AI.detectors.FaceDetector;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedProcessor;
 
 public class LiveFaceDetectionProcessor implements ILiveFeedProcessor {

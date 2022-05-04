@@ -91,7 +91,12 @@ abstract public class SQLiteTableWrapper {
         Cursor c = dbHandler.query(getDatabaseTableName(), getColumnNames(), "_id=" + rowId,
                 null, null, null, null);
 
-        return parseRow(c);
+        if (c.getCount() > 0) {
+            c.moveToFirst();
+            return parseRow(c);
+        }
+
+        return null;
     }
 
     public void update(long rowId, ContentValues values) {

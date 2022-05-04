@@ -27,7 +27,9 @@ public class PanasonicCameraLiveView {
     private final int MAX_EXCEPTIONS = 1000;
     private final int RECEIVE_BUFFER_SIZE = 1024 * 1024 * 4;
     private final int TIMEOUT_FRAME = 33;
+
     private boolean requestingStream = false;
+    private int requestRetries = 0;
 
 
     public PanasonicCameraLiveView(ExecutorService executor, PanasonicCamera camera, LiveFeedReceiver receiver) {
@@ -77,7 +79,7 @@ public class PanasonicCameraLiveView {
                     exceptions = 0;
                     frames++;
 
-                    if (frames > 300) {
+                    if (frames > 250) {
                         this.requestStream();
                     }
                 } catch (SocketTimeoutException e) {
@@ -125,8 +127,15 @@ public class PanasonicCameraLiveView {
                 @Override
                 public void onFailure() {
                     requestingStream = false;
-                    mLiveViewReceiver.onError("Stream request failed!");
-                    stop();
+                    requestRetries++;
+
+                    if (requestRetries < 3) {
+                        mLiveViewReceiver.onInfo("Stream request failed, retrying..:" + requestRetries);
+                        requestStream();
+                    } else {
+                        mLiveViewReceiver.onError("Stream request failed!");
+                        stop();
+                    }
                 }
             });
         }

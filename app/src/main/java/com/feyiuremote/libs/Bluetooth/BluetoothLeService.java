@@ -240,7 +240,7 @@ public class BluetoothLeService extends Service {
                 gattCharacteristic.setValue(b); // call this BEFORE(!) you 'write' any stuff to the server
                 mBluetoothGatt.writeCharacteristic(gattCharacteristic);
 
-                Log.d(TAG, "Value :" + message + " has been sent!");
+//                Log.d(TAG, "Value :" + message + " has been sent!");
             } else {
                 Log.e(TAG, "Characteristic not found:" + characteristicId);
             }
@@ -345,7 +345,6 @@ public class BluetoothLeService extends Service {
     private final BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            String intentAction;
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 Log.i(TAG, "Connected to GATT server.");
                 broadcastGattUpdate(ACTION_GATT_CONNECTED);

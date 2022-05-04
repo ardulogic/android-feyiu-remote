@@ -23,6 +23,7 @@ import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedStatusListener;
 import com.feyiuremote.libs.LiveStream.LiveImageView;
 import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
 import com.feyiuremote.libs.LiveStream.processors.ObjectTrackingProcessor;
+import com.feyiuremote.libs.LiveStream.processors.PoseTrackingProcessor;
 
 public class DashboardFragment extends Fragment {
 
@@ -31,7 +32,9 @@ public class DashboardFragment extends Fragment {
     private FragmentDashboardBinding binding;
     private DashboardViewModel dashboardViewModel;
     private LiveImageView mLiveView;
-    private ObjectTrackingProcessor mObjectTrackingProcessor;
+//    private ObjectTrackingProcessor mObjectTrackingProcessor;
+    private PoseTrackingProcessor mObjectTrackingProcessor;
+
     private MainActivity mainActivity;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -52,7 +55,8 @@ public class DashboardFragment extends Fragment {
 
         mLiveView = binding.liveView;
 
-        mObjectTrackingProcessor = new ObjectTrackingProcessor(binding.rectDrawView, mainActivity.executor);
+//        mObjectTrackingProcessor = new ObjectTrackingProcessor(binding.rectDrawView, mainActivity.executor);
+        mObjectTrackingProcessor = new PoseTrackingProcessor(getContext(), mainActivity.executor);
 
         binding.buttonCameraConnect.setOnClickListener(new View.OnClickListener() {
             @Override

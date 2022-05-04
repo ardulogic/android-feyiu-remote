@@ -31,9 +31,6 @@ public class FeyiuUtils {
                 + intToTwoByteReversedHex(x_speed)
                 + intToTwoByteReversedHex(y_speed);
 
-        Log.d(TAG, "MOVE X:" + x_speed + " Y:" + y_speed);
-        Log.d(TAG, "MOVE HEX:" + FeyiuCrc.calc(hex));
-
         return FeyiuCrc.calc(hex);
     }
 
