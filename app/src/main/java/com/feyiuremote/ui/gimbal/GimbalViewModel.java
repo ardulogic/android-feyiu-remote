@@ -1,17 +1,13 @@
-package com.feyiuremote.ui.home;
-
-import android.bluetooth.le.ScanResult;
-
-import java.util.ArrayList;
+package com.feyiuremote.ui.gimbal;
 
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
-public class HomeViewModel extends ViewModel {
+public class GimbalViewModel extends ViewModel {
 
     public final MutableLiveData<String> mHomeStatus;
 
-    public HomeViewModel() {
+    public GimbalViewModel() {
         this.mHomeStatus = new MutableLiveData<>();
     }
 

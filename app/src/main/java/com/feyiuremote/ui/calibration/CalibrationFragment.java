@@ -1,4 +1,4 @@
-package com.feyiuremote.ui.notifications;
+package com.feyiuremote.ui.calibration;
 
 import android.content.ContentValues;
 import android.os.Bundle;
@@ -14,7 +14,7 @@ import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.feyiuremote.MainActivity;
-import com.feyiuremote.databinding.FragmentNotificationsBinding;
+import com.feyiuremote.databinding.FragmentCalibrationBinding;
 import com.feyiuremote.libs.Bluetooth.BluetoothModel;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
@@ -27,16 +27,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public class NotificationsFragment extends Fragment {
+public class CalibrationFragment extends Fragment {
 
-    private FragmentNotificationsBinding binding;
+    private FragmentCalibrationBinding binding;
     private MainActivity mainActivity;
     private BluetoothModel mBluetoothViewModel;
     private boolean mCharacteristicReady;
     private CalibrationDbHelper mCalDb;
     private CalibrationPresetDbHelper mCalPresetDb;
     private CalibrationRunnable mCalRunnable;
-    private NotificationsViewModel mNotificationsModel;
+    private CalibrationViewModel mCalibrationModel;
 
     private static HashMap<Integer, int[]> cal_map = new HashMap<Integer, int[]>(){{
         put(25, new int[]{65, 90, 100, 105, 135, 170, 200, 205, 235, 240});
@@ -52,17 +52,17 @@ public class NotificationsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
 
-        mNotificationsModel = new ViewModelProvider(this).get(NotificationsViewModel.class);
+        mCalibrationModel = new ViewModelProvider(this).get(CalibrationViewModel.class);
         mBluetoothViewModel = new ViewModelProvider(requireActivity()).get(BluetoothModel.class);
 
-        binding = FragmentNotificationsBinding.inflate(inflater, container, false);
+        binding = FragmentCalibrationBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
         final TextView posTextView = binding.textPos;
-        mNotificationsModel.getPosText().observe(getViewLifecycleOwner(), posTextView::setText);
+        mCalibrationModel.getPosText().observe(getViewLifecycleOwner(), posTextView::setText);
 
         final TextView calResTextView = binding.textCalResult;
-        mNotificationsModel.getCalResultText().observe(getViewLifecycleOwner(), calResTextView::setText);
+        mCalibrationModel.getCalResultText().observe(getViewLifecycleOwner(), calResTextView::setText);
 
         mainActivity = (MainActivity) getActivity();
 
@@ -164,13 +164,13 @@ public class NotificationsFragment extends Fragment {
             }
         }
 
-        mNotificationsModel.mCalResText.postValue("Calibration saved!");
+        mCalibrationModel.mCalResText.postValue("Calibration saved!");
     }
 
     private ICalibrationListener mCalibrationListener = new ICalibrationListener() {
         @Override
         public void onCalFinished(ContentValues cv) {
-            mNotificationsModel.mCalResText.postValue(cv.toString());
+            mCalibrationModel.mCalResText.postValue(cv.toString());
             mCalDb.updateOrCreate(cv);
 
             if (mCalibrating) {

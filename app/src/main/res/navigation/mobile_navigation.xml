@@ -3,23 +3,23 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mobile_navigation"
-    app:startDestination="@+id/navigation_home">
+    app:startDestination="@+id/navigation_gimbal">
 
     <fragment
-        android:id="@+id/navigation_home"
-        android:name="com.feyiuremote.ui.home.HomeFragment"
-        android:label="@string/title_home"
-        tools:layout="@layout/fragment_home" />
+        android:id="@+id/navigation_gimbal"
+        android:name="com.feyiuremote.ui.gimbal.GimbalFragment"
+        android:label="@string/title_gimbal"
+        tools:layout="@layout/fragment_gimbal" />
 
     <fragment
-        android:id="@+id/navigation_dashboard"
-        android:name="com.feyiuremote.ui.dashboard.DashboardFragment"
-        android:label="@string/title_dashboard"
-        tools:layout="@layout/fragment_dashboard" />
+        android:id="@+id/navigation_camera"
+        android:name="com.feyiuremote.ui.camera.CameraFragment"
+        android:label="@string/title_camera"
+        tools:layout="@layout/fragment_camera" />
 
     <fragment
-        android:id="@+id/navigation_notifications"
-        android:name="com.feyiuremote.ui.notifications.NotificationsFragment"
-        android:label="@string/title_notifications"
-        tools:layout="@layout/fragment_notifications" />
+        android:id="@+id/navigation_calibration"
+        android:name="com.feyiuremote.ui.calibration.CalibrationFragment"
+        android:label="@string/title_calibration"
+        tools:layout="@layout/fragment_calibration" />
 </navigation>

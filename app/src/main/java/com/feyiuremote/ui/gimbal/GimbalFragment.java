@@ -1,15 +1,13 @@
-package com.feyiuremote.ui.home;
+package com.feyiuremote.ui.gimbal;
 
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.ListView;
@@ -20,42 +18,36 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModel;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.feyiuremote.MainActivity;
 import com.feyiuremote.R;
-import com.feyiuremote.databinding.FragmentHomeBinding;
+import com.feyiuremote.databinding.FragmentGimbalBinding;
 import com.feyiuremote.libs.Bluetooth.BluetoothModel;
-import com.feyiuremote.libs.Bluetooth.BluetoothPermissions;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 
-import java.math.BigInteger;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
-public class HomeFragment extends Fragment {
+public class GimbalFragment extends Fragment {
 
-    private final static String TAG = HomeFragment.class.getSimpleName();
+    private final static String TAG = GimbalFragment.class.getSimpleName();
 
-    private FragmentHomeBinding binding;
+    private FragmentGimbalBinding binding;
 
     private ScanListAdapter mScanResultListAdapter;
 
-    private HomeViewModel mHomeViewModel;
+    private GimbalViewModel mGimbalViewModel;
     private BluetoothModel mBluetoothViewModel;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
 
-        mHomeViewModel = new ViewModelProvider(requireActivity()).get(HomeViewModel.class);
+        mGimbalViewModel = new ViewModelProvider(requireActivity()).get(GimbalViewModel.class);
         mBluetoothViewModel = new ViewModelProvider(requireActivity()).get(BluetoothModel.class);
 
-        binding = FragmentHomeBinding.inflate(inflater, container, false);
+        binding = FragmentGimbalBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
         final TextView mTextStatus = binding.textStatus;
@@ -69,67 +61,6 @@ public class HomeFragment extends Fragment {
                 MainActivity mainActivity = (MainActivity) getActivity();
                 mainActivity.mBluetoothLeService.disconnect();
                 mainActivity.mBluetoothLeService.connect("80:7D:3A:FE:84:36");
-            }
-        });
-
-        MainActivity mainActivity = (MainActivity) getActivity();
-        binding.seekBarX.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                mainActivity.mBluetoothLeService.send(
-                        FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
-                        FeyiuUtils.setPanSensitivity(binding.seekBarX.getProgress())
-                );
-            }
-        });
-
-        binding.seekBarY.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                mainActivity.mBluetoothLeService.send(
-                        FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
-                        FeyiuUtils.setTiltSensitivity(binding.seekBarY.getProgress())
-                );
-            }
-        });
-
-        binding.buttonMoveLeft.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                mainActivity.mBluetoothLeService.send(FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
-                        FeyiuUtils.move( -51, -51)
-                );
-            }
-        });
-
-        binding.buttonMoveRight.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                MainActivity mainActivity = (MainActivity) getActivity();
-
-                mainActivity.mBluetoothLeService.send(FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
-                        FeyiuUtils.move( 51, 51)
-                );
             }
         });
 
@@ -222,7 +153,7 @@ public class HomeFragment extends Fragment {
         @Override
         public View getView(final int i, View view, ViewGroup viewGroup) {
             if (view == null) {
-                view = LayoutInflater.from(c).inflate(R.layout.fragment_home_scan_item, viewGroup, false);
+                view = LayoutInflater.from(c).inflate(R.layout.fragment_bt_scan_item, viewGroup, false);
             }
 
             TextView mTextDeviceTitle = (TextView) view.findViewById(R.id.textDeviceTitle);

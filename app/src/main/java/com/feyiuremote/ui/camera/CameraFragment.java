@@ -1,4 +1,4 @@
-package com.feyiuremote.ui.dashboard;
+package com.feyiuremote.ui.camera;
 
 import android.os.Bundle;
 import android.util.Log;
@@ -12,7 +12,7 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.feyiuremote.MainActivity;
-import com.feyiuremote.databinding.FragmentDashboardBinding;
+import com.feyiuremote.databinding.FragmentCameraBinding;
 import com.feyiuremote.libs.AI.views.RectangleDrawView;
 import com.feyiuremote.libs.Cameras.Panasonic.IPanasonicCameraDiscoveryListener;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
@@ -22,15 +22,14 @@ import com.feyiuremote.libs.Feiyu.processors.GimbalFollowProcessor;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedStatusListener;
 import com.feyiuremote.libs.LiveStream.LiveImageView;
 import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
-import com.feyiuremote.libs.LiveStream.processors.ObjectTrackingProcessor;
 import com.feyiuremote.libs.LiveStream.processors.PoseTrackingProcessor;
 
-public class DashboardFragment extends Fragment {
+public class CameraFragment extends Fragment {
 
-    private String TAG = DashboardFragment.class.getSimpleName();
+    private String TAG = CameraFragment.class.getSimpleName();
 
-    private FragmentDashboardBinding binding;
-    private DashboardViewModel dashboardViewModel;
+    private FragmentCameraBinding binding;
+    private CameraViewModel dashboardViewModel;
     private LiveImageView mLiveView;
 //    private ObjectTrackingProcessor mObjectTrackingProcessor;
     private PoseTrackingProcessor mObjectTrackingProcessor;
@@ -40,9 +39,9 @@ public class DashboardFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
 
-        dashboardViewModel = new ViewModelProvider(this).get(DashboardViewModel.class);
+        dashboardViewModel = new ViewModelProvider(this).get(CameraViewModel.class);
 
-        binding = FragmentDashboardBinding.inflate(inflater, container, false);
+        binding = FragmentCameraBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
         final TextView textView = binding.textCameraStatus;

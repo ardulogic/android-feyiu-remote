@@ -74,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
         AppBarConfiguration appBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.navigation_home, R.id.navigation_dashboard, R.id.navigation_notifications)
+                R.id.navigation_gimbal, R.id.navigation_camera, R.id.navigation_calibration)
                 .build();
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_activity_main);
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
@@ -189,7 +189,6 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         bluetoothModel.mCharacteristics.put(id, new MutableLiveData<byte[]>(intent.getByteArrayExtra(EXTRA_DATA)));
                     }
-
 //                    Log.d(TAG, "Characteristic updated:" + intent.getByteArrayExtra(EXTRA_DATA).toString());
             }
         }

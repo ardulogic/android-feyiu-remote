@@ -3,12 +3,19 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/drawable/ic_baseline_gimbal_24.xml" value="0.208" />
+        <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/drawable/ic_dashboard_black_24dp.xml" value="0.1" />
+        <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/drawable/ic_home_black_24dp.xml" value="0.1" />
+        <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/drawable/ic_launcher_background.xml" value="0.208" />
         <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/drawable/ic_launcher_foreground.xml" value="0.177" />
+        <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/drawable/ic_notifications_black_24dp.xml" value="0.208" />
         <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/layout/activity_main.xml" value="0.2821557971014493" />
         <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/layout/fragment_dashboard.xml" value="0.2821557971014493" />
+        <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/layout/fragment_gimbal.xml" value="0.18" />
         <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/layout/fragment_home.xml" value="0.33" />
         <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/layout/fragment_home_scan_item.xml" value="0.2821557971014493" />
         <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/layout/fragment_notifications.xml" value="0.2821557971014493" />
+        <entry key="..\:/Projects/Android/FeyiuRemote/app/src/main/res/menu/bottom_nav_menu.xml" value="0.23020833333333332" />
       </map>
     </option>
   </component>
