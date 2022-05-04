@@ -12,4 +12,5 @@
 /captures
 .externalNativeBuild
 .cxx
+/opencv/build
 local.properties
