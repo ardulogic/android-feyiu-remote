@@ -3,12 +3,8 @@ package com.feyiuremote.libs.AI.trackers;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.PointF;
-import android.util.Log;
 
 import com.feyiuremote.libs.AI.ObjectUtils;
-import com.feyiuremote.libs.AI.libs.mlkit.common.preference.PreferenceUtils;
-import com.feyiuremote.libs.AI.libs.mlkit.posedetector.PoseDetectorProcessor;
-import com.feyiuremote.libs.AI.views.RectangleDrawView;
 import com.feyiuremote.libs.LiveStream.interfaces.IPoiUpdateListener;
 import com.google.android.gms.tasks.Task;
 import com.google.mlkit.vision.interfaces.Detector;
@@ -17,6 +13,7 @@ import com.google.mlkit.vision.pose.PoseDetection;
 import com.google.mlkit.vision.pose.PoseDetector;
 import com.google.mlkit.vision.pose.PoseDetectorOptionsBase;
 import com.google.mlkit.vision.pose.PoseLandmark;
+import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions;
 
 import org.opencv.android.Utils;
 import org.opencv.core.CvType;
@@ -27,21 +24,16 @@ import org.opencv.imgproc.Imgproc;
 
 import java.util.concurrent.ExecutorService;
 
-import georegression.struct.shapes.Quadrilateral_F64;
-
 public class GooglePoseTracker {
 
     public final static String TAG = GooglePoseTracker.class.getSimpleName();
+    private static final boolean USE_GPU = false;
 
     private final int TRACKING_RES_WIDTH = 640;
     private final int TRACKING_RES_HEIGHT = 480;
     private final Context mContext;
     private ExecutorService executor;
 
-    private Integer mAreaW;
-    private Integer mAreaH;
-
-    private Rect mTrackingIntRectangle;
     private Rect mTrackingExtRectangle;
     private final PoseDetector mPoseDetector;
 
@@ -54,10 +46,18 @@ public class GooglePoseTracker {
     public GooglePoseTracker(Context c, ExecutorService executor) {
         this.mContext = c;
         this.executor = executor;
+        this.mPoseDetector = PoseDetection.getClient(getPoseDetectorOptions());
+    }
 
-        PoseDetectorOptionsBase poseDetectorOptions =
-                PreferenceUtils.getPoseDetectorOptionsForLivePreview(c);
-        this.mPoseDetector = PoseDetection.getClient(poseDetectorOptions);
+    private PoseDetectorOptionsBase getPoseDetectorOptions() {
+        PoseDetectorOptions.Builder builder = new PoseDetectorOptions.Builder()
+                .setDetectorMode(PoseDetectorOptions.STREAM_MODE);
+
+        if (USE_GPU) {
+            builder.setPreferredHardwareConfigs(PoseDetectorOptions.CPU_GPU);
+        }
+
+        return builder.build();
     }
 
     public void setOnPoiUpdateListener(IPoiUpdateListener listener) {
@@ -80,10 +80,6 @@ public class GooglePoseTracker {
         }
 
         return bitmap;
-    }
-
-    public void clear() {
-        mTrackingIntRectangle = null;
     }
 
     public void track() {
