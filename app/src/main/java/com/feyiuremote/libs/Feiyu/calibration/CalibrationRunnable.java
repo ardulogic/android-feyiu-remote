@@ -76,6 +76,7 @@ public class CalibrationRunnable implements Runnable {
         long t_stop = System.currentTimeMillis();
         Integer pan_pos_stop_start = FeyiuState.getInstance().pos_pan.getValue();
         Integer tilt_pos_stop_start = FeyiuState.getInstance().pos_tilt.getValue();
+
         mBt.send(FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
                 FeyiuUtils.move(0, 0)
         );

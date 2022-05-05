@@ -6,15 +6,21 @@ import androidx.lifecycle.ViewModel;
 
 public class CalibrationViewModel extends ViewModel {
 
-    public final MutableLiveData<String> mPosText;
-    public final MutableLiveData<String> mCalResText;
+    public final MutableLiveData<String> mPosText = new MutableLiveData<>();
+    public final MutableLiveData<String> mCalResText = new MutableLiveData<>();
+
+    public final MutableLiveData<Integer> mProgressJoySens = new MutableLiveData<>();
+    public final MutableLiveData<String> mTextJoySens = new MutableLiveData<>();
+    public final MutableLiveData<Integer> mProgressJoyVal = new MutableLiveData<>();
+    public final MutableLiveData<String> mTextJoyVal = new MutableLiveData<>();
 
     public CalibrationViewModel() {
-        mCalResText = new MutableLiveData<>();
-        mPosText = new MutableLiveData<>();
-
         mPosText.setValue("Waiting for position...");
         mCalResText.setValue("Waiting for calibration start...");
+        mProgressJoySens.setValue(0);
+        mTextJoySens.setValue("Joystick Sensitivity");
+        mProgressJoyVal.setValue(0);
+        mTextJoySens.setValue("Joystick Value");
     }
 
     public LiveData<String> getPosText() {

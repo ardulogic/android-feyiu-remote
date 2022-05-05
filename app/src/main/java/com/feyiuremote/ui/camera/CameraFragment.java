@@ -19,19 +19,19 @@ import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCameraDiscovery;
 import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
 import com.feyiuremote.libs.Feiyu.processors.GimbalFollowProcessor;
-import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedStatusListener;
 import com.feyiuremote.libs.LiveStream.LiveImageView;
 import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
+import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedStatusListener;
 import com.feyiuremote.libs.LiveStream.processors.PoseTrackingProcessor;
+
+import java.util.ArrayList;
 
 public class CameraFragment extends Fragment {
 
     private String TAG = CameraFragment.class.getSimpleName();
 
     private FragmentCameraBinding binding;
-    private CameraViewModel dashboardViewModel;
-    private LiveImageView mLiveView;
-//    private ObjectTrackingProcessor mObjectTrackingProcessor;
+    private CameraViewModel cameraViewModel;
     private PoseTrackingProcessor mObjectTrackingProcessor;
 
     private MainActivity mainActivity;
@@ -39,91 +39,134 @@ public class CameraFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
 
-        dashboardViewModel = new ViewModelProvider(this).get(CameraViewModel.class);
+        cameraViewModel = new ViewModelProvider(requireActivity()).get(CameraViewModel.class);
 
         binding = FragmentCameraBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
-        final TextView textView = binding.textCameraStatus;
-        final RectangleDrawView rectDrawView = binding.rectDrawView;
-
-        dashboardViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
+        cameraViewModel.getText().observe(getViewLifecycleOwner(), binding.textCameraStatus::setText);
+        cameraViewModel.getConnectButtonText().observe(getViewLifecycleOwner(), binding.buttonCameraConnect::setText);
+        cameraViewModel.getConnectButtonIsEnabled().observe(getViewLifecycleOwner(), binding.buttonCameraConnect::setEnabled);
 
         mainActivity = (MainActivity) getActivity();
         PanasonicCameraDiscovery cameraDiscovery = new PanasonicCameraDiscovery(mainActivity.executor);
 
-        mLiveView = binding.liveView;
+        binding.buttonCameraConnect.setOnClickListener(view -> {
+            if (cameraViewModel.streamIsStarted()) {
+                binding.buttonCameraConnect.setText("Connect");
+                stopLiveView();
+                return;
+            }
 
-//        mObjectTrackingProcessor = new ObjectTrackingProcessor(binding.rectDrawView, mainActivity.executor);
-        mObjectTrackingProcessor = new PoseTrackingProcessor(getContext(), mainActivity.executor);
+            cameraViewModel.buttonText.postValue("Connecting...");
+            cameraViewModel.buttonEnabled.postValue(false);
 
-        binding.buttonCameraConnect.setOnClickListener(new View.OnClickListener() {
+            cameraDiscovery.clear();
+            cameraDiscovery.search(new IPanasonicCameraDiscoveryListener() {
+                @Override
+                public void onDeviceFound(PanasonicCamera camera) {
+                    Log.d(TAG, "onDeviceFound:" + camera.state.url);
+                    cameraViewModel.camera.postValue(camera);
+
+                    // Requesting basic information from camera
+                    // this proves that its properly connected
+                    camera.updateBaseInfo(new ICameraControlListener() {
+                        @Override
+                        public void onSuccess() {
+                            startLiveView(cameraViewModel.camera.getValue());
+                            cameraViewModel.buttonText.postValue("Disconnect");
+                            cameraViewModel.buttonEnabled.postValue(true);
+                        }
+
+                        @Override
+                        public void onFailure() {
+                            cameraViewModel.text.postValue("Could not update base info!");
+                            cameraViewModel.buttonText.postValue("Connect");
+                            cameraViewModel.buttonEnabled.postValue(true);
+                        }
+                    });
+                }
+
+                @Override
+                public void onProgressUpdate(String response) {
+                    cameraViewModel.text.postValue(response);
+                }
+
+                @Override
+                public void onFailure(String response) {
+                    cameraViewModel.text.postValue(response);
+                }
+
+                @Override
+                public void onFinish(ArrayList<String> foundCamUrls) {
+                    if (foundCamUrls.isEmpty()) {
+                        cameraViewModel.buttonText.postValue("Connect");
+                        cameraViewModel.buttonEnabled.postValue(true);
+                    }
+                }
+            });
+        });
+
+        binding.buttonSaveCurve.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                cameraDiscovery.clear();
-
-                cameraDiscovery.search(new IPanasonicCameraDiscoveryListener() {
-                    @Override
-                    public void onDeviceFound(PanasonicCamera camera) {
-                        Log.d(TAG, "onDeviceFound:" + camera.state.url);
-
-                        camera.updateBaseInfo(new ICameraControlListener() {
-                            @Override
-                            public void onSuccess() {
-                                startLiveView(camera);
-                            }
-
-                            @Override
-                            public void onFailure() {
-                                dashboardViewModel.mText.postValue("Could not update base info!");
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onProgressUpdate(String response) {
-                        dashboardViewModel.mText.postValue(response);
-                    }
-
-                    @Override
-                    public void onFailure(String response) {
-                        dashboardViewModel.mText.postValue(response);
-                    }
+                GimbalFollowProcessor p = new GimbalFollowProcessor(mainActivity.mBluetoothLeService);
+                p.setTrackingCurveParams(0, new Float[]{
+                        Float.parseFloat(binding.editCurveA.getText().toString()),
+                        Float.parseFloat(binding.editCurveB.getText().toString()),
+                        Float.parseFloat(binding.editCurveC.getText().toString())
                 });
+                p.setTrackingCurve(0);
+
+                mObjectTrackingProcessor.setOnPoiUpdateListener(new GimbalFollowProcessor(mainActivity.mBluetoothLeService));
             }
         });
+
+        if (cameraViewModel.streamIsStarted()) {
+            continueLiveView();
+        }
+
         return root;
     }
 
+    /**
+     * Rebind existing live stream to newly created fragment
+     */
+    public void continueLiveView() {
+        binding.liveView.setLiveFeedReceiver(cameraViewModel.liveFeedReceiver);
+        cameraViewModel.liveFeedReceiver.setStatusListener(createLiveFeedStatusListener());
+    }
+
+    public void stopLiveView() {
+        PanasonicCamera camera = cameraViewModel.camera.getValue();
+
+        if (camera != null && camera.getLiveView() != null) {
+            camera.getLiveView().stop();
+        }
+    }
+
     public void startLiveView(PanasonicCamera camera) {
-        dashboardViewModel.mText.postValue("Enabling camera controls...");
+        cameraViewModel.text.postValue("Enabling camera controls...");
 
         camera.controls.enable(new ICameraControlListener() {
             @Override
             public void onSuccess() {
-                dashboardViewModel.mText.postValue("Starting stream...");
+                cameraViewModel.text.postValue("Starting stream...");
 
                 camera.controls.startStream(new ICameraControlListener() {
                     @Override
                     public void onSuccess() {
-                        LiveFeedReceiver liveFeedReceiver = new LiveFeedReceiver(getContext(), new ILiveFeedStatusListener() {
-                            @Override
-                            public void onProgress(String message) {
-                                dashboardViewModel.mText.postValue(message);
-                                mLiveView.refresh();
-                            }
-                        });
+                        cameraViewModel.streamStarted.postValue(true);
 
-                        mObjectTrackingProcessor.setOnPoiUpdateListener(new GimbalFollowProcessor(mainActivity.mBluetoothLeService));
-                        liveFeedReceiver.setImageProcessor(mObjectTrackingProcessor);
-
-                        dashboardViewModel.mText.postValue("Giving a bit of time...");
                         try {
+                            cameraViewModel.text.postValue("Giving a bit of time...");
                             Thread.sleep(1000);
-                            dashboardViewModel.mText.postValue("Stream started");
-                            mLiveView.setLiveFeedReceiver(liveFeedReceiver);
+                            cameraViewModel.text.postValue("Stream started");
 
-                            camera.createLiveView(liveFeedReceiver);
+                            cameraViewModel.liveFeedReceiver = createLiveFeedReceiver();
+                            binding.liveView.setLiveFeedReceiver(cameraViewModel.liveFeedReceiver);
+
+                            camera.createLiveView(cameraViewModel.liveFeedReceiver);
                             camera.getLiveView().start();
                         } catch (InterruptedException e) {
                             e.printStackTrace();
@@ -132,16 +175,45 @@ public class CameraFragment extends Fragment {
 
                     @Override
                     public void onFailure() {
-                        dashboardViewModel.mText.postValue("Failed to start stream");
+                        cameraViewModel.streamStarted.postValue(false);
+                        cameraViewModel.text.postValue("Failed to start stream");
                     }
                 });
             }
 
             @Override
             public void onFailure() {
-                dashboardViewModel.mText.postValue("Failed to establish controls");
+                cameraViewModel.text.postValue("Failed to establish controls");
             }
         });
+    }
+
+    /**
+     * Creates Receiver & Process or live feed from camera
+     *
+     * @return
+     */
+    public LiveFeedReceiver createLiveFeedReceiver() {
+        LiveFeedReceiver liveFeedReceiver = new LiveFeedReceiver(getContext());
+        liveFeedReceiver.setStatusListener(createLiveFeedStatusListener());
+
+        mObjectTrackingProcessor = new PoseTrackingProcessor(getContext(), mainActivity.executor);
+        mObjectTrackingProcessor.setOnPoiUpdateListener(new GimbalFollowProcessor(mainActivity.mBluetoothLeService));
+        liveFeedReceiver.setImageProcessor(mObjectTrackingProcessor);
+
+        return liveFeedReceiver;
+    }
+
+    public ILiveFeedStatusListener createLiveFeedStatusListener() {
+        return message -> {
+            cameraViewModel.text.postValue(message);
+
+            if (binding != null) {
+                binding.liveView.refresh();
+            } else {
+                Log.d(TAG, "liveView is Null");
+            }
+        };
     }
 
     @Override

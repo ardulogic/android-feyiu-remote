@@ -38,7 +38,7 @@ public class CalibrationFragment extends Fragment {
     private CalibrationRunnable mCalRunnable;
     private CalibrationViewModel mCalibrationModel;
 
-    private static HashMap<Integer, int[]> cal_map = new HashMap<Integer, int[]>(){{
+    private static HashMap<Integer, int[]> cal_map = new HashMap<Integer, int[]>() {{
         put(25, new int[]{65, 90, 100, 105, 135, 170, 200, 205, 235, 240});
         put(60, new int[]{55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215, 220, 225, 230, 235, 240});
         put(230, new int[]{52, 53, 54, 55, 56, 57, 58, 60, 61, 62, 64, 66, 68, 70, 71, 72, 74, 76, 78, 79, 80, 82, 83, 85, 90, 100, 110, 130, 140});
@@ -46,7 +46,7 @@ public class CalibrationFragment extends Fragment {
 
     private int i_joy_val = 0;
     private int i_joy_sen = 0;
-    private int i_dir = 0;
+    private int i_dir = -1;
     private boolean mCalibrating = false;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -58,11 +58,14 @@ public class CalibrationFragment extends Fragment {
         binding = FragmentCalibrationBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
-        final TextView posTextView = binding.textPos;
-        mCalibrationModel.getPosText().observe(getViewLifecycleOwner(), posTextView::setText);
 
-        final TextView calResTextView = binding.textCalResult;
-        mCalibrationModel.getCalResultText().observe(getViewLifecycleOwner(), calResTextView::setText);
+        mCalibrationModel.getPosText().observe(getViewLifecycleOwner(), binding.textGimbalStatus::setText);
+        mCalibrationModel.getCalResultText().observe(getViewLifecycleOwner(), binding.textCalibrationResult::setText);
+
+        mCalibrationModel.mProgressJoySens.observe(getViewLifecycleOwner(), binding.progressBarJoySens::setProgress);
+        mCalibrationModel.mTextJoySens.observe(getViewLifecycleOwner(), binding.textViewJoySens::setText);
+        mCalibrationModel.mProgressJoyVal.observe(getViewLifecycleOwner(), binding.progressBarJoyVal::setProgress);
+        mCalibrationModel.mTextJoyVal.observe(getViewLifecycleOwner(), binding.textViewJoyVal::setText);
 
         mainActivity = (MainActivity) getActivity();
 
@@ -90,6 +93,7 @@ public class CalibrationFragment extends Fragment {
     }
 
     private void startCalibration() {
+        i_dir = -1; // Necessary to correct dir inversion in first attempt
         i_joy_sen = 0;
         i_joy_val = 0;
 
@@ -124,8 +128,17 @@ public class CalibrationFragment extends Fragment {
 
             if (i_joy_sen == cal_map.size()) {
                 mCalibrating = false;
+                mCalibrationModel.mProgressJoySens.postValue(0);
+                mCalibrationModel.mProgressJoyVal.postValue(0);
+                mCalibrationModel.mTextJoySens.postValue("Joystick Sensistivity");
+                mCalibrationModel.mTextJoyVal.postValue("Joystick Value");
                 return;
             }
+
+            mCalibrationModel.mProgressJoySens.postValue(i_joy_sen * 100 / (cal_map.size() - 1));
+            mCalibrationModel.mProgressJoyVal.postValue(i_joy_val * 100 / (cal_map.get(getCalJoySens()).length - 1));
+            mCalibrationModel.mTextJoySens.postValue("Joystick Sensistivity: " + getCalJoySens());
+            mCalibrationModel.mTextJoyVal.postValue("Joystick Value: " + getCalJoyVal());
 
             mCalRunnable = new CalibrationRunnable(
                     getCalJoySens(),
@@ -152,7 +165,7 @@ public class CalibrationFragment extends Fragment {
     private void saveCalibrationAsPreset() {
         mCalPresetDb.deleteAll();
 
-        for(Map.Entry<Integer, int[]> entry : cal_map.entrySet()) {
+        for (Map.Entry<Integer, int[]> entry : cal_map.entrySet()) {
             int joy_sen = entry.getKey();
             int[] joy_vals = entry.getValue();
             for (int joy_val : joy_vals) {
@@ -187,9 +200,7 @@ public class CalibrationFragment extends Fragment {
         public void onChanged(@Nullable final byte[] value) {
             FeyiuState.getInstance().update(value);
 
-            final TextView mTextPosition = binding.textPos;
-
-            mTextPosition.setText(
+            binding.textGimbalStatus.setText(
                     FeyiuState.getInstance().pos_tilt.getValue().toString() + " | " +
                             FeyiuState.getInstance().pos_pan.getValue().toString() + " | " +
                             FeyiuState.getInstance().pos_yaw.getValue().toString());

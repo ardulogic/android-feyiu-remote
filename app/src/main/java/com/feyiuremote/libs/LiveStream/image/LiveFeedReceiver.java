@@ -16,7 +16,7 @@ import java.util.ArrayList;
 public class LiveFeedReceiver implements ILiveFeedReceiver {
     private final static String TAG = LiveFeedReceiver.class.getSimpleName();
 
-    private final ILiveFeedStatusListener statusListener;
+    private ILiveFeedStatusListener mStatusListener;
     private final Context context;
 
     private final ArrayList<RawImage> rawImageCache = new ArrayList<>();
@@ -26,9 +26,8 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
     private ILiveFeedProcessor mImageProcessor;
     private IGimbalProcessor mGimbalProcessor;
 
-    public LiveFeedReceiver(Context context, ILiveFeedStatusListener statusListener) {
+    public LiveFeedReceiver(Context context) {
         this.context = context;
-        this.statusListener = statusListener;
     }
 
     public void setImageProcessor(ILiveFeedProcessor processor) {
@@ -37,6 +36,10 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
 
     public void setGimbalProcessor(IGimbalProcessor processor) {
         this.mGimbalProcessor = processor;
+    }
+
+    public void setStatusListener(ILiveFeedStatusListener statusListener) {
+        this.mStatusListener = statusListener;
     }
 
     @Override
@@ -48,7 +51,7 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
             rawImageCache.remove(0);
         }
 
-        statusListener.onProgress("New frame received:" + frames);
+        mStatusListener.onProgress("New frame received:" + frames);
     }
 
     @Override
@@ -75,7 +78,7 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
     @Override
     public void onError(String message) {
         Log.e(TAG, message);
-        this.statusListener.onProgress(message);
+        this.mStatusListener.onProgress(message);
 
         try {
             Thread.sleep(1000);
@@ -87,13 +90,13 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
     @Override
     public void onWarning(String message) {
         Log.w(TAG, message);
-        this.statusListener.onProgress(message);
+        this.mStatusListener.onProgress(message);
     }
 
     @Override
     public void onInfo(String message) {
         Log.d(TAG, message);
-        this.statusListener.onProgress(message);
+        this.mStatusListener.onProgress(message);
 
         try {
             Thread.sleep(1000);

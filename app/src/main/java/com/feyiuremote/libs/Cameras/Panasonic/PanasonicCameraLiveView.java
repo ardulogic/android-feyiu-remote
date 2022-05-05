@@ -1,5 +1,7 @@
 package com.feyiuremote.libs.Cameras.Panasonic;
 
+import android.util.Log;
+
 import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
 import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
 import com.feyiuremote.libs.LiveStream.image.RawImage;
@@ -54,6 +56,10 @@ public class PanasonicCameraLiveView {
         streamActive = false;
     }
 
+    public boolean isActive() {
+        return streamActive;
+    }
+
     /**
      * Panasonic broadcasts on UDP port
      * DatagramSocket listens to that stream
@@ -82,6 +88,7 @@ public class PanasonicCameraLiveView {
                     if (frames > 250) {
                         this.requestStream();
                     }
+
                 } catch (SocketTimeoutException e) {
                     exceptions++;
 //                    mLiveViewListener.onWarning("Stream Socket Timed Out:" + exceptions);

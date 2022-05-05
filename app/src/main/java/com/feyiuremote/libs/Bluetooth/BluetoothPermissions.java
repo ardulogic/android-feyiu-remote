@@ -20,11 +20,13 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -37,39 +39,50 @@ public class BluetoothPermissions {
 
     private static final int REQUEST_ID_MULTIPLE_PERMISSIONS = 101;
 
-    private static final String[] permissions = new String[]{
-            Manifest.permission.BLUETOOTH,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
+    private static final ArrayList<String> permissions = new ArrayList<String>() {
+        {
+            add(Manifest.permission.BLUETOOTH);
+            add(Manifest.permission.ACCESS_FINE_LOCATION);
+            add(Manifest.permission.ACCESS_COARSE_LOCATION);
+        }
     };
 
-    private static final String[] ext_permissions = new String[]{
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_SCAN,
-    };
+    @RequiresApi(api = Build.VERSION_CODES.S)
+    private static ArrayList<String> getExtraPermissions() {
+        return new ArrayList<String>() {
+            {
+                add(Manifest.permission.BLUETOOTH_CONNECT);
+                add(Manifest.permission.BLUETOOTH_SCAN);
+            }
+        };
+    }
+
+    private static String[] getPermissions() {
+        ArrayList<String> permissions = BluetoothPermissions.permissions;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            for (String permission : getExtraPermissions()) {
+                permissions.add(permission);
+            }
+        }
+
+        return permissions.toArray(new String[permissions.size()]);
+    }
 
     public static void request(Activity activity) {
-        ActivityCompat.requestPermissions(activity, permissions, REQUEST_ID_MULTIPLE_PERMISSIONS);
+        ActivityCompat.requestPermissions(activity, getPermissions(), REQUEST_ID_MULTIPLE_PERMISSIONS);
     }
 
     public static boolean check(Context context) {
         Integer result = null;
         List<String> listPermissionsNeeded = new ArrayList<>();
 
-        for (String p : permissions) {
-            result = ContextCompat.checkSelfPermission(context.getApplicationContext(), p);
-            if (result != PackageManager.PERMISSION_GRANTED) {
-                listPermissionsNeeded.add(p);
-                Log.d(TAG, "Permission not granted:" + p);
-            }
-        }
-
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            for (String p : ext_permissions) {
+            for (String p : getPermissions()) {
                 result = ContextCompat.checkSelfPermission(context.getApplicationContext(), p);
                 if (result != PackageManager.PERMISSION_GRANTED) {
                     listPermissionsNeeded.add(p);
-                    Log.d(TAG, "Permission not granted:" + p);
+                    Log.e(TAG, "Permission not granted:" + p);
                 }
             }
         }

@@ -40,6 +40,7 @@ public class PanasonicCameraDiscovery extends CameraDiscovery {
             @Override
             public void onFinish() {
                 listener.onProgressUpdate("Discovery finished.");
+                listener.onFinish(foundCamUrls);
             }
 
             @Override
