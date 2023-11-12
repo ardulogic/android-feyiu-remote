@@ -14,6 +14,9 @@ public class CalibrationViewModel extends ViewModel {
     public final MutableLiveData<Integer> mProgressJoyVal = new MutableLiveData<>();
     public final MutableLiveData<String> mTextJoyVal = new MutableLiveData<>();
 
+    public final MutableLiveData<String> mTextProgress = new MutableLiveData<>();
+    public final MutableLiveData<Integer> mPercProgress = new MutableLiveData<>();
+
     public CalibrationViewModel() {
         mPosText.setValue("Waiting for position...");
         mCalResText.setValue("Waiting for calibration start...");
@@ -21,6 +24,8 @@ public class CalibrationViewModel extends ViewModel {
         mTextJoySens.setValue("Joystick Sensitivity");
         mProgressJoyVal.setValue(0);
         mTextJoySens.setValue("Joystick Value");
+        mTextProgress.setValue("0%");
+        mPercProgress.setValue(0);
     }
 
     public LiveData<String> getPosText() {

@@ -5,17 +5,10 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProvider;
 
 import com.feyiuremote.MainActivity;
 import com.feyiuremote.databinding.FragmentCalibrationBinding;
-import com.feyiuremote.libs.Bluetooth.BluetoothModel;
+import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
@@ -27,12 +20,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProvider;
+
 public class CalibrationFragment extends Fragment {
 
     private FragmentCalibrationBinding binding;
     private MainActivity mainActivity;
-    private BluetoothModel mBluetoothViewModel;
-    private boolean mCharacteristicReady;
+    private BluetoothViewModel mBluetoothViewModel;
     private CalibrationDbHelper mCalDb;
     private CalibrationPresetDbHelper mCalPresetDb;
     private CalibrationRunnable mCalRunnable;
@@ -49,11 +47,16 @@ public class CalibrationFragment extends Fragment {
     private int i_dir = -1;
     private boolean mCalibrating = false;
 
+    private int curr_calib_iteration = 0;
+    private int total_calib_iterations;
+
+    private Long time_calib_start = 0L;
+
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
 
         mCalibrationModel = new ViewModelProvider(this).get(CalibrationViewModel.class);
-        mBluetoothViewModel = new ViewModelProvider(requireActivity()).get(BluetoothModel.class);
+        mBluetoothViewModel = new ViewModelProvider(requireActivity()).get(BluetoothViewModel.class);
 
         binding = FragmentCalibrationBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
@@ -66,13 +69,16 @@ public class CalibrationFragment extends Fragment {
         mCalibrationModel.mTextJoySens.observe(getViewLifecycleOwner(), binding.textViewJoySens::setText);
         mCalibrationModel.mProgressJoyVal.observe(getViewLifecycleOwner(), binding.progressBarJoyVal::setProgress);
         mCalibrationModel.mTextJoyVal.observe(getViewLifecycleOwner(), binding.textViewJoyVal::setText);
+        mCalibrationModel.mTextProgress.observe(getViewLifecycleOwner(), binding.textCalibrationProgress::setText);
+        mCalibrationModel.mPercProgress.observe(getViewLifecycleOwner(), binding.circularProgressBar::setProgress);
 
         mainActivity = (MainActivity) getActivity();
 
         mCalDb = new CalibrationDbHelper(mainActivity);
         mCalPresetDb = new CalibrationPresetDbHelper(mainActivity);
+        total_calib_iterations = countCalibrationIterations();
 
-        mBluetoothViewModel.mCharacteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)
+        mBluetoothViewModel.characteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)
                 .observe(getViewLifecycleOwner(), btCharacteristicPositionObserver);
 
         binding.buttonCalibrate.setOnClickListener(view -> {
@@ -96,6 +102,8 @@ public class CalibrationFragment extends Fragment {
         i_dir = -1; // Necessary to correct dir inversion in first attempt
         i_joy_sen = 0;
         i_joy_val = 0;
+        curr_calib_iteration = 0;
+        time_calib_start = System.currentTimeMillis();
 
         mCalRunnable = new CalibrationRunnable(
                 getCalJoySens(),
@@ -104,7 +112,7 @@ public class CalibrationFragment extends Fragment {
                 mCalibrationListener
         );
 
-        mainActivity.executor.execute(mCalRunnable);
+        mCalRunnable.start();
         mCalibrating = true;
     }
 
@@ -115,6 +123,37 @@ public class CalibrationFragment extends Fragment {
 
     private int getCalJoyVal() {
         return cal_map.get(getCalJoySens())[i_joy_val];
+    }
+
+    private int countCalibrationIterations() {
+        int count = 0;
+        for (int key : cal_map.keySet()) {
+            int[] values = cal_map.get(key);
+            count += values.length;
+        }
+
+        return count * 2; // Pirmyn / atgal
+
+    }
+
+    private void updateProgressBar() {
+        // Interesting thing: curr_calib_iteration / total_calib_iterations * 100; wont work,
+        // because first operation returns 0 as integer
+        float progress = (float) curr_calib_iteration * 100 / total_calib_iterations;
+        mCalibrationModel.mPercProgress.setValue((int) progress);
+        mCalibrationModel.mTextProgress.setValue(String.valueOf((int) progress + "%"));
+
+        long time_elapsed = System.currentTimeMillis() - time_calib_start;
+        long estimated_total_time = (long) (time_elapsed / (progress / 100));
+        long time_remain_ms = (estimated_total_time - time_elapsed);
+        long time_remain_mins = time_remain_ms / 60000;
+        long time_remain_secs = time_remain_ms / 1000;
+
+        if (time_remain_mins >= 1) {
+            mCalibrationModel.mTextProgress.setValue(time_remain_mins + " min");
+        } else {
+            mCalibrationModel.mTextProgress.setValue(time_remain_secs + " s");
+        }
     }
 
     private void runNextCal() {
@@ -159,7 +198,7 @@ public class CalibrationFragment extends Fragment {
             i_dir = 0;
         }
 
-        mainActivity.executor.execute(mCalRunnable);
+        mCalRunnable.start();
     }
 
     private void saveCalibrationAsPreset() {
@@ -183,6 +222,9 @@ public class CalibrationFragment extends Fragment {
     private ICalibrationListener mCalibrationListener = new ICalibrationListener() {
         @Override
         public void onCalFinished(ContentValues cv) {
+            curr_calib_iteration++;
+            updateProgressBar();
+
             mCalibrationModel.mCalResText.postValue(cv.toString());
             mCalDb.updateOrCreate(cv);
 
@@ -201,12 +243,12 @@ public class CalibrationFragment extends Fragment {
             FeyiuState.getInstance().update(value);
 
             binding.textGimbalStatus.setText(
-                    FeyiuState.getInstance().pos_tilt.getValue().toString() + " | " +
-                            FeyiuState.getInstance().pos_pan.getValue().toString() + " | " +
-                            FeyiuState.getInstance().pos_yaw.getValue().toString());
+                    FeyiuState.getInstance().angle_tilt.posToString() + " | " +
+                            FeyiuState.getInstance().angle_pan.posToString() + " | " +
+                            FeyiuState.getInstance().angle_yaw.posToString());
 
             if (mCalRunnable != null) {
-                mCalRunnable.characteristicTick();
+                mCalRunnable.onGimbalUpdate();
             }
         }
     };

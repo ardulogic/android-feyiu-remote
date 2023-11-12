@@ -1,7 +1,6 @@
 package com.feyiuremote.libs.LiveStream;
 
 import android.content.Context;
-import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -13,7 +12,6 @@ import android.os.Looper;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
-import android.widget.ImageView;
 
 import com.feyiuremote.R;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedReceiver;
@@ -64,12 +62,16 @@ public class LiveImageView extends View {
         paint.setStyle(Paint.Style.STROKE);
 
         imageBitmap = mFeedReceiver.getImage(0);
-        Integer width = imageBitmap.getWidth();
-        Integer height = imageBitmap.getHeight();
-        Rect imageRect = new Rect(0, 0, width, height);
+        if (imageBitmap != null) {
+            Integer width = imageBitmap.getWidth();
+            Integer height = imageBitmap.getHeight();
+            Rect imageRect = new Rect(0, 0, width, height);
 
-        RectF viewRect = createRootRect(canvas, imageBitmap, rotationDegrees);
-        canvas.drawBitmap(imageBitmap, imageRect, viewRect, paint);
+            RectF viewRect = createRootRect(canvas, imageBitmap, rotationDegrees);
+            canvas.drawBitmap(imageBitmap, imageRect, viewRect, paint);
+        } else {
+            Log.e(TAG, "Could not draw a null bitmap!");
+        }
     }
 
     private RectF createRootRect(Canvas canvas, Bitmap bitmapToShow, Integer rotationDegrees) {

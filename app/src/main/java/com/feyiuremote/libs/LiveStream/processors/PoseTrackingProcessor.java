@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 
 import com.feyiuremote.libs.AI.trackers.GooglePoseTracker;
+import com.feyiuremote.libs.AI.trackers.POI;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedProcessor;
 import com.feyiuremote.libs.LiveStream.interfaces.IPoiUpdateListener;
 
@@ -19,6 +20,16 @@ public class PoseTrackingProcessor implements ILiveFeedProcessor {
 
     public void setOnPoiUpdateListener(IPoiUpdateListener listener) {
         this.mPoseTracker.setOnPoiUpdateListener(listener);
+    }
+
+    @Override
+    public POI getPOI() {
+        return null;
+    }
+
+    @Override
+    public void cancel() {
+
     }
 
     @Override

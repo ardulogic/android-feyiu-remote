@@ -36,25 +36,18 @@ abstract public class SQLiteTableWrapper {
         }
     }
 
+    protected abstract ContentValues parseRow(Cursor c);
+
     public boolean tableExists(String tableName) {
-        if (dbHandler != null) {
-            String query = "select DISTINCT tbl_name from sqlite_master where tbl_name = '" + tableName + "'";
-            try (Cursor cursor = dbHandler.rawQuery(query, null)) {
-                if (cursor != null) {
-                    if (cursor.getCount() > 0) {
-                        return true;
-                    }
-                }
-                return false;
-            }
+        String query = "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?";
+
+        try (Cursor cursor = dbHandler.rawQuery(query, new String[]{tableName})) {
+            return (cursor != null && cursor.getCount() > 0);
+        } catch (SQLException e) {
+            Log.e("Exception on query", e.toString());
         }
 
         return false;
-    }
-
-    public void close() {
-        dbHandler.close();
-        dbHandler = null;
     }
 
     public void create(ContentValues values) {
@@ -69,31 +62,24 @@ abstract public class SQLiteTableWrapper {
         dbHandler.delete(getDatabaseTableName(), "_id=" + rowId, null);
     }
 
-    protected abstract ContentValues parseRow(Cursor c);
-
-    public List<ContentValues> getAll() {
-        ArrayList<ContentValues> ret = new ArrayList<ContentValues>();
-        try {
-            Cursor c = dbHandler.query(getDatabaseTableName(), getColumnNames(),
-                    null, null, null, null, null);
-
-            return buildResults(c);
+    public ContentValues get(long rowId) {
+        try (Cursor c = dbHandler.query(getDatabaseTableName(), getColumnNames(), "_id=" + rowId, null, null, null, null)) {
+            if (c.getCount() > 0) {
+                c.moveToFirst();
+                return parseRow(c);
+            }
         } catch (SQLException e) {
             Log.e("Exception on query", e.toString());
         }
 
-        return ret;
+        return null;
     }
 
-    public ContentValues get(long rowId) {
-        ContentValues cv = new ContentValues();
-
-        Cursor c = dbHandler.query(getDatabaseTableName(), getColumnNames(), "_id=" + rowId,
-                null, null, null, null);
-
-        if (c.getCount() > 0) {
-            c.moveToFirst();
-            return parseRow(c);
+    public List<ContentValues> getAll() {
+        try (Cursor c = dbHandler.query(getDatabaseTableName(), getColumnNames(), null, null, null, null, null)) {
+            return buildResults(c);
+        } catch (SQLException e) {
+            Log.e("Exception on query", e.toString());
         }
 
         return null;
@@ -105,6 +91,11 @@ abstract public class SQLiteTableWrapper {
 
     public void deleteAll() {
         dbHandler.delete(getDatabaseTableName(), null, null);
+    }
+
+    public void close() {
+        dbHandler.close();
+        dbHandler = null;
     }
 
     protected ArrayList<ContentValues> buildResults(Cursor c) {

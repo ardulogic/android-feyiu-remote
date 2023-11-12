@@ -18,11 +18,22 @@ public class PanasonicCamera extends Camera {
     public PanasonicCameraLiveView live;
     public PanasonicCameraState state;
 
+    public PanasonicFocus focus;
+
     public PanasonicCamera(ExecutorService executor, String ddUrl) {
         super(executor);
 
         this.state = new PanasonicCameraState(ddUrl);
         this.controls = new PanasonicCameraControls(executor, this);
+    }
+
+    public void setFocusListener(IPanasonicCameraFocusListener listener) {
+        this.focus = new PanasonicFocus(executor, this, listener);
+        this.focus.start();
+    }
+
+    public boolean focusIsAvailable() {
+        return this.focus != null && this.focus.isHealthy();
     }
 
     public void createLiveView(LiveFeedReceiver feedReceiver) {
@@ -37,8 +48,7 @@ public class PanasonicCamera extends Camera {
         executor.execute(new Runnable(){
             @Override
             public void run() {
-                SimpleHttpClient http = new SimpleHttpClient();
-                String xml_string = http.httpGet(state.url, -1);
+                String xml_string = SimpleHttpClient.httpGet(state.url, -1);
 
                 if (!xml_string.isEmpty()) {
                     ArrayList<String> fields = new ArrayList<String>(Arrays.asList(
@@ -64,8 +74,7 @@ public class PanasonicCamera extends Camera {
         executor.execute(new Runnable(){
             @Override
             public void run() {
-                SimpleHttpClient http = new SimpleHttpClient();
-                String xml_string = http.httpGet(state.getBaseUrl() + "cam.cgi?mode=getstate", -1);
+                String xml_string = SimpleHttpClient.httpGet(state.getBaseUrl() + "cam.cgi?mode=getstate", -1);
 
                 if (!xml_string.isEmpty()) {
                     ArrayList<String> fields = new ArrayList<String>(Arrays.asList(
@@ -73,7 +82,8 @@ public class PanasonicCamera extends Camera {
                     ));
 
                     Map<String, String> data = XmlParser.parse(xml_string, fields);
-//                    state.battery = data.get("batt");
+                    state.battery = data.get("batt");
+                    state.isRecording = data.get("rec") == "off" ? false : true;
 //                    state.mode = data.get("cammode");
 
 

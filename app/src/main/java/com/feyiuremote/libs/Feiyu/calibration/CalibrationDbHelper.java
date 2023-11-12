@@ -13,6 +13,9 @@ import java.util.ArrayList;
 
 public class CalibrationDbHelper extends SQLiteTableWrapper {
 
+    public final String AXIS_PAN = "pan";
+    public final String AXIS_TILT = "tilt";
+
     public CalibrationDbHelper(Context context) {
         super(context);
     }
@@ -27,22 +30,26 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
         return "create table " + getDatabaseTableName() + "(_id integer primary key autoincrement, "
                 + "joy_sens int not null,"
                 + "joy_val int not null,"
-                + "pan_speed float not null,"
-                + "pan_overshoot int not null,"
-                + "pan_dist int not null,"
-                + "tilt_speed float not null,"
-                + "tilt_overshoot int not null,"
-                + "tilt_dist int not null,"
-                + "dir int not null"
+
+                + "pan_speed Double not null,"
+                + "pan_angle_overshoot Double not null,"
+                + "pan_angle_diff Double not null,"
+
+                + "tilt_speed Double Double null,"
+                + "tilt_angle_overshoot Double not null,"
+                + "tilt_angle_diff Double not null,"
+
+                + "dir int not null,"
+                + "time_ms int not null"
                 + ");";
     }
 
     @Override
     protected String[] getColumnNames() {
         return new String[]{"_id", "joy_sens", "joy_val",
-                "pan_speed", "pan_overshoot", "pan_dist",
-                "tilt_speed", "tilt_overshoot", "tilt_dist",
-                "dir"
+                "pan_speed", "pan_angle_overshoot", "pan_angle_diff",
+                "tilt_speed", "tilt_angle_overshoot", "tilt_angle_diff",
+                "dir", "time_ms"
         };
     }
 
@@ -53,13 +60,14 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
         row.put("_id", c.getLong(0));
         row.put("joy_sens", c.getInt(1));
         row.put("joy_val", c.getInt(2));
-        row.put("pan_speed", c.getFloat(3));
-        row.put("pan_overshoot", c.getInt(4));
-        row.put("pan_dist", c.getInt(5));
-        row.put("tilt_speed", c.getFloat(6));
-        row.put("tilt_overshoot", c.getInt(7));
-        row.put("tilt_dist", c.getInt(8));
+        row.put("pan_speed", c.getDouble(3));
+        row.put("pan_angle_overshoot", c.getDouble(4));
+        row.put("pan_angle_diff", c.getDouble(5));
+        row.put("tilt_speed", c.getDouble(6));
+        row.put("tilt_angle_overshoot", c.getDouble(7));
+        row.put("tilt_angle_diff", c.getDouble(8));
         row.put("dir", c.getInt(9));
+        row.put("time_ms", c.getInt(10));
 
         return row;
     }
@@ -84,47 +92,78 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
     }
 
     public ArrayList<ContentValues> getByJoyState(int joy_sen, int joy_val) {
-        try {
-            Cursor c = dbHandler.query(getDatabaseTableName(), getColumnNames()
-                    , "(joy_val=? OR joy_val=?) AND joy_sens=?", new String[]{
-                            String.valueOf(joy_val),
-                            String.valueOf(-joy_val),
-                            String.valueOf(joy_sen),
-                    }, null, null, null, null);
-
+        try (Cursor c = dbHandler.query(
+                getDatabaseTableName(),
+                getColumnNames(),
+                "(joy_val=? OR joy_val=?) AND joy_sens=?",
+                new String[]{
+                        String.valueOf(joy_val),
+                        String.valueOf(-joy_val),
+                        String.valueOf(joy_sen)
+                },
+                null,
+                null,
+                null,
+                null
+        )) {
             return buildResults(c);
         } catch (SQLException e) {
             Log.e("Exception on query", e.toString());
         }
 
-        return new ArrayList<ContentValues>();
+        return new ArrayList<>();
     }
 
-    public ContentValues getByClosestPanSpeed(float v, int dir) {
-        Cursor c = dbHandler.rawQuery(
-                "SELECT * FROM " + getDatabaseTableName() + " WHERE dir = ? ORDER BY ABS(? - pan_speed) " +
+    public ContentValues getByClosestSpeed(String axis, Double v) {
+        try (Cursor c = dbHandler.rawQuery(
+                "SELECT * FROM " + getDatabaseTableName() + " ORDER BY ABS(? - " + axis + "_speed) " +
                         "LIMIT 1;",
-                new String[]{String.valueOf(dir), String.valueOf(v)}
-        );
+                new String[]{String.valueOf(v)}
+        )) {
 
-        if (c.getCount() > 0) {
-            c.moveToFirst();
-            return parseRow(c);
+            if (c.getCount() > 0) {
+                c.moveToFirst();
+                return parseRow(c);
+            }
+        } catch (SQLException e) {
+            Log.e("Exception on query", e.toString());
         }
 
         return null;
     }
 
-    public ContentValues getByClosestTIltSpeed(float v, int dir) {
-        Cursor c = dbHandler.rawQuery(
-                "SELECT * FROM " + getDatabaseTableName() + " WHERE dir = ? ORDER BY ABS(? - tilt_speed) " +
+    public ContentValues getByClosestSpeed(String axis, int sens, Double v) {
+        try (Cursor c = dbHandler.rawQuery(
+                "SELECT * FROM " + getDatabaseTableName() + " WHERE joy_sens=" + sens + " ORDER BY ABS(? - " + axis + "_speed) " +
                         "LIMIT 1;",
-                new String[]{String.valueOf(dir), String.valueOf(v)}
-        );
+                new String[]{String.valueOf(v)}
+        )) {
 
-        if (c.getCount() > 0) {
-            c.moveToFirst();
-            return parseRow(c);
+            if (c.getCount() > 0) {
+                c.moveToFirst();
+                return parseRow(c);
+            }
+        } catch (SQLException e) {
+            Log.e("Exception on query", e.toString());
+        }
+
+        return null;
+    }
+
+    public ArrayList<ContentValues> getSlowerThan(String axis, int dir, Double max_speed) {
+        try (Cursor c = dbHandler.query(
+                getDatabaseTableName(),
+                getColumnNames(),
+                "dir=" + dir + " and ABS(" + axis + "_speed) <= " + Math.abs(max_speed),
+                null, // Selection Args DONT WORK WITH FUCKING NUMBERS!
+                null,
+                null,
+                null,
+                null
+        )) {
+            return buildResults(c);
+        } catch (SQLException e) {
+            Log.e("Exception on query", e.toString());
         }
 
         return null;

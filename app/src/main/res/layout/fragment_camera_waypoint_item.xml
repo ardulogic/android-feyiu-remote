@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="120dp"
+    android:descendantFocusability="blocksDescendants">
+
+    <!-- Image on the left -->
+
+    <Button
+        android:id="@+id/deleteButton"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:text="X"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Non-editable text fields for angle_pan and angle_tilt -->
+
+    <!-- Slider for angles -->
+
+    <!-- Delete button on the top right corner -->
+
+    <LinearLayout
+        android:id="@+id/linearLyoutWaypoint"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/imageWaypoint"
+            android:layout_width="160dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:layout_marginStart="0dp"
+            android:background="@color/primary"
+            android:scaleType="fitCenter"
+            android:src="@drawable/video_unavailable" />
+
+        <LinearLayout
+            android:id="@+id/linearLayoutWaypointControl"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#0A2E2E3D"
+            android:orientation="vertical">
+
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <Button
+                    android:id="@+id/buttonGoToWaypoint"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="50dp"
+                    android:layout_weight="1"
+                    android:minWidth="40dip"
+                    android:text=">"
+                    app:layout_constraintEnd_toEndOf="@+id/toggleButtonWaypointSpeed"
+                    app:layout_constraintStart_toStartOf="@+id/toggleButtonWaypointSpeed"
+                    app:layout_constraintTop_toBottomOf="@+id/toggleButtonWaypointSpeed" />
+
+                <com.google.android.material.button.MaterialButtonToggleGroup
+                    android:id="@+id/toggleButtonWaypointSpeed"
+                    android:layout_width="210dp"
+                    android:layout_height="50dp"
+                    android:gravity="center"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:singleSelection="true">
+
+                    <Button
+                        android:id="@+id/buttonWaypointSpeedSlow"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="35dip"
+                        android:text="Slow" />
+
+                    <Button
+                        android:id="@+id/buttonWaypointSpeedMed"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="35dip"
+                        android:text="Med" />
+
+                    <Button
+                        android:id="@+id/buttonWaypointSpeedFast"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="35dip"
+                        android:text="Fast" />
+
+                </com.google.android.material.button.MaterialButtonToggleGroup>
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </LinearLayout>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

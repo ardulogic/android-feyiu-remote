@@ -1,7 +1,5 @@
 package com.feyiuremote;
 
-import android.bluetooth.le.ScanResult;
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -12,37 +10,33 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.util.Log;
 
+import com.feyiuremote.databinding.ActivityMainBinding;
 import com.feyiuremote.libs.AI.detectors.FaceDetector;
 import com.feyiuremote.libs.Bluetooth.BluetoothIntent;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
-import com.feyiuremote.libs.Bluetooth.BluetoothModel;
+import com.feyiuremote.libs.Bluetooth.BluetoothLeUpdateReceiver;
 import com.feyiuremote.libs.Bluetooth.BluetoothPermissions;
+import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import org.opencv.android.OpenCVLoader;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
-import com.feyiuremote.databinding.ActivityMainBinding;
-
-import org.opencv.android.OpenCVLoader;
-
-import java.util.ArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import static com.feyiuremote.libs.Bluetooth.BluetoothLeService.EXTRA_DATA;
-import static com.feyiuremote.libs.Bluetooth.BluetoothLeService.EXTRA_ID;
 
 public class MainActivity extends AppCompatActivity {
 
     private final static String TAG = MainActivity.class.getSimpleName();
 
-    private BluetoothModel bluetoothModel;
+    private BluetoothViewModel bluetoothViewModel;
     private ActivityMainBinding binding;
     public BluetoothLeService mBluetoothLeService;
     public ExecutorService executor = Executors.newFixedThreadPool(10);
@@ -57,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private PowerManager.WakeLock mWakeLock;
+    private BluetoothLeUpdateReceiver mGattUpdateReceiver;
 
     @Override
     protected void onResume() {
@@ -80,8 +75,10 @@ public class MainActivity extends AppCompatActivity {
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
         NavigationUI.setupWithNavController(binding.navView, navController);
 
-        bluetoothModel = new ViewModelProvider(this).get(BluetoothModel.class);
+        bluetoothViewModel = new ViewModelProvider(this).get(BluetoothViewModel.class);
         startBtService();
+
+        mGattUpdateReceiver = new BluetoothLeUpdateReceiver(bluetoothViewModel);
         registerReceiver(mGattUpdateReceiver, BluetoothIntent.getFilter());
 
         WifiManager wm = (WifiManager) getSystemService(Context.WIFI_SERVICE);
@@ -133,64 +130,6 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServiceDisconnected(ComponentName componentName) {
             mBluetoothLeService = null;
-        }
-    };
-
-    private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            switch (intent.getAction()) {
-                case BluetoothLeService.ACTION_BT_DISABLED:
-                    Log.e(TAG, "Bluetooth disabled!");
-                    bluetoothModel.mStatus.setValue("Bluetooth is disabled!");
-                    bluetoothModel.mConnected.setValue(false);
-                    bluetoothModel.mServicesDiscovered.setValue(false);
-                    break;
-
-                case BluetoothLeService.ACTION_GATT_CONNECTED:
-                    Log.d(TAG, "Connected!");
-                    bluetoothModel.mStatus.setValue("Connected.");
-                    bluetoothModel.mConnected.setValue(true);
-                    bluetoothModel.mServicesDiscovered.setValue(false);
-                    break;
-
-                case BluetoothLeService.ACTION_GATT_CONNECTING:
-                    Log.d(TAG, "Connected!");
-                    bluetoothModel.mStatus.setValue("Connecting...");
-                    bluetoothModel.mConnected.setValue(false);
-                    bluetoothModel.mServicesDiscovered.setValue(false);
-                    break;
-
-                case BluetoothLeService.ACTION_GATT_DISCONNECTED:
-                    Log.d(TAG, "Disconnected!");
-                    bluetoothModel.mStatus.setValue("Disconnected.");
-                    bluetoothModel.mConnected.setValue(false);
-                    bluetoothModel.mServicesDiscovered.setValue(false);
-                    break;
-
-                case BluetoothLeService.ACTION_SCAN_RESULTS:
-                    Log.d(TAG, "Scan results updated");
-                    ArrayList<ScanResult> scanResults = intent.getParcelableArrayListExtra(EXTRA_DATA);
-                    Log.d(TAG, scanResults.toString());
-                    bluetoothModel.mStatus.postValue("Scan results have been updated");
-                    bluetoothModel.mScanResults.postValue(scanResults);
-                    break;
-
-                case BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED:
-                    Log.d(TAG, "Services discovered");
-                    bluetoothModel.mStatus.postValue("Services have been discovered");
-                    bluetoothModel.mServicesDiscovered.setValue(true);
-                    break;
-
-                case BluetoothLeService.ACTION_GATT_CHARACTERISTIC_UPDATE:
-                    String id = intent.getStringExtra(EXTRA_ID);
-                    if (bluetoothModel.mCharacteristics.containsKey(id)) {
-                        bluetoothModel.mCharacteristics.get(id).setValue(intent.getByteArrayExtra(EXTRA_DATA));
-                    } else {
-                        bluetoothModel.mCharacteristics.put(id, new MutableLiveData<byte[]>(intent.getByteArrayExtra(EXTRA_DATA)));
-                    }
-//                    Log.d(TAG, "Characteristic updated:" + intent.getByteArrayExtra(EXTRA_DATA).toString());
-            }
         }
     };
 

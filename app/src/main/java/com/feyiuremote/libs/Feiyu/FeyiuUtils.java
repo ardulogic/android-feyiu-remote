@@ -1,10 +1,5 @@
 package com.feyiuremote.libs.Feiyu;
 
-import android.util.Log;
-
-import java.math.BigInteger;
-import java.util.HashMap;
-
 public class FeyiuUtils {
 
     private final static String TAG = FeyiuUtils.class.getSimpleName();
@@ -30,6 +25,14 @@ public class FeyiuUtils {
         String hex = "a55a03000e0000050000"
                 + intToTwoByteReversedHex(x_speed)
                 + intToTwoByteReversedHex(y_speed);
+
+        return FeyiuCrc.calc(hex);
+    }
+
+    public static String stop() {
+        String hex = "a55a03000e0000050000"
+                + intToTwoByteReversedHex(0)
+                + intToTwoByteReversedHex(0);
 
         return FeyiuCrc.calc(hex);
     }

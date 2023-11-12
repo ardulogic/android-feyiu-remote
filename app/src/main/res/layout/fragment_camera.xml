@@ -5,65 +5,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:paddingBottom="80dp"
-    tools:context=".ui.camera.DashboardFragment">
+    tools:context=".ui.camera.CameraFragment">
 
-    <LinearLayout
-        android:id="@+id/linearLayout2"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toTopOf="@+id/textCameraStatus"
-        app:layout_constraintTop_toBottomOf="@+id/liveView">
-
-        <EditText
-            android:id="@+id/editCurveC"
-            android:layout_width="100dp"
-            android:layout_height="42dp"
-            android:layout_weight="1"
-            android:ems="10"
-            android:inputType="textPersonName"
-            android:text="A" />
-
-        <EditText
-            android:id="@+id/editCurveB"
-            android:layout_width="100dp"
-            android:layout_height="42dp"
-            android:layout_weight="1"
-            android:ems="10"
-            android:inputType="textPersonName"
-            android:text="B" />
-
-        <EditText
-            android:id="@+id/editCurveA"
-            android:layout_width="100dp"
-            android:layout_height="42dp"
-            android:ems="10"
-            android:inputType="textPersonName"
-            android:text="C" />
-    </LinearLayout>
-
-    <Button
-        android:id="@+id/buttonCameraConnect"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Connect"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-
-    <TextView
-        android:id="@+id/textCameraStatus"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
-        android:text="Position Unavailable"
-        android:textAlignment="center"
-        android:textSize="10dp"
-        app:layout_constraintBottom_toTopOf="@+id/buttonCameraConnect"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
-        app:layout_constraintStart_toStartOf="parent" />
 
     <view
         android:id="@+id/liveView"
@@ -75,7 +18,6 @@
         android:gravity="center|top"
         android:scaleType="fitCenter"
         android:visibility="visible"
-        app:layout_constraintBottom_toTopOf="@+id/textCameraStatus"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -91,18 +33,180 @@
         android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="@id/liveView"
         app:layout_constraintEnd_toEndOf="@id/liveView"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="@id/liveView"
-        app:layout_constraintTop_toTopOf="@id/liveView" />
+        app:layout_constraintTop_toTopOf="@id/liveView"
+        app:layout_constraintVertical_bias="0.0" />
 
-    <Button
-        android:id="@+id/buttonSaveCurve"
+    <HorizontalScrollView
+        android:id="@+id/horizontalScrollViewCamera"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/horizontalScrollViewGimbal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@drawable/layout_divider"
+            android:orientation="horizontal"
+            android:showDividers="middle">
+
+            <Button
+                android:id="@+id/buttonCameraConnect"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Connect" />
+
+            <Button
+                android:id="@+id/buttonCameraFocus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Focus" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonCameraTakeVideo"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:text="REC"
+                app:icon="@drawable/record_paused"
+                app:iconSize="16dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonCameraTakePhoto"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:text="PIC"
+                app:icon="@drawable/photo"
+                app:iconSize="32dp"
+                app:iconTintMode="src_in" />
+
+
+        </LinearLayout>
+
+    </HorizontalScrollView>
+
+    <HorizontalScrollView
+        android:id="@+id/horizontalScrollViewGimbal"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@drawable/layout_divider"
+            android:orientation="horizontal"
+            android:showDividers="middle">
+
+            <Button
+                android:id="@+id/buttonAddWaypoint"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:text="+ WP" />
+
+            <Button
+                android:id="@+id/buttonPlayWaypoints"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="St-Stop" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonPlayWaypointsBlend"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:text="Blend"
+                app:iconSize="16dp" />
+
+        </LinearLayout>
+
+    </HorizontalScrollView>
+
+    <ProgressBar
+        android:id="@+id/progressBarFocus"
+        style="@style/VerticalProgressBarStyle"
+        android:layout_width="4dp"
+        android:layout_height="0dp"
+        android:layout_marginBottom="40dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="60dp"
+        android:orientation="horizontal"
+        android:progress="0"
+        android:progressDrawable="@drawable/vertical_progress_bar"
+        android:progressTintMode="src_in"
+        android:rotation="180"
+        android:scrollbarStyle="outsideInset"
+        app:layout_constraintBottom_toBottomOf="@+id/liveView"
+        app:layout_constraintEnd_toEndOf="@+id/liveView"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/textGimbalAngles"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Upd Curve"
-        app:layout_constraintBottom_toBottomOf="@+id/buttonCameraConnect"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="16dp"
+        android:text="- °, - °"
+        android:textColor="#FFFFFF"
+        app:layout_constraintEnd_toEndOf="@+id/liveView"
+        app:layout_constraintTop_toTopOf="@+id/liveView" />
+
+
+    <TextView
+        android:id="@+id/textCameraFocus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:text="- %"
+        android:textColor="#FFFFFF"
+        android:textSize="10sp"
+        app:layout_constraintBottom_toBottomOf="@+id/progressBarFocus"
+        app:layout_constraintEnd_toStartOf="@+id/progressBarFocus"
+        app:layout_constraintTop_toTopOf="@+id/progressBarFocus" />
+
+    <TextView
+        android:id="@+id/textGimbalSpeeds"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:text="- °, - °"
+        android:textColor="#FFFFFF"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/liveView" />
+
+    <TextView
+        android:id="@+id/textCameraStatus"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:text="Position Unavailable"
+        android:textAlignment="center"
+        android:textColor="#B3B3B3"
+        android:textSize="10sp"
+        app:layout_constraintBottom_toBottomOf="@+id/liveView"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.728"
-        app:layout_constraintStart_toEndOf="@+id/buttonCameraConnect"
-        app:layout_constraintTop_toTopOf="@+id/buttonCameraConnect" />
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/listWaypoints"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:divider="@drawable/layout_divider"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintBottom_toTopOf="@+id/horizontalScrollViewCamera"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/liveView" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

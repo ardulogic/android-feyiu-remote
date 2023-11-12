@@ -1,6 +1,7 @@
 package com.feyiuremote.libs.AI.trackers;
 
 import android.graphics.Bitmap;
+import android.util.Log;
 
 import com.feyiuremote.libs.AI.ObjectUtils;
 import com.feyiuremote.libs.AI.views.RectangleDrawView;
@@ -23,7 +24,7 @@ import boofcv.struct.image.GrayU8;
 import georegression.struct.shapes.Quadrilateral_F64;
 
 public class BCVObjectTracker {
-
+    private final String TAG = BCVObjectTracker.class.getSimpleName();
     public final static String TRACKER_CIRCULANT = "Circulant";
     public final static String TRACKER_TLD = "TLD";
 
@@ -47,6 +48,7 @@ public class BCVObjectTracker {
     private GrayU8 mTrackingImage;
     private Quadrilateral_F64 mTrackingIntPoly;
     private IPoiUpdateListener mPoiUpdateListener;
+    private POI mPoi;
 
     public BCVObjectTracker(RectangleDrawView rectDrawView, ExecutorService executor) {
         this(TRACKER_CIRCULANT, rectDrawView);
@@ -68,6 +70,7 @@ public class BCVObjectTracker {
     }
 
     public Bitmap onNewFrame(Bitmap bitmap) {
+        // Sometimes bitmap is null
         mImageMatrix = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC1);
         Utils.bitmapToMat(bitmap, mImageMatrix);
 
@@ -126,14 +129,31 @@ public class BCVObjectTracker {
                         mTracker.initialize(mTrackingImage, mTrackingIntPoly);
                         mInitIsPending = false;
                     } else {
-                        mTracker.process(mTrackingImage, mTrackingIntPoly);
-                        mTrackingIntRectangle = ObjectUtils.polygonToRect(mTrackingIntPoly);
+                        try {
+                            mTracker.process(mTrackingImage, mTrackingIntPoly);
+                            mTrackingIntRectangle = ObjectUtils.polygonToRect(mTrackingIntPoly);
+                            updatePOI();
+                        } catch (IllegalArgumentException e) {
+                            Log.e(TAG, "Tracking image size has changed!");
+                            mTracker.initialize(mTrackingImage, mTrackingIntPoly);
+                        }
                     }
 
                     mIsProcessing = false;
                 }
             });
         }
+    }
+
+    private void updatePOI() {
+        mPoi = new POI(
+                mTrackingIntRectangle.x,
+                mTrackingIntRectangle.y,
+                mTrackingIntRectangle.width,
+                mTrackingIntRectangle.height,
+                mTrackingImage.width,
+                mTrackingImage.height
+        );
     }
 
     public Bitmap drawTrackingRectOnInput() {
@@ -146,10 +166,17 @@ public class BCVObjectTracker {
         return bitmapOut;
     }
 
+    /**
+     * This is in case we want to keep input image intact
+     * and draw rect over its copy
+     *
+     * @param originalBitmap
+     * @return
+     */
     public Bitmap drawTrackingRect(Bitmap originalBitmap) {
         // Rectangle drawing area is not equal in pixels to the original image
-        Float widthRatio = originalBitmap.getWidth() / (float) mAreaW;
-        Float heightRatio = originalBitmap.getHeight() / (float) mAreaH;
+        float widthRatio = originalBitmap.getWidth() / (float) mAreaW;
+        float heightRatio = originalBitmap.getHeight() / (float) mAreaH;
 
         Rect imgTrackingRectangle = ObjectUtils.transformRect(mTrackingExtRectangle, widthRatio, heightRatio);
 
@@ -161,6 +188,11 @@ public class BCVObjectTracker {
         Utils.matToBitmap(im, bitmapOut);
 
         return bitmapOut;
+    }
+
+
+    public POI getPOI() {
+        return mPoi;
     }
 
     private class mPoiUpdateRunnable implements Runnable {

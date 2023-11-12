@@ -34,6 +34,7 @@ public class PanasonicCameraLiveView {
     private int requestRetries = 0;
 
 
+
     public PanasonicCameraLiveView(ExecutorService executor, PanasonicCamera camera, LiveFeedReceiver receiver) {
         this.executor = executor;
         this.mCamera = camera;
@@ -65,54 +66,65 @@ public class PanasonicCameraLiveView {
      * DatagramSocket listens to that stream
      */
     private void listenToUdpSocket() {
-        int exceptions = 0; frames = 0;
+        this.withLiveViewReceiver(() -> {
+            int exceptions = 0;
+            frames = 0;
 
-        DatagramSocket socket = null;
-        byte[] buffer = new byte[RECEIVE_BUFFER_SIZE];
-        DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
+            DatagramSocket socket = null;
+            byte[] buffer = new byte[RECEIVE_BUFFER_SIZE];
+            DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
 
-        try {
-            socket = new DatagramSocket(PORT);
-            socket.setReuseAddress(true);
-            streamActive = true;
+            try {
+                socket = new DatagramSocket(PORT);
+                socket.setReuseAddress(true);
+                streamActive = true;
 
-            while (streamActive && exceptions < MAX_EXCEPTIONS) {
-                try {
-                    socket.setSoTimeout(TIMEOUT_FRAME);
-                    socket.receive(receivePacket);
+                while (streamActive && exceptions < MAX_EXCEPTIONS) {
+                    try {
+                        socket.setSoTimeout(TIMEOUT_FRAME);
+                        socket.receive(receivePacket);
 
-                    onImagePacketReceived(receivePacket);
-                    exceptions = 0;
-                    frames++;
+                        onImagePacketReceived(receivePacket);
+                        exceptions = 0;
+                        frames++;
 
-                    if (frames > 250) {
-                        this.requestStream();
+                        if (frames > 200) {
+                            this.requestStream();
+                        }
+
+                    } catch (SocketTimeoutException e) {
+                        exceptions++;
+//                    mLiveViewListener.onWarning("Stream Socket Timed Out:" + exceptions);
+                    } catch (IOException e) {
+                        exceptions++;
+                        mLiveViewReceiver.onError("Stream IO exception:" + exceptions);
+                        e.printStackTrace();
+                        break;
+                    }
+                }
+            } catch (SocketException e) {
+                mLiveViewReceiver.onError("Could not open socket!");
+                e.printStackTrace();
+            } finally {
+                if (socket != null) {
+                    if (!socket.isClosed()) {
+                        socket.close();
                     }
 
-                } catch (SocketTimeoutException e) {
-                    exceptions++;
-//                    mLiveViewListener.onWarning("Stream Socket Timed Out:" + exceptions);
-                } catch (IOException e) {
-                    exceptions++;
-                    mLiveViewReceiver.onError("Stream IO exception:" + exceptions);
-                    e.printStackTrace();
-                    break;
+                    mLiveViewReceiver.onInfo("Socket has been closed.");
                 }
             }
-        } catch (SocketException e) {
-            mLiveViewReceiver.onError("Could not open socket!");
-            e.printStackTrace();
-        } finally {
-            if (socket != null) {
-                if (!socket.isClosed()) {
-                    socket.close();
-                }
 
-                mLiveViewReceiver.onInfo("Socket has been closed.");
-            }
+            mLiveViewReceiver.onError("Stream has finished.");
+        });
+    }
+
+    private void withLiveViewReceiver(Runnable r) {
+        if (mLiveViewReceiver != null) {
+            r.run();
+        } else {
+            Log.e(TAG, "Live view receiver was not set!");
         }
-
-        mLiveViewReceiver.onError("Stream has finished.");
     }
 
     /**

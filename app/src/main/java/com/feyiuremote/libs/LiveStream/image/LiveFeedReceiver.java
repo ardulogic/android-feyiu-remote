@@ -6,17 +6,16 @@ import android.graphics.BitmapFactory;
 import android.util.Log;
 
 import com.feyiuremote.R;
-import com.feyiuremote.libs.Feiyu.processors.IGimbalProcessor;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedProcessor;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedReceiver;
-import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedStatusListener;
+import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedUpdateListener;
 
 import java.util.ArrayList;
 
 public class LiveFeedReceiver implements ILiveFeedReceiver {
     private final static String TAG = LiveFeedReceiver.class.getSimpleName();
 
-    private ILiveFeedStatusListener mStatusListener;
+    private ILiveFeedUpdateListener mStatusListener;
     private final Context context;
 
     private final ArrayList<RawImage> rawImageCache = new ArrayList<>();
@@ -24,7 +23,6 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
 
     private Long frames = 0L;
     private ILiveFeedProcessor mImageProcessor;
-    private IGimbalProcessor mGimbalProcessor;
 
     public LiveFeedReceiver(Context context) {
         this.context = context;
@@ -34,11 +32,7 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
         this.mImageProcessor = processor;
     }
 
-    public void setGimbalProcessor(IGimbalProcessor processor) {
-        this.mGimbalProcessor = processor;
-    }
-
-    public void setStatusListener(ILiveFeedStatusListener statusListener) {
+    public void setUpdateListener(ILiveFeedUpdateListener statusListener) {
         this.mStatusListener = statusListener;
     }
 
@@ -51,34 +45,32 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
             rawImageCache.remove(0);
         }
 
-        mStatusListener.onProgress("New frame received:" + frames);
+        mStatusListener.onUpdate("New frame received:" + frames);
     }
 
     @Override
     public Bitmap getImage(int index) {
-        Bitmap bitmap;
-
         if (rawImageCache.size() == 0) {
             return BitmapFactory.decodeResource(context.getResources(), R.drawable.video_unavailable);
         }
 
         index = index >= rawImageCache.size() ? rawImageCache.size() - 1 : index;
+        Bitmap cachedImage = rawImageCache.get(index).toBitmap();
 
-//        return rawImageCache.get(index).toBitmap();
-
-        if (this.mImageProcessor != null) {
-            bitmap = mImageProcessor.process(rawImageCache.get(index).toBitmap());
+        if (this.mImageProcessor != null && cachedImage != null) {
+            // This is used to draw on the image (reactangles and shit)
+            return mImageProcessor.process(cachedImage);
         } else {
-            bitmap = rawImageCache.get(index).toBitmap();
+            // Don't apply any effects if mImageProcessor is not available
+            return cachedImage;
         }
-
-        return bitmap;
     }
+
 
     @Override
     public void onError(String message) {
         Log.e(TAG, message);
-        this.mStatusListener.onProgress(message);
+        this.mStatusListener.onUpdate(message);
 
         try {
             Thread.sleep(1000);
@@ -90,13 +82,13 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
     @Override
     public void onWarning(String message) {
         Log.w(TAG, message);
-        this.mStatusListener.onProgress(message);
+        this.mStatusListener.onUpdate(message);
     }
 
     @Override
     public void onInfo(String message) {
         Log.d(TAG, message);
-        this.mStatusListener.onProgress(message);
+        this.mStatusListener.onUpdate(message);
 
         try {
             Thread.sleep(1000);
