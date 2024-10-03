@@ -14,7 +14,7 @@ public class CameraFocusObserver implements Observer<Double> {
 
     @Override
     public void onChanged(Double position) {
-        binding.progressBarFocus.setProgress((int) Math.round(100 - position));
+//        binding.progressBarFocus.setProgress((int) Math.round(100 - position));
         binding.textCameraFocus.setText(String.format("%.1f%%", position));
     }
 }

@@ -83,7 +83,7 @@ public class BitmapConverter implements ImageAnalysis.Analyzer {
         yuvImage.compressToJpeg(new Rect(0, 0, width, height), 100, out);
         imageProxy.close();
 
-        return new RawImage(out.toByteArray(), rotationDegrees);
+        return new RawImage(out.toByteArray());
     }
 
 
@@ -157,7 +157,7 @@ public class BitmapConverter implements ImageAnalysis.Analyzer {
         yuvImage.compressToJpeg(new Rect(0, 0, width, height), 100, out);
         imageProxy.close();
 
-        return new RawImage(out.toByteArray(), rotationDegrees);
+        return new RawImage(out.toByteArray());
     }
 
     /**
@@ -190,7 +190,7 @@ public class BitmapConverter implements ImageAnalysis.Analyzer {
         yuvImage.compressToJpeg(new Rect(0, 0, width, height), 100, out);
         imageProxy.close();
 
-        return new RawImage(out.toByteArray(), rotationDegrees);
+        return new RawImage(out.toByteArray());
     }
 
 }

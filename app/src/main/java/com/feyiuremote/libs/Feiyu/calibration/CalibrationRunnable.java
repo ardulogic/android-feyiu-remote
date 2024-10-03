@@ -17,6 +17,7 @@ import java.util.LinkedList;
 
 public class CalibrationRunnable {
 
+    private String name;
     private final int mJoySens;
     private final int mJoyVal;
     private final BluetoothLeService mBt;
@@ -27,7 +28,8 @@ public class CalibrationRunnable {
 
     private boolean isActive = false;
 
-    public CalibrationRunnable(int joy_sens, int joy_val, BluetoothLeService bt, ICalibrationListener listener) {
+    public CalibrationRunnable(String name, int joy_sens, int joy_val, BluetoothLeService bt, ICalibrationListener listener) {
+        this.name = name;
         this.mJoySens = joy_sens;
         this.mJoyVal = joy_val;
         this.mBt = bt;
@@ -94,7 +96,7 @@ public class CalibrationRunnable {
                 time[START] = command.actual_execution_time;
             } else if (command instanceof MoveLockedCommand) {
                 move_commands++;
-                if (move_commands == 6) {
+                if (move_commands == 5) {
                     pan_angle[ACCELERATED] = command.pan_angle;
                     tilt_angle[ACCELERATED] = command.tilt_angle;
                     time[ACCELERATED] = command.actual_execution_time;
@@ -115,6 +117,7 @@ public class CalibrationRunnable {
         DecimalFormat df = new DecimalFormat("#.###");
 
         ContentValues cv = new ContentValues();
+        cv.put("name", name);
         cv.put("joy_sens", mJoySens);
         cv.put("joy_val", mJoyVal);
 
@@ -143,7 +146,7 @@ public class CalibrationRunnable {
 
         commandQueue.add(new StartCommand(mBt, mJoyVal));
 
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 12; i++) {
             commandQueue.add(new MoveLockedCommand(mBt, mJoyVal));
         }
 

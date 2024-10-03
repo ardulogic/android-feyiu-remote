@@ -8543,12 +8543,12 @@ public class Imgproc {
      * use {@code rec} parameter as alternative specification of the drawn rectangle: `r.tl() and
      * r.br()-Point(1,1)` are opposite corners
      * @param img automatically generated
-     * @param rec automatically generated
+     * @param r automatically generated
      * @param color automatically generated
      * @param thickness automatically generated
      */
-    public static void rectangle(Mat img, Rect rec, Scalar color, int thickness) {
-        rectangle_6(img.nativeObj, rec.x, rec.y, rec.width, rec.height, color.val[0], color.val[1], color.val[2], color.val[3], thickness);
+    public static void rectangle(Mat img, Rect r, Scalar color, int thickness) {
+        rectangle_6(img.nativeObj, r.x, r.y, r.width, r.height, color.val[0], color.val[1], color.val[2], color.val[3], thickness);
     }
 
     /**

@@ -32,16 +32,15 @@
 
     <com.google.android.material.progressindicator.CircularProgressIndicator
         android:id="@+id/circularProgressBar"
-        android:layout_width="100dp"
-        android:layout_height="100dp"
-        android:layout_marginBottom="16dp"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
         android:progress="80"
         android:scrollbarSize="500dp"
-        app:indicatorSize="100dp"
-        app:layout_constraintBottom_toTopOf="@+id/textViewJoySens"
+        app:indicatorSize="300dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:trackColor="#D6D6D6" />
+        app:trackColor="#D6D6D6"
+        tools:layout_editor_absoluteY="234dp" />
 
     <ProgressBar
         android:id="@+id/progressBarJoySens"
@@ -72,10 +71,12 @@
         android:id="@+id/textCalibrationResult"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
+        android:layout_marginBottom="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
         android:textAlignment="center"
-        android:textSize="20sp"
+        android:textSize="12sp"
         app:layout_constraintBottom_toTopOf="@+id/circularProgressBar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"

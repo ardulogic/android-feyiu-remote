@@ -304,7 +304,7 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
             return gson.fromJson(json, listType);
         }
 
-        return null;
+        return new ArrayList<>();
     }
 
     public class WaypointDiffCallback extends DiffUtil.Callback {

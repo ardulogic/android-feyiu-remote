@@ -13,4 +13,5 @@
     <color name="primary">#2E2E3D</color>
     <color name="secondary">#221B2E</color>
     <color name="tertiary">#373B4A</color>
+    <color name="lock_overlay">#0A000000</color>
 </resources>

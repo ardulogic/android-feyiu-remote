@@ -58,6 +58,15 @@ public class BluetoothLeService extends Service {
     public final static String ACTION_BT_DISABLED =
             "bluetooth.le.ACTION_BT_DISABLED";
 
+    public final static String ACTION_BT_ENABLED =
+            "bluetooth.le.ACTION_BT_ENABLED";
+
+    public final static String ACTION_BT_TURNING_ON =
+            "bluetooth.le.ACTION_BT_TURNING_ON";
+
+    public final static String ACTION_BT_TURNING_OFF =
+            "bluetooth.le.ACTION_BT_TURNING_OFF";
+
     public final static String ACTION_BT_WRONG_ADDRESS =
             "bluetooth.le.ACTION_BT_WRONG_ADDRESS";
     public final static String ACTION_SCAN_RESULTS =
@@ -69,7 +78,7 @@ public class BluetoothLeService extends Service {
 
     public final static String ACTION_GATT_DISCONNECTING =
             "bluetooth.le.ACTION_GATT_DISCONNECTING";
-    private static final String ACTION_GATT_CONNECTION_FAILED =
+    public static final String ACTION_GATT_CONNECTION_FAILED =
             "bluetooth.le.ACTION_GATT_CONNECTION_FAILED";
     public final static String ACTION_GATT_DISCONNECTED =
             "bluetooth.le.ACTION_GATT_DISCONNECTED";
@@ -187,19 +196,18 @@ public class BluetoothLeService extends Service {
 
                 if (mBluetoothGatt.connect()) {
                     broadcastGattUpdate(ACTION_GATT_CONNECTING);
-                } else {
-                    broadcastGattUpdate(ACTION_GATT_DISCONNECTED);
+                    return;
                 }
+            }
+
+            final BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
+            if (device != null) {
+                mBluetoothGatt = device.connectGatt(this, false, mGattCallback);
+                mBluetoothDeviceAddress = address;
+                broadcastGattUpdate(ACTION_GATT_CONNECTING);
             } else {
-                final BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
-                if (device != null) {
-                    mBluetoothGatt = device.connectGatt(this, false, mGattCallback);
-                    mBluetoothDeviceAddress = address;
-                    broadcastGattUpdate(ACTION_GATT_CONNECTING);
-                } else {
-                    Log.e(TAG, "Could not connect to device, it no longer exists!");
-                    broadcastGattUpdate(ACTION_GATT_DISCONNECTED);
-                }
+                Log.e(TAG, "Could not connect to device, it no longer exists!");
+                broadcastGattUpdate(ACTION_GATT_CONNECTION_FAILED);
             }
         });
     }
@@ -249,6 +257,8 @@ public class BluetoothLeService extends Service {
         mBluetoothGatt.disconnect();
         mBluetoothGatt.close();
         mBluetoothGatt = null;
+
+        broadcastGattUpdate(ACTION_GATT_DISCONNECTED);
     }
 
     /**

@@ -1,7 +1,13 @@
 package com.feyiuremote.libs.LiveStream.interfaces;
 
+import android.graphics.Bitmap;
+
+import com.feyiuremote.libs.LiveStream.image.RawImage;
+
 public interface ILiveFeedUpdateListener {
 
-    void onUpdate(String message);
+    void onMessage(String message);
+
+    void onNewFrame(Bitmap frame);
 
 }

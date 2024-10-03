@@ -6,9 +6,7 @@ import com.feyiuremote.libs.AI.trackers.POI;
 
 public interface ILiveFeedProcessor {
 
-    Bitmap process(Bitmap toBitmap);
-
-    void setOnPoiUpdateListener(IPoiUpdateListener listener);
+    Bitmap onNewFrame(Bitmap toBitmap);
 
     POI getPOI();
 

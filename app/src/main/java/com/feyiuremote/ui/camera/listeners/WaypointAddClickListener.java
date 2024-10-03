@@ -26,7 +26,7 @@ public class WaypointAddClickListener implements View.OnClickListener {
         Waypoint w = new Waypoint(
                 lastImage, FeyiuState.getInstance().angle_pan.value(),
                 FeyiuState.getInstance().angle_tilt.value(),
-                50, 2000, null);
+                50, 10000, null);
 
         if (canAcquireFocus()) {
             cameraViewModel.camera.getValue().focus.update(new IPanasonicCameraFocusControlListener() {

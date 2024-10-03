@@ -2,7 +2,11 @@ package com.feyiuremote.libs.Cameras.Panasonic;
 
 import android.util.Log;
 
+import com.feyiuremote.libs.Utils.NamedThreadFactory;
+
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 public class PanasonicFocus {
 
@@ -10,7 +14,10 @@ public class PanasonicFocus {
     private final IPanasonicCameraFocusListener baseListener;
 
     private PanasonicCamera mCamera;
-    private ExecutorService executor;
+
+    protected static final ThreadFactory threadFactory = new NamedThreadFactory("PanasonicFocus");
+
+    protected static final ExecutorService executor = Executors.newFixedThreadPool(1, threadFactory);
 
     private boolean focusActive = false;
 
@@ -54,12 +61,10 @@ public class PanasonicFocus {
      * TODO: Probably gonna have to be reworked since switching between fragments
      * will reset current focus point
      *
-     * @param executor
      * @param camera
      * @param updateListener
      */
-    public PanasonicFocus(ExecutorService executor, PanasonicCamera camera, IPanasonicCameraFocusListener updateListener) {
-        this.executor = executor;
+    public PanasonicFocus(PanasonicCamera camera, IPanasonicCameraFocusListener updateListener) {
         this.mCamera = camera;
         this.baseListener = updateListener;
         Log.d(TAG, "Created a panasonic focus");

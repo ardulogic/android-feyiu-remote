@@ -30,4 +30,17 @@
         app:layout_constraintTop_toTopOf="parent"
         app:navGraph="@navigation/mobile_navigation" />
 
+    <ImageButton
+        android:id="@+id/imageLockScreenButton"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@color/lock_overlay"
+        android:elevation="10dp"
+        android:src="@android:drawable/ic_lock_lock"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/nav_view"
+        app:layout_constraintEnd_toEndOf="@+id/nav_host_fragment_activity_main"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/nav_host_fragment_activity_main" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

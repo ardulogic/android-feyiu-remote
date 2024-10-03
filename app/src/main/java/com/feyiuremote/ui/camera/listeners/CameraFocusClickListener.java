@@ -49,8 +49,8 @@ public class CameraFocusClickListener implements View.OnClickListener {
     @Override
     public void onClick(View view) {
         if (cameraViewModel.camera.getValue() != null) {
-            if (cameraViewModel.objectTrackingProcessor.getValue() != null) {
-                POI poi = cameraViewModel.objectTrackingProcessor.getValue().getPOI();
+            if (cameraViewModel.unifiedTrackingProcessor.getValue() != null) {
+                POI poi = cameraViewModel.unifiedTrackingProcessor.getValue().getPOI();
                 if (poi != null) {
                     focusOnPOI(poi);
                 } else {

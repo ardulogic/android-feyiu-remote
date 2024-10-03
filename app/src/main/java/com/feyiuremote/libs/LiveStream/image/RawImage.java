@@ -4,37 +4,41 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 
+import com.feyiuremote.libs.Utils.Debugger;
+
 public class RawImage {
-    private byte[] imageData;
-    private Integer rotationDegrees;
+    private byte[] rawBuffer;
+    private Integer dataSize;
 
-    public RawImage(byte[] imageData, Integer rotationDegrees) {
-        this.imageData = imageData;
-        this.rotationDegrees = rotationDegrees;
+    private Integer dataStartIndex;
+
+    /**
+     * Creates a raw image from buffer
+     *
+     * @param buffer      raw buffer of a fixed size. For better performance it shouldnt realcate.
+     * @param start_index Buffer can contain the "end" previous image and "start" from the next one
+     *                    This defines the index when the image starts
+     * @param length      This defines the count of bytes from start to end of a single image
+     */
+    public RawImage(byte[] buffer, int start_index, int length) {
+        rawBuffer = buffer;
+        dataStartIndex = start_index;
+        dataSize = length;
     }
 
-    public Integer getRotationDegrees() {
-        return rotationDegrees == null ? 0 : rotationDegrees;
-    }
-
-    public byte[] getImageData() {
-        return imageData;
-    }
-
-    public int getImageDataSize() {
-        return this.imageData.length;
+    public RawImage(byte[] data) {
+        rawBuffer = data;
+        dataStartIndex = 0;
+        dataSize = data.length;
     }
 
     public Bitmap toBitmap() {
-        Matrix rotationMatrix = new Matrix();
-        rotationMatrix.postRotate((float) this.getRotationDegrees());
-        Bitmap b = BitmapFactory.decodeByteArray(this.getImageData(), 0, this.getImageDataSize());
+        return BitmapFactory.decodeByteArray(rawBuffer, dataStartIndex, dataSize - dataStartIndex);
+    }
 
-        if (b != null) {
-            b = Bitmap.createBitmap(b, 0, 0, b.getWidth(), b.getHeight(), rotationMatrix, true);
-            System.gc(); // Collect garbage
-        }
-
-        return b;
+    public void update(byte[] buffer, int start_index, int length) {
+        rawBuffer = buffer;
+        dataStartIndex = start_index;
+        dataSize = length;
     }
 }

@@ -2,26 +2,34 @@ package com.feyiuremote.libs.LiveStream.image;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.util.Log;
 
-import com.feyiuremote.R;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedProcessor;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedReceiver;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedUpdateListener;
+import com.feyiuremote.libs.Utils.Debugger;
+import com.feyiuremote.libs.Utils.NamedThreadFactory;
 
-import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 public class LiveFeedReceiver implements ILiveFeedReceiver {
     private final static String TAG = LiveFeedReceiver.class.getSimpleName();
 
     private ILiveFeedUpdateListener mStatusListener;
+
+    protected static final ThreadFactory threadFactory = new NamedThreadFactory("LiveFeedReceiver");
+
+    protected static final ExecutorService executor = Executors.newFixedThreadPool(2, threadFactory);
+
     private final Context context;
 
-    private final ArrayList<RawImage> rawImageCache = new ArrayList<>();
-    private final Integer IMAGE_CACHE_MAX = 1;
+    private RawImage rawImage;
 
     private Long frames = 0L;
+
+    private Long lastImageTimestamp = null;
     private ILiveFeedProcessor mImageProcessor;
 
     public LiveFeedReceiver(Context context) {
@@ -39,62 +47,62 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
     @Override
     public void onNewRawFrame(RawImage rawImage) {
         frames++;
-        rawImageCache.add(rawImage);
+        this.rawImage = rawImage;
+        this.lastImageTimestamp = System.currentTimeMillis();
 
-        if (rawImageCache.size() > IMAGE_CACHE_MAX) {
-            rawImageCache.remove(0);
-        }
+        executor.execute(() -> {
+            if (mImageProcessor != null) {
+                mStatusListener.onNewFrame(
+                        mImageProcessor.onNewFrame(rawImage.toBitmap())
+                );
+            } else {
+                mStatusListener.onNewFrame(rawImage.toBitmap());
+            }
+        });
 
-        mStatusListener.onUpdate("New frame received:" + frames);
+        executor.execute(() -> {
+            mStatusListener.onMessage("New frame received: " + frames);
+        });
     }
 
     @Override
-    public Bitmap getImage(int index) {
-        if (rawImageCache.size() == 0) {
-            return BitmapFactory.decodeResource(context.getResources(), R.drawable.video_unavailable);
-        }
-
-        index = index >= rawImageCache.size() ? rawImageCache.size() - 1 : index;
-        Bitmap cachedImage = rawImageCache.get(index).toBitmap();
-
-        if (this.mImageProcessor != null && cachedImage != null) {
-            // This is used to draw on the image (reactangles and shit)
-            return mImageProcessor.process(cachedImage);
+    public Bitmap getImage() {
+        if (rawImage != null) {
+            if (this.mImageProcessor != null) {
+                // This is used to draw on the image (reactangles and shit)
+                return mImageProcessor.onNewFrame(rawImage.toBitmap());
+            } else {
+                // Don't apply any effects if mImageProcessor is not available
+                return rawImage.toBitmap();
+            }
         } else {
-            // Don't apply any effects if mImageProcessor is not available
-            return cachedImage;
+            Log.e(TAG, "Image is null, not received yet!");
+            return null;
         }
+    }
+
+    @Override
+    public Long getImageTimestamp() {
+        return lastImageTimestamp;
     }
 
 
     @Override
     public void onError(String message) {
         Log.e(TAG, message);
-        this.mStatusListener.onUpdate(message);
-
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        this.mStatusListener.onMessage(message);
     }
 
     @Override
     public void onWarning(String message) {
         Log.w(TAG, message);
-        this.mStatusListener.onUpdate(message);
+        this.mStatusListener.onMessage(message);
     }
 
     @Override
     public void onInfo(String message) {
         Log.d(TAG, message);
-        this.mStatusListener.onUpdate(message);
-
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        this.mStatusListener.onMessage(message);
     }
 
 }

@@ -2,27 +2,28 @@ package com.feyiuremote.libs.Feiyu.processors;
 
 import android.content.ContentValues;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.util.Log;
 
+import com.feyiuremote.libs.AI.trackers.POI;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Feiyu.FeyiuControls;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationPresetDbHelper;
-import com.feyiuremote.libs.LiveStream.interfaces.IPoiUpdateListener;
-
-import org.opencv.core.Rect;
 
 import java.util.ArrayList;
 
-public class GimbalFollowProcessor implements IPoiUpdateListener {
+public class GimbalFollowProcessor implements IGimbalProcessor {
 
     private final CalibrationPresetDbHelper mDbPreset;
     private final CalibrationDbHelper mDbCal;
     private double ldev_y;
     private double ldev_x;
 
-    private int joy_sens = 25;
+    private int joy_sens = 60;
 
     private ArrayList<Float[]> mTrackCurves = new ArrayList<Float[]>() {{
         add(new Float[]{(float) 0.00193939, (float) 0.424242, (float) 1.81818});
@@ -31,8 +32,12 @@ public class GimbalFollowProcessor implements IPoiUpdateListener {
 
     private final String TAG = GimbalFollowProcessor.class.getSimpleName();
     private int curve;
-    private Double poi_target_x_perc;
+
+    /**
+     * Target destination for POI might be anywhere in the frame
+     */
     private Double poi_target_y_perc;
+    private Double poi_target_x_perc;
 
     public GimbalFollowProcessor(BluetoothLeService mBluetoothLeService) {
         this.mDbPreset = new CalibrationPresetDbHelper(mBluetoothLeService.getApplicationContext());
@@ -42,66 +47,31 @@ public class GimbalFollowProcessor implements IPoiUpdateListener {
         this.ldev_y = 0;
     }
 
-    public void setTrackingCurveParams(int index, Float[] params) {
-        this.mTrackCurves.set(index, params);
-    }
-
-    public void setTrackingCurve(int index) {
-        this.curve = index;
-    }
-
-    @Override
-    public void onPoiLock(Rect poi) {
-        // TODO: Sensitivity is same, idk if its best
-        FeyiuControls.setTiltSensitivity(joy_sens);
-        FeyiuControls.setPanSensitivity(joy_sens);
-    }
-
-    @Override
-    public void onPoiUpdate(Bitmap bitmap, org.opencv.core.Rect poi) {
-        track(bitmap, poi, this.curve);
-    }
-
-    @Override
-    public void onPoiCancel() {
-        FeyiuControls.setTiltJoy(0);
-        FeyiuControls.setPanJoy(0);
-    }
-
-    @Override
-    public void onPoiTargetPositionUpdate(double x_perc, double y_perc) {
-        this.poi_target_x_perc = x_perc;
-        this.poi_target_y_perc = y_perc;
-    }
-
-    private float mapDeviationToSpeed(int dev, int width) {
-        boolean isNegative = dev < 0;
-
-        double minValue = 0.001;  // Minimum value of the range
-        double maxValue = 0.05;   // Maximum value of the range
-
-        float mapped = (float) (minValue + ((float) (Math.abs(dev) / width) * (maxValue - minValue)));
-
-        if (isNegative) {
-            mapped *= -1;
-        }
-
-        return mapped;
-    }
-
-    private int getPoiTargetCenterX(Bitmap bitmap) {
+    /**
+     * Where the X has to land of POI
+     *
+     * @param w int
+     * @return x
+     */
+    private int getPoiDestinationX(int w) {
         if (this.poi_target_x_perc != null) {
-            return (int) (bitmap.getWidth() * this.poi_target_x_perc);
+            return (int) (w * this.poi_target_x_perc);
         } else {
-            return bitmap.getWidth() / 2;
+            return w / 2;
         }
     }
 
-    private int getPoiTargetCenterY(Bitmap bitmap) {
+    /**
+     * Where the Y has to land of POI
+     *
+     * @param h int
+     * @return y
+     */
+    private int getPoiDestinationY(int h) {
         if (this.poi_target_y_perc != null) {
-            return (int) (bitmap.getHeight() * this.poi_target_y_perc);
+            return (int) (h * this.poi_target_y_perc);
         } else {
-            return bitmap.getHeight() / 2;
+            return h / 2;
         }
     }
 
@@ -117,12 +87,12 @@ public class GimbalFollowProcessor implements IPoiUpdateListener {
     }
 
 
-    private void track(Bitmap bitmap, org.opencv.core.Rect poi, int curve) {
-        double dev_x = calcDeviation(poi.x, poi.width, getPoiTargetCenterX(bitmap), bitmap.getWidth(), true);
-        double dev_y = calcDeviation(poi.y, poi.height, getPoiTargetCenterY(bitmap), bitmap.getHeight(), false);
+    private void moveTowards(POI poi) {
+        double dev_x = poi.xCenterDevPercFromPoint(getPoiDestinationX(poi.frame_width), true);
+        double dev_y = poi.yCenterDevPercFromPoint(getPoiDestinationY(poi.frame_height), false);
 
-        double ddev_x = Math.abs(dev_x - ldev_x);
-        double ddev_y = Math.abs(dev_y - ldev_y);
+//        double ddev_x = Math.abs(dev_x - ldev_x);
+//        double ddev_y = Math.abs(dev_y - ldev_y);
 
 //        float spd_x = calcSpeed(dev_x, curve) + calcSpeed(ddev_x, curve) * (ddev_x > 0 ? 1 : -1);
 //        float spd_y = calcSpeed(dev_y, curve) + calcSpeed(ddev_y, curve) * (ddev_y > 0 ? 1 : -1);
@@ -135,8 +105,8 @@ public class GimbalFollowProcessor implements IPoiUpdateListener {
 //        Log.d("Deviation:",
 //                "Devx: " + String.format("%.3f", dev_x) +
 //                        " Devy: " + String.format("%.3f", dev_y) +
-//                        " ddevx: " + String.format("%.3f", ddev_x) +
-//                        " ddevy: " + String.format("%.3f", ddev_y) +
+////                        " ddevx: " + String.format("%.3f", ddev_x) +
+////                        " ddevy: " + String.format("%.3f", ddev_y) +
 //                        " spdx: " + String.format("%.3f", spd_x) +
 //                        " spdy: " + String.format("%.3f", spd_y)
 //        );
@@ -145,8 +115,15 @@ public class GimbalFollowProcessor implements IPoiUpdateListener {
         ContentValues panSettings = mDbCal.getByClosestSpeed(mDbCal.AXIS_PAN, joy_sens, spd_x);
         ContentValues tiltSettings = mDbCal.getByClosestSpeed(mDbCal.AXIS_TILT, joy_sens, spd_y);
 
-        if (panSettings == null || tiltSettings == null || FeyiuState.angleIsCritical()) {
+        if (panSettings == null || tiltSettings == null) {
             Log.e(TAG, "Please calibrate first!");
+            cancel();
+            return;
+        }
+
+        if (FeyiuState.angleIsCritical()) {
+            Log.e(TAG, "Angle is critical!");
+            cancel();
             return;
         }
 
@@ -165,24 +142,58 @@ public class GimbalFollowProcessor implements IPoiUpdateListener {
         ldev_y = dev_y;
     }
 
-    private float calcSpeed(int dev, int curve_index) {
-        return (float) (mTrackCurves.get(curve_index)[0] * dev * dev
-                + mTrackCurves.get(curve_index)[1] * Math.abs(dev)
-                + mTrackCurves.get(curve_index)[2]);
+
+    @Override
+    public void onPoiLock() {
+        FeyiuControls.setTiltSensitivity(joy_sens);
+        FeyiuControls.setPanSensitivity(joy_sens);
     }
 
-    private float calcDeviation(int point, int point_width, int target_point, int axis_width, boolean invert_sign) {
-        float pointCenter = point + point_width / 2;
-        float relCenter = target_point;
-
-        int dev = (int) Math.abs(pointCenter - relCenter);
-        float perc_dev = (float) dev / axis_width;
-
-        if (pointCenter < relCenter) {
-            return invert_sign ? -perc_dev : perc_dev;
-        } else {
-            return invert_sign ? perc_dev : -perc_dev;
+    @Override
+    public void onPoiUpdate(POI poi) {
+        try {
+            moveTowards(poi);
+        } catch (NullPointerException e) {
+            Log.e(TAG, "Poi no longer exists");
+            cancel();
         }
     }
 
+    @Override
+    public void updatePoiDestination(double x_perc, double y_perc) {
+        this.poi_target_x_perc = x_perc;
+        this.poi_target_y_perc = y_perc;
+    }
+
+    public Bitmap drawPoiDestination(Bitmap bitmap) {
+        if (poi_target_x_perc != null && poi_target_y_perc != null) {
+            Bitmap mutableBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+
+            // Get canvas from the mutable bitmap
+            Canvas canvas = new Canvas(mutableBitmap);
+
+            // Calculate the actual coordinates based on percentages
+            int x = (int) (bitmap.getWidth() * poi_target_x_perc);
+            int y = (int) (bitmap.getHeight() * poi_target_y_perc);
+
+            // Set up paint for drawing the "X"
+            Paint paint = new Paint();
+            paint.setColor(Color.RED); // You can set the color of the "X"
+            paint.setStrokeWidth(5);
+
+            // Draw the "X"
+            canvas.drawLine(x - 20, y - 20, x + 20, y + 20, paint);
+            canvas.drawLine(x + 20, y - 20, x - 20, y + 20, paint);
+
+            return mutableBitmap;
+        }
+
+        return bitmap;
+    }
+
+    @Override
+    public void cancel() {
+        FeyiuControls.setTiltJoy(0);
+        FeyiuControls.setPanJoy(0);
+    }
 }

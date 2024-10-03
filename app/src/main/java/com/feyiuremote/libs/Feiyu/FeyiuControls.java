@@ -7,6 +7,7 @@ import com.feyiuremote.libs.Feiyu.calibration.commands.GimbalCommand;
 import com.feyiuremote.libs.Feiyu.calibration.commands.MoveCommand;
 import com.feyiuremote.libs.Feiyu.calibration.commands.SetPanSensitivityCommand;
 import com.feyiuremote.libs.Feiyu.calibration.commands.SetTiltSensitivityCommand;
+import com.feyiuremote.libs.Feiyu.calibration.commands.StopCommand;
 import com.feyiuremote.libs.Feiyu.controls.JoystickState;
 import com.feyiuremote.libs.Feiyu.controls.SensitivityState;
 
@@ -74,6 +75,12 @@ public class FeyiuControls {
 
     private static void updateTimeSinceLastRequest() {
         time_last_request = System.currentTimeMillis();
+    }
+
+    public static void stop() {
+        updateTimeSinceLastRequest();
+        cancelQueuedCommands();
+        queuedJoyStates.add(new JoystickState(0, 0, 0));
     }
 
     public static void setPanJoy(int value) {
@@ -243,13 +250,15 @@ public class FeyiuControls {
     }
 
     public static void move() {
+        updateTimeSinceLastBtCommand();
+
         if ((timeSinceLastRequest() > 2000) && (currentJoyState.panJoy != 0) && (currentJoyState.tiltJoy != 0)) {
             Log.e(TAG, "Emergency stop! Pan or Tilt was not stopped in time!");
+            FeyiuControls.stop();
+        } else {
+            MoveCommand c = new MoveCommand(mBt, currentJoyState.panJoy, currentJoyState.tiltJoy);
+            c.run();
         }
-
-        updateTimeSinceLastBtCommand();
-        MoveCommand c = new MoveCommand(mBt, currentJoyState.panJoy, currentJoyState.tiltJoy);
-        c.run();
     }
 
     public static boolean shouldBeStopped() {

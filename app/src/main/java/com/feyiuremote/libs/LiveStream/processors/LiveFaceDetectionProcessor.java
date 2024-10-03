@@ -10,13 +10,8 @@ import com.feyiuremote.libs.LiveStream.interfaces.IPoiUpdateListener;
 public class LiveFaceDetectionProcessor implements ILiveFeedProcessor {
 
     @Override
-    public Bitmap process(Bitmap toBitmap) {
+    public Bitmap onNewFrame(Bitmap toBitmap) {
         return FaceDetector.detect(toBitmap);
-    }
-
-    @Override
-    public void setOnPoiUpdateListener(IPoiUpdateListener listener) {
-
     }
 
     @Override

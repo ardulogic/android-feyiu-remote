@@ -129,7 +129,7 @@ public class GimbalPositionProcessor {
             } else {
                 if (target.panShouldMove()) {
                     FeyiuControls.setPanJoy(target.getPanJoyValue());
-                    debugLog.add("Pan should move (" + target.panDiffInDeg() + " diff)");
+                    debugLog.add("Pan should move (" + target.angleDiffInDeg(mDb.AXIS_PAN) + " diff)");
                 }
             }
 
@@ -146,7 +146,7 @@ public class GimbalPositionProcessor {
             } else {
                 if (target.tiltShouldMove()) {
                     FeyiuControls.setTiltJoy(target.getTiltJoyValue());
-                    debugLog.add("Tilt should move (" + target.tiltDiffInDeg() + " diff)");
+                    debugLog.add("Tilt should move (" + target.angleDiffInDeg(mDb.AXIS_TILT) + " diff)");
 
                 }
             }

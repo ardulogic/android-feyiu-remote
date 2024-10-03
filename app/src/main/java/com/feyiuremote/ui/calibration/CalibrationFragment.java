@@ -1,12 +1,17 @@
 package com.feyiuremote.ui.calibration;
 
+import android.app.AlertDialog;
 import android.content.ContentValues;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 
 import com.feyiuremote.MainActivity;
+import com.feyiuremote.R;
 import com.feyiuremote.databinding.FragmentCalibrationBinding;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
@@ -51,6 +56,7 @@ public class CalibrationFragment extends Fragment {
     private int total_calib_iterations;
 
     private Long time_calib_start = 0L;
+    private String curr_calib_name;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -99,21 +105,25 @@ public class CalibrationFragment extends Fragment {
     }
 
     private void startCalibration() {
-        i_dir = -1; // Necessary to correct dir inversion in first attempt
-        i_joy_sen = 0;
-        i_joy_val = 0;
-        curr_calib_iteration = 0;
-        time_calib_start = System.currentTimeMillis();
+        showInputDialog(getContext(), name -> {
+            i_dir = -1; // Necessary to correct dir inversion in first attempt
+            i_joy_sen = 0;
+            i_joy_val = 0;
+            curr_calib_iteration = 0;
+            time_calib_start = System.currentTimeMillis();
+            curr_calib_name = name;
 
-        mCalRunnable = new CalibrationRunnable(
-                getCalJoySens(),
-                getCalJoyVal(),
-                mainActivity.mBluetoothLeService,
-                mCalibrationListener
-        );
+            mCalRunnable = new CalibrationRunnable(
+                    curr_calib_name,
+                    getCalJoySens(),
+                    getCalJoyVal(),
+                    mainActivity.mBluetoothLeService,
+                    mCalibrationListener
+            );
 
-        mCalRunnable.start();
-        mCalibrating = true;
+            mCalRunnable.start();
+            mCalibrating = true;
+        });
     }
 
     private int getCalJoySens() {
@@ -134,6 +144,39 @@ public class CalibrationFragment extends Fragment {
 
         return count * 2; // Pirmyn / atgal
 
+    }
+
+    public interface NameInputListener {
+        void onNameEntered(String name);
+    }
+
+
+    public void showInputDialog(Context context, final NameInputListener listener) {
+        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(context);
+
+        // Get the layout inflater
+        LayoutInflater inflater = LayoutInflater.from(context);
+        View view = inflater.inflate(R.layout.calibration_dialog, null);
+
+        // Set the view in the dialog
+        alertDialogBuilder.setView(view);
+
+        final EditText input = view.findViewById(R.id.editTextName);
+
+        // Set dialog buttons and their actions
+        alertDialogBuilder
+                .setCancelable(false)
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        String enteredName = input.getText().toString();
+                        listener.onNameEntered(enteredName);
+                    }
+                })
+                .setNegativeButton("Cancel", (dialog, id) -> dialog.cancel());
+
+        // Create and show the dialog
+        AlertDialog alertDialog = alertDialogBuilder.create();
+        alertDialog.show();
     }
 
     private void updateProgressBar() {
@@ -180,7 +223,7 @@ public class CalibrationFragment extends Fragment {
             mCalibrationModel.mTextJoyVal.postValue("Joystick Value: " + getCalJoyVal());
 
             mCalRunnable = new CalibrationRunnable(
-                    getCalJoySens(),
+                    curr_calib_name, getCalJoySens(),
                     getCalJoyVal(),
                     mainActivity.mBluetoothLeService,
                     mCalibrationListener
@@ -189,7 +232,7 @@ public class CalibrationFragment extends Fragment {
             i_dir = 1;
         } else {
             mCalRunnable = new CalibrationRunnable(
-                    getCalJoySens(),
+                    curr_calib_name, getCalJoySens(),
                     -getCalJoyVal(),
                     mainActivity.mBluetoothLeService,
                     mCalibrationListener
@@ -225,7 +268,15 @@ public class CalibrationFragment extends Fragment {
             curr_calib_iteration++;
             updateProgressBar();
 
-            mCalibrationModel.mCalResText.postValue(cv.toString());
+            StringBuilder cvString = new StringBuilder("Calibrated:\n");
+
+            for (Map.Entry<String, Object> entry : cv.valueSet()) {
+                String key = entry.getKey();
+                Object value = entry.getValue();
+                cvString.append(key).append(": ").append(value).append("\n");
+            }
+
+            mCalibrationModel.mCalResText.postValue(cvString.toString());
             mCalDb.updateOrCreate(cv);
 
             if (mCalibrating) {

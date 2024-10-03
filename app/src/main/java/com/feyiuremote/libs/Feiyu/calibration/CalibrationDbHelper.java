@@ -28,6 +28,7 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
     @Override
     protected String getTableCreateSQL() {
         return "create table " + getDatabaseTableName() + "(_id integer primary key autoincrement, "
+                + "name string not null,"
                 + "joy_sens int not null,"
                 + "joy_val int not null,"
 
@@ -46,7 +47,7 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
 
     @Override
     protected String[] getColumnNames() {
-        return new String[]{"_id", "joy_sens", "joy_val",
+        return new String[]{"_id", "name", "joy_sens", "joy_val",
                 "pan_speed", "pan_angle_overshoot", "pan_angle_diff",
                 "tilt_speed", "tilt_angle_overshoot", "tilt_angle_diff",
                 "dir", "time_ms"
@@ -58,16 +59,17 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
         ContentValues row = new ContentValues();
 
         row.put("_id", c.getLong(0));
-        row.put("joy_sens", c.getInt(1));
-        row.put("joy_val", c.getInt(2));
-        row.put("pan_speed", c.getDouble(3));
-        row.put("pan_angle_overshoot", c.getDouble(4));
-        row.put("pan_angle_diff", c.getDouble(5));
-        row.put("tilt_speed", c.getDouble(6));
-        row.put("tilt_angle_overshoot", c.getDouble(7));
-        row.put("tilt_angle_diff", c.getDouble(8));
-        row.put("dir", c.getInt(9));
-        row.put("time_ms", c.getInt(10));
+        row.put("name", c.getString(1));
+        row.put("joy_sens", c.getInt(2));
+        row.put("joy_val", c.getInt(3));
+        row.put("pan_speed", c.getDouble(4));
+        row.put("pan_angle_overshoot", c.getDouble(5));
+        row.put("pan_angle_diff", c.getDouble(6));
+        row.put("tilt_speed", c.getDouble(7));
+        row.put("tilt_angle_overshoot", c.getDouble(8));
+        row.put("tilt_angle_diff", c.getDouble(9));
+        row.put("dir", c.getInt(10));
+        row.put("time_ms", c.getInt(11));
 
         return row;
     }
@@ -76,7 +78,8 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
         int dir = cv.getAsInteger("joy_val") > 0 ? 1 : -1;
         cv.put("dir", dir);
 
-        int id = (int) dbHandler.update(getDatabaseTableName(), cv, "joy_val=? AND joy_sens=? AND dir=?", new String[]{
+        int id = (int) dbHandler.update(getDatabaseTableName(), cv, "name=? AND joy_val=? AND joy_sens=? AND dir=?", new String[]{
+                cv.getAsString("name"),
                 cv.getAsString("joy_val"),
                 cv.getAsString("joy_sens"),
                 String.valueOf(dir),
