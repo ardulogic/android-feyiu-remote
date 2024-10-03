@@ -3,20 +3,24 @@ package com.feyiuremote.ui.gimbal;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.le.ScanResult;
+import android.content.ContentValues;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
 import com.feyiuremote.MainActivity;
+import com.feyiuremote.R;
 import com.feyiuremote.databinding.FragmentGimbalBinding;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
+import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
 import com.feyiuremote.ui.gimbal.adapters.BluetoothScanResultsAdapter;
 
 import java.util.ArrayList;
@@ -37,6 +41,7 @@ public class GimbalFragment extends Fragment {
     private BluetoothScanResultsAdapter mScanResultListAdapter;
 
     private BluetoothViewModel mBluetoothViewModel;
+    private CalibrationDbHelper mDb;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -65,6 +70,15 @@ public class GimbalFragment extends Fragment {
         mBluetoothViewModel.registerCharacteristic(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID);
         mBluetoothViewModel.characteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)
                 .observe(getViewLifecycleOwner(), btCharacteristicPositionObserver);
+
+        this.mDb = new CalibrationDbHelper(getContext());
+        if (mDb.rowCount() < 50) {
+            binding.textGimbalImageStatus.setText("Not Calibrated!");
+            binding.imageGimbalStatus.setImageResource(R.drawable.warning);
+        } else {
+            binding.textGimbalImageStatus.setText("Calibration OK.");
+            binding.imageGimbalStatus.setImageResource(R.drawable.thumbs_up);
+        }
 
         return root;
     }

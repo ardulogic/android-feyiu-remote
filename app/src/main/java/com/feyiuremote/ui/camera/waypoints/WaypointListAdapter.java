@@ -86,8 +86,11 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
                 new WaypointDiffCallback(localWaypointList, waypointList.getValue()));
 
         localWaypointList.clear();
-        for (Waypoint waypoint : waypointList.getValue()) {
-            localWaypointList.add(new Waypoint(waypoint)); // Assuming Waypoint has a copy constructor
+
+        if (waypointList.getValue() != null) {
+            for (Waypoint waypoint : waypointList.getValue()) {
+                localWaypointList.add(new Waypoint(waypoint)); // Assuming Waypoint has a copy constructor
+            }
         }
 
         diffResult.dispatchUpdatesTo(this);
@@ -323,7 +326,7 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
 
         @Override
         public int getNewListSize() {
-            return newList.size();
+            return (newList != null) ? newList.size() : 0;
         }
 
         @Override

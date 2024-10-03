@@ -13,7 +13,9 @@
 
 namespace cv { namespace gapi { namespace core { namespace plaidml {
 
-GAPI_EXPORTS cv::gapi::GKernelPackage kernels();
+                GAPI_EXPORTS cv::GKernelPackage
+
+                kernels();
 
 }}}}
 

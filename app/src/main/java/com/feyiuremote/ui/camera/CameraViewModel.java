@@ -61,6 +61,11 @@ public class CameraViewModel extends ViewModel {
 
     public void addWaypoint(Waypoint wp, boolean main_thread) {
         ArrayList<Waypoint> list = waypointList.getValue();
+
+        if (list == null) {
+            list = new ArrayList<Waypoint>();
+        }
+
         list.add(wp);
 
         if (main_thread) {

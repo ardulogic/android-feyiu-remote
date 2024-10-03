@@ -20,7 +20,7 @@
         android:id="@+id/listScanResults"
         android:layout_width="wrap_content"
         android:layout_height="0dp"
-        android:layout_marginBottom="20dp"
+        android:layout_marginBottom="500dp"
         android:padding="10dp"
         app:layout_constraintBottom_toTopOf="@+id/textPosition"
         app:layout_constraintEnd_toEndOf="parent"
@@ -64,5 +64,23 @@
         android:text="Found devices:"
         app:layout_constraintStart_toStartOf="@+id/listScanResults"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/textGimbalImageStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Checking status..."
+        app:layout_constraintEnd_toEndOf="@+id/imageGimbalStatus"
+        app:layout_constraintStart_toStartOf="@+id/imageGimbalStatus"
+        app:layout_constraintTop_toBottomOf="@+id/imageGimbalStatus" />
+
+    <ImageView
+        android:id="@+id/imageGimbalStatus"
+        android:layout_width="220dp"
+        android:layout_height="237dp"
+        app:layout_constraintBottom_toTopOf="@+id/textPosition"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/listScanResults" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

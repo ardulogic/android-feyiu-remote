@@ -13,7 +13,9 @@
 
 namespace cv { namespace gapi { namespace core { namespace fluid {
 
-GAPI_EXPORTS_W cv::gapi::GKernelPackage kernels();
+                GAPI_EXPORTS_W cv::GKernelPackage
+
+                kernels();
 
 }}}}
 

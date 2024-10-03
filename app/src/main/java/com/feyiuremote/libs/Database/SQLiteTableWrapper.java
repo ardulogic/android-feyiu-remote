@@ -50,6 +50,39 @@ abstract public class SQLiteTableWrapper {
         return false;
     }
 
+    protected int tableRowCount(String tableName) {
+        // Prepare SQL query to count all rows in the specified table
+        String query = "SELECT COUNT(*) FROM " + tableName; // Directly using tableName
+
+        int count = 0; // Variable to hold the row count
+        try (Cursor cursor = dbHandler.rawQuery(query, null)) { // Execute the query
+            if (cursor != null && cursor.moveToFirst()) {
+                count = cursor.getInt(0); // Get the count from the first column
+            }
+        } catch (SQLException e) {
+            Log.e("Exception on count query", e.toString()); // Log any exceptions
+        }
+
+        return count; // Return the row count
+    }
+
+    public int rowCount() {
+        // Prepare SQL query to count all rows in the specified table
+        String query = "SELECT COUNT(*) FROM " + getDatabaseTableName(); // Directly using tableName
+
+        int count = 0; // Variable to hold the row count
+        try (Cursor cursor = dbHandler.rawQuery(query, null)) { // Execute the query
+            if (cursor != null && cursor.moveToFirst()) {
+                count = cursor.getInt(0); // Get the count from the first column
+            }
+        } catch (SQLException e) {
+            Log.e("Exception on count query", e.toString()); // Log any exceptions
+        }
+
+        return count; // Return the row count
+    }
+
+
     public void create(ContentValues values) {
         if (values.containsKey("_id")) {
             values.remove("_id");
