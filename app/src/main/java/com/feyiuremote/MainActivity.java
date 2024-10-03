@@ -1,28 +1,23 @@
 package com.feyiuremote;
 
+import android.annotation.SuppressLint;
+import android.app.AlertDialog;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.location.LocationManager;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.provider.Settings;
 import android.util.Log;
-
-import com.feyiuremote.databinding.ActivityMainBinding;
-import com.feyiuremote.libs.AI.detectors.FaceDetector;
-import com.feyiuremote.libs.Bluetooth.BluetoothIntent;
-import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
-import com.feyiuremote.libs.Bluetooth.BluetoothLeUpdateReceiver;
-import com.feyiuremote.libs.Bluetooth.BluetoothPermissions;
-import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
-
-import org.opencv.android.OpenCVLoader;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import android.view.KeyEvent;
+import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
@@ -31,6 +26,23 @@ import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
+import com.feyiuremote.databinding.ActivityMainBinding;
+import com.feyiuremote.libs.AI.detectors.FaceDetector;
+import com.feyiuremote.libs.Bluetooth.BluetoothIntent;
+import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
+import com.feyiuremote.libs.Bluetooth.BluetoothLeUpdateReceiver;
+import com.feyiuremote.libs.Bluetooth.BluetoothPermissions;
+import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
+import com.feyiuremote.libs.Bluetooth.IOnBluetoothServicesDiscovered;
+import com.feyiuremote.libs.Feiyu.FeyiuUtils;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+
+import org.opencv.android.OpenCVLoader;
+
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 
 public class MainActivity extends AppCompatActivity {
 
@@ -38,6 +50,9 @@ public class MainActivity extends AppCompatActivity {
 
     private BluetoothViewModel bluetoothViewModel;
     private ActivityMainBinding binding;
+
+    private Boolean locked = false;
+
     public BluetoothLeService mBluetoothLeService;
     public ExecutorService executor = Executors.newFixedThreadPool(10);
 
@@ -79,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
         startBtService();
 
         mGattUpdateReceiver = new BluetoothLeUpdateReceiver(bluetoothViewModel);
+        mGattUpdateReceiver.setOnConnectedListener(mBluetoothServicesDiscoveredListener);
         registerReceiver(mGattUpdateReceiver, BluetoothIntent.getFilter());
 
         WifiManager wm = (WifiManager) getSystemService(Context.WIFI_SERVICE);
@@ -96,6 +112,9 @@ public class MainActivity extends AppCompatActivity {
         final PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         this.mWakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "feyiuremote:main");
         this.mWakeLock.acquire();
+
+        ensureLocationEnabled();
+        ensureBluetoothEnabled();
     }
 
     private void startBtService() {
@@ -133,9 +152,109 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private IOnBluetoothServicesDiscovered mBluetoothServicesDiscoveredListener = new IOnBluetoothServicesDiscovered() {
+        @Override
+        public void onServicesDiscovered() {
+            BluetoothGattService gattService = mBluetoothLeService.getService(FeyiuUtils.SERVICE_ID);
+            if (gattService != null) {
+                BluetoothGattCharacteristic gattCharacteristic = gattService.getCharacteristic(UUID.fromString(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID));
+                mBluetoothLeService.setCharacteristicNotification(gattCharacteristic, true);
+            }
+        }
+    };
+
+    public void ensureLocationEnabled() {
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
+        if (locationManager != null && !locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            // GPS is not enabled, prompt the user to enable it
+            buildAlertMessageNoGps();
+        }
+    }
+
+    public void ensureBluetoothEnabled() {
+        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled()) {
+            // Bluetooth is not enabled, prompt the user to enable it
+            buildAlertMessageNoBluetooth();
+        }
+    }
+
+    private void buildAlertMessageNoGps() {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Your GPS seems to be disabled, do you want to enable it?")
+                .setCancelable(false)
+                .setPositiveButton("Yes", (dialog, id) -> {
+                    // Open location settings
+                    Intent enableGpsIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                    startActivityForResult(enableGpsIntent, 1);
+                    mBluetoothLeService.scan();
+                })
+                .setNegativeButton("No", (dialog, id) -> dialog.cancel());
+        final AlertDialog alert = builder.create();
+        alert.show();
+    }
+
+    @SuppressLint("MissingPermission")
+    private void buildAlertMessageNoBluetooth() {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Your Bluetooth seems to be disabled, do you want to enable it?")
+                .setCancelable(false)
+                .setPositiveButton("Yes", (dialog, id) -> {
+                    // Open Bluetooth settings
+                    Intent enableBluetoothIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                    startActivityForResult(enableBluetoothIntent, 2);
+                    // Start Bluetooth scanning or any other Bluetooth-related operations
+                    // Replace the following line with your Bluetooth-related code
+                    // mBluetoothLeService.scan();
+                })
+                .setNegativeButton("No", (dialog, id) -> dialog.cancel());
+        final AlertDialog alert = builder.create();
+        alert.show();
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == 401) {
+            if (!locked) {
+                lockAppScreen();
+            } else {
+                unlockAppScreen();
+            }
+        }
+
+        return super.onKeyDown(keyCode, event);
+    }
+
+    private void lockAppScreen() {
+        View decorView = getWindow().getDecorView();
+
+        // Hide both the navigation bar and the status bar.
+        int uiOptions = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+
+        decorView.setSystemUiVisibility(uiOptions);
+
+        binding.imageLockScreenButton.setVisibility(View.VISIBLE);
+        locked = true;
+    }
+
+    private void unlockAppScreen() {
+        View decorView = getWindow().getDecorView();
+
+        // Show both the navigation bar and the status bar.
+        int uiOptions = View.SYSTEM_UI_FLAG_VISIBLE;
+
+        decorView.setSystemUiVisibility(uiOptions);
+
+        binding.imageLockScreenButton.setVisibility(View.GONE);
+        locked = false;
+    }
+
     @Override
     public void onRequestPermissionsResult(int permsRequestCode, String[] permissions, int[] grantResults) {
-
         super.onRequestPermissionsResult(permsRequestCode, permissions, grantResults);
 
         startBtService();
