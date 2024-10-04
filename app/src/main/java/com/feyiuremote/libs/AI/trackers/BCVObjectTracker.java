@@ -70,23 +70,27 @@ public class BCVObjectTracker {
     }
 
     public Bitmap onNewFrame(Bitmap bitmap) {
-        // Sometimes bitmap is null
-        mImageMatrix = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC1);
-        Utils.bitmapToMat(bitmap, mImageMatrix);
+        if (bitmap != null) {
+            // Sometimes bitmap is null
+            mImageMatrix = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC1);
+            Utils.bitmapToMat(bitmap, mImageMatrix);
 
-        mTrackingImage = new GrayU8(TRACKING_RES_WIDTH, TRACKING_RES_HEIGHT);
-        ConvertBitmap.bitmapToBoof(bitmap, mTrackingImage, null);
+            mTrackingImage = new GrayU8(TRACKING_RES_WIDTH, TRACKING_RES_HEIGHT);
+            ConvertBitmap.bitmapToBoof(bitmap, mTrackingImage, null);
 
-        if (isLocked()) {
-            if (!mIsProcessing) {
-                track();
+            if (isLocked()) {
+                if (!mIsProcessing) {
+                    track();
+                }
+
+                bitmap = this.drawTrackingRectOnInput();
+
+                if (this.mPoiUpdateListener != null && mTrackingIntRectangle != null) {
+                    this.executor.execute(new mPoiUpdateRunnable(bitmap, mTrackingIntRectangle));
+                }
             }
-
-            bitmap = this.drawTrackingRectOnInput();
-
-            if (this.mPoiUpdateListener != null && mTrackingIntRectangle != null) {
-                this.executor.execute(new mPoiUpdateRunnable(bitmap, mTrackingIntRectangle));
-            }
+        } else {
+            Log.d(TAG, "Object tracker not active since bitmap is null");
         }
 
         return bitmap;

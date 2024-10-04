@@ -1,19 +1,21 @@
 package com.feyiuremote.libs.LiveStream.image;
 
+import static android.graphics.ImageFormat.NV21;
+
 import android.annotation.SuppressLint;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.media.Image;
 
-import java.io.ByteArrayOutputStream;
-import java.nio.ByteBuffer;
-
 import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 
-import static android.graphics.ImageFormat.NV21;
+import com.feyiuremote.libs.Utils.RawImage;
+
+import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
 
 public class BitmapConverter implements ImageAnalysis.Analyzer {
 
@@ -83,7 +85,7 @@ public class BitmapConverter implements ImageAnalysis.Analyzer {
         yuvImage.compressToJpeg(new Rect(0, 0, width, height), 100, out);
         imageProxy.close();
 
-        return new RawImage(out.toByteArray(), rotationDegrees);
+        return new RawImage(out.toByteArray());
     }
 
 
@@ -157,7 +159,7 @@ public class BitmapConverter implements ImageAnalysis.Analyzer {
         yuvImage.compressToJpeg(new Rect(0, 0, width, height), 100, out);
         imageProxy.close();
 
-        return new RawImage(out.toByteArray(), rotationDegrees);
+        return new RawImage(out.toByteArray());
     }
 
     /**
@@ -190,7 +192,7 @@ public class BitmapConverter implements ImageAnalysis.Analyzer {
         yuvImage.compressToJpeg(new Rect(0, 0, width, height), 100, out);
         imageProxy.close();
 
-        return new RawImage(out.toByteArray(), rotationDegrees);
+        return new RawImage(out.toByteArray());
     }
 
 }

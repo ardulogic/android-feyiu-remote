@@ -1,13 +1,13 @@
 package com.feyiuremote.ui.camera.listeners;
 
-import android.util.Log;
+import android.graphics.Bitmap;
 
 import com.feyiuremote.databinding.FragmentCameraBinding;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedUpdateListener;
 import com.feyiuremote.ui.camera.CameraViewModel;
 
 public class CameraLiveStreamUpdateListener implements ILiveFeedUpdateListener {
-    private final String TAG = CameraStartStreamListener.class.getSimpleName();
+    private final String TAG = CameraLiveStreamUpdateListener.class.getSimpleName();
     private final CameraViewModel cameraModel;
     private final FragmentCameraBinding binding;
 
@@ -17,13 +17,13 @@ public class CameraLiveStreamUpdateListener implements ILiveFeedUpdateListener {
     }
 
     @Override
-    public void onUpdate(String message) {
+    public void onMessage(String message) {
+        //TODO: Fix the updating mechanism
         cameraModel.status.postValue(message);
+    }
 
-        if (binding != null) {
-            binding.liveView.refresh(); // This is crucial to show the image
-        } else {
-            Log.e(TAG, "liveView is Null");
-        }
+    @Override
+    public void onNewFrame(Bitmap bitmap) {
+        binding.liveView.setFrameBitmap(bitmap);
     }
 }

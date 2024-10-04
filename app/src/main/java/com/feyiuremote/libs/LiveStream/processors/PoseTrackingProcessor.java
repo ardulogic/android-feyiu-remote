@@ -23,6 +23,11 @@ public class PoseTrackingProcessor implements ILiveFeedProcessor {
     }
 
     @Override
+    public Bitmap onNewFrame(Bitmap toBitmap) {
+        return this.mPoseTracker.onNewFrame(toBitmap);
+    }
+
+    @Override
     public POI getPOI() {
         return null;
     }
@@ -32,9 +37,5 @@ public class PoseTrackingProcessor implements ILiveFeedProcessor {
 
     }
 
-    @Override
-    public Bitmap process(Bitmap bitmap) {
-        return this.mPoseTracker.onNewFrame(bitmap);
-    }
 
 }

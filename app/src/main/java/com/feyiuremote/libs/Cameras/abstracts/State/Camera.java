@@ -1,19 +1,20 @@
 package com.feyiuremote.libs.Cameras.abstracts.State;
 
-import com.feyiuremote.libs.Cameras.abstracts.Connection.CameraControls;
-import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
+import com.feyiuremote.libs.Utils.NamedThreadFactory;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 public abstract class Camera {
 
-    protected ExecutorService executor;
+    protected static final ThreadFactory threadFactory = new NamedThreadFactory("Camera");
 
-    public Camera(ExecutorService executor) {
-        this.executor = executor;
+    protected static final ExecutorService executor = Executors.newFixedThreadPool(1, threadFactory);
+
+    public Camera() {
+
     }
-
-    public abstract void updateBaseInfo(ICameraControlListener listener);
 
     public abstract void close();
 

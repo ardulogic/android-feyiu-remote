@@ -61,6 +61,11 @@ public class ObjectTrackingProcessor implements ILiveFeedProcessor {
     }
 
     @Override
+    public Bitmap onNewFrame(Bitmap toBitmap) {
+        return this.mObjectTracker.onNewFrame(toBitmap);
+    }
+
+    @Override
     public POI getPOI() {
         return mObjectTracker.getPOI();
     }
@@ -70,9 +75,5 @@ public class ObjectTrackingProcessor implements ILiveFeedProcessor {
         this.mObjectTracker.clear();
     }
 
-    @Override
-    public Bitmap process(Bitmap bitmap) {
-        return this.mObjectTracker.onNewFrame(bitmap);
-    }
 
 }

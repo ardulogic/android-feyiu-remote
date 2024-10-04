@@ -1,15 +1,9 @@
 package com.feyiuremote.libs.Cameras.Panasonic;
 
-import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
+import android.content.Context;
+
 import com.feyiuremote.libs.Cameras.abstracts.State.Camera;
 import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
-import com.feyiuremote.libs.Utils.SimpleHttpClient;
-import com.feyiuremote.libs.Utils.XmlParser;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 
 public class PanasonicCamera extends Camera {
@@ -17,18 +11,23 @@ public class PanasonicCamera extends Camera {
     public PanasonicCameraControls controls;
     public PanasonicCameraLiveView live;
     public PanasonicCameraState state;
-
     public PanasonicFocus focus;
 
-    public PanasonicCamera(ExecutorService executor, String ddUrl) {
-        super(executor);
-
+    /**
+     * TODO: Add sound when recording is stopped
+     * TODO: Add sound when camera is disconnected
+     * TODO: Track recording state on screen
+     *
+     * @param context
+     * @param ddUrl
+     */
+    public PanasonicCamera(Context context, String ddUrl) {
         this.state = new PanasonicCameraState(ddUrl);
-        this.controls = new PanasonicCameraControls(executor, this);
+        this.controls = new PanasonicCameraControls(context, this);
     }
 
     public void setFocusListener(IPanasonicCameraFocusListener listener) {
-        this.focus = new PanasonicFocus(executor, this, listener);
+        this.focus = new PanasonicFocus(this, listener);
         this.focus.start();
     }
 
@@ -37,69 +36,11 @@ public class PanasonicCamera extends Camera {
     }
 
     public void createLiveView(LiveFeedReceiver feedReceiver) {
-        this.live = new PanasonicCameraLiveView(executor, this, feedReceiver);
+        this.live = new PanasonicCameraLiveView(this, feedReceiver);
     }
 
     public PanasonicCameraLiveView getLiveView() {
         return this.live;
-    }
-
-    public void updateBaseInfo(ICameraControlListener listener) {
-        executor.execute(new Runnable(){
-            @Override
-            public void run() {
-                String xml_string = SimpleHttpClient.httpGet(state.url, -1);
-
-                if (!xml_string.isEmpty()) {
-                    ArrayList<String> fields = new ArrayList<String>(Arrays.asList(
-                            "friendlyName", "modelNumber", "UDN"
-                    ));
-
-                    Map<String, String> data = XmlParser.parse(xml_string, fields);
-                    state.name = data.get("friendlyName");
-                    state.model = data.get("modelNumber");
-                    state.udn = data.get("UDN");
-                    state.available = true;
-
-                    listener.onSuccess();
-                } else {
-                    state.available = false;
-                    listener.onFailure();
-                }
-            }
-        });
-    }
-
-    public void updateModeState(ICameraControlListener listener) {
-        executor.execute(new Runnable(){
-            @Override
-            public void run() {
-                String xml_string = SimpleHttpClient.httpGet(state.getBaseUrl() + "cam.cgi?mode=getstate", -1);
-
-                if (!xml_string.isEmpty()) {
-                    ArrayList<String> fields = new ArrayList<String>(Arrays.asList(
-                            "batt", "cammode", "remaincapacity", "videoremaincapacity", "rec", "temperature"
-                    ));
-
-                    Map<String, String> data = XmlParser.parse(xml_string, fields);
-                    state.battery = data.get("batt");
-                    state.isRecording = data.get("rec") == "off" ? false : true;
-//                    state.mode = data.get("cammode");
-
-
-//                    state.photoCapacity = Integer.parseInt(Objects.requireNonNull(data.get("remaincapacity")));
-//                    state.videoCapacity = Integer.parseInt(Objects.requireNonNull(data.get("videoremaincapacity")));
-//                    state.isRecording = !Objects.requireNonNull(data.get("rec")).contains("off");
-//                    state.temperature = data.get("temperature");
-                    state.available = true;
-
-                    listener.onSuccess();
-                } else {
-                    state.available = false;
-                    listener.onFailure();
-                }
-            }
-        });
     }
 
     @Override

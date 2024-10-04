@@ -6,6 +6,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.annotation.NonNull;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.ItemTouchHelper;
+
 import com.feyiuremote.MainActivity;
 import com.feyiuremote.databinding.FragmentCameraBinding;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
@@ -25,16 +30,12 @@ import com.feyiuremote.ui.camera.listeners.CameraLiveStreamUpdateListener;
 import com.feyiuremote.ui.camera.listeners.CameraStartStreamListener;
 import com.feyiuremote.ui.camera.listeners.WaypointAddClickListener;
 import com.feyiuremote.ui.camera.observers.BluetoothConnectivityObserver;
+import com.feyiuremote.ui.camera.observers.BluetoothEnabledObserver;
 import com.feyiuremote.ui.camera.observers.BluetoothGimbalPositionObserver;
 import com.feyiuremote.ui.camera.observers.CameraFocusObserver;
 import com.feyiuremote.ui.camera.observers.CameraObserver;
 import com.feyiuremote.ui.camera.waypoints.ItemTouchHelperCallback;
 import com.feyiuremote.ui.camera.waypoints.WaypointListAdapter;
-
-import androidx.annotation.NonNull;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.ItemTouchHelper;
 
 public class CameraFragment extends Fragment {
 
@@ -63,19 +64,18 @@ public class CameraFragment extends Fragment {
 
         mBluetoothViewModel = new ViewModelProvider(requireActivity()).get(BluetoothViewModel.class);
         mBluetoothViewModel.connected.observe(getViewLifecycleOwner(), new BluetoothConnectivityObserver(binding));
+        mBluetoothViewModel.enabled.observe(getViewLifecycleOwner(), new BluetoothEnabledObserver(mainActivity));
         mBluetoothViewModel.characteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)
                 .observe(getViewLifecycleOwner(), new BluetoothGimbalPositionObserver(binding, mWaypointsProcessor));
-
-        PanasonicCameraDiscovery cameraDiscovery = new PanasonicCameraDiscovery(mainActivity.executor);
 
         binding.buttonCameraConnect.setOnClickListener(view -> {
             if (cameraViewModel.streamIsStarted()) {
                 stopLiveView();
             } else {
-                cameraDiscovery.clear();
-                cameraDiscovery.search(new CameraDiscoveryListener(cameraViewModel, this::startLiveView));
+                connectToCamera();
             }
         });
+
 
         WaypointListAdapter wpListAdapter = new WaypointListAdapter(mainActivity.getBaseContext(), getViewLifecycleOwner(), cameraViewModel, mWaypointsProcessor);
         binding.listWaypoints.setAdapter(wpListAdapter);
@@ -103,6 +103,12 @@ public class CameraFragment extends Fragment {
         return binding.getRoot();
     }
 
+    private void connectToCamera() {
+        PanasonicCameraDiscovery cameraDiscovery = new PanasonicCameraDiscovery(mainActivity.executor);
+
+        cameraDiscovery.clear();
+        cameraDiscovery.search(getContext(), new CameraDiscoveryListener(cameraViewModel, this::startLiveView, this::connectToCamera));
+    }
 
     public void startLiveView() {
         cameraViewModel.status.postValue("Enabling camera controls...");
@@ -151,11 +157,6 @@ public class CameraFragment extends Fragment {
 
         // This refreshes frames on update within receiver
         r.setUpdateListener(new CameraLiveStreamUpdateListener(cameraViewModel, binding));
-
-        // This makes frame appear on the screen
-        // calling this only is not sufficient frames wont be updated
-        binding.liveView.setLiveFeedReceiver(r);
-
     }
 
     public void stopLiveView() {

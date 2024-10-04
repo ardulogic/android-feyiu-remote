@@ -1,17 +1,17 @@
 package com.feyiuremote.libs.Cameras.Panasonic;
 
+import static com.feyiuremote.libs.Cameras.abstracts.Connection.SSDPConnection.findParameterValue;
+
+import android.content.Context;
 import android.util.Log;
 
 import com.feyiuremote.libs.Cameras.abstracts.Connection.CameraDiscovery;
-import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraDiscoveryListener;
 import com.feyiuremote.libs.Cameras.abstracts.Connection.ISSDPDiscoveryListener;
 import com.feyiuremote.libs.Cameras.abstracts.Connection.SSDPConnection;
 import com.feyiuremote.libs.Cameras.abstracts.State.Camera;
 
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
-
-import static com.feyiuremote.libs.Cameras.abstracts.Connection.SSDPConnection.findParameterValue;
 
 public class PanasonicCameraDiscovery extends CameraDiscovery {
 
@@ -33,8 +33,8 @@ public class PanasonicCameraDiscovery extends CameraDiscovery {
         foundCamUrls.clear();
     }
 
-    public void search(IPanasonicCameraDiscoveryListener listener) {
-        SSDPConnection ssdp = new SSDPConnection(this.executor);
+    public void search(Context context, IPanasonicCameraDiscoveryListener listener) {
+        SSDPConnection ssdp = new SSDPConnection(context, this.executor);
 
         ssdp.inquire(new ISSDPDiscoveryListener() {
             @Override
@@ -56,7 +56,7 @@ public class PanasonicCameraDiscovery extends CameraDiscovery {
                         if (!foundCamUrls.contains(ddLocation)) {
                             this.onProgressUpdate("New camera found: " + ddLocation);
 
-                            PanasonicCamera cam = new PanasonicCamera(executor, ddLocation);
+                            PanasonicCamera cam = new PanasonicCamera(context, ddLocation);
                             foundCamUrls.add(ddLocation);
                             foundCameras.add(cam);
 

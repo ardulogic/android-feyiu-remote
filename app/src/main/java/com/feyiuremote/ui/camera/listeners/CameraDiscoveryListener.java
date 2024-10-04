@@ -15,10 +15,12 @@ public class CameraDiscoveryListener implements IPanasonicCameraDiscoveryListene
 
     private final CameraViewModel cameraModel;
     private final Runnable onCameraReady;
+    private final Runnable onCameraNotFound;
 
-    public CameraDiscoveryListener(CameraViewModel cameraModel, Runnable onCameraReady) {
+    public CameraDiscoveryListener(CameraViewModel cameraModel, Runnable onCameraReady, Runnable onCameraNotFound) {
         this.cameraModel = cameraModel;
         this.onCameraReady = onCameraReady;
+        this.onCameraNotFound = onCameraNotFound;
     }
 
     @Override
@@ -30,7 +32,7 @@ public class CameraDiscoveryListener implements IPanasonicCameraDiscoveryListene
 
         // Requesting basic information from camera
         // this proves that its properly connected
-        camera.updateBaseInfo(new ICameraControlListener() {
+        camera.controls.updateBaseInfo(new ICameraControlListener() {
             @Override
             public void onSuccess() {
                 cameraModel.status.postValue("Base info updated.");
@@ -81,6 +83,7 @@ public class CameraDiscoveryListener implements IPanasonicCameraDiscoveryListene
         if (foundCamUrls.isEmpty()) {
             cameraModel.status.postValue("No cameras found!");
             cameraModel.streamStarted.postValue(false);
+            onCameraNotFound.run();
         }
     }
 

@@ -10,6 +10,13 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 
+import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.MutableLiveData;
+import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.feyiuremote.R;
 import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
 import com.feyiuremote.ui.camera.CameraViewModel;
@@ -27,13 +34,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
-import androidx.lifecycle.LifecycleOwner;
-import androidx.lifecycle.MutableLiveData;
-import androidx.recyclerview.widget.DiffUtil;
-import androidx.recyclerview.widget.RecyclerView;
 
 
 public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapter.ItemViewHolder>
@@ -307,7 +307,7 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
             return gson.fromJson(json, listType);
         }
 
-        return null;
+        return new ArrayList<>();
     }
 
     public class WaypointDiffCallback extends DiffUtil.Callback {

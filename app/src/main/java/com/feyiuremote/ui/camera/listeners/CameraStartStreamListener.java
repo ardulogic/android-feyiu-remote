@@ -53,8 +53,6 @@ public class CameraStartStreamListener implements ICameraControlListener {
             // Its neccessary to have feed receiver a part of camera model
             // so it retains its value while switching between tabs
             LiveFeedReceiver liveFeedReceiver = getLiveFeedReceiver();
-            binding.liveView.setLiveFeedReceiver(liveFeedReceiver);
-
             camera.createLiveView(liveFeedReceiver);
             camera.getLiveView().start();
 

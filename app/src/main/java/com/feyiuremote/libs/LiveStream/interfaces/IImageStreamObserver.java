@@ -1,10 +1,10 @@
 package com.feyiuremote.libs.LiveStream.interfaces;
 
-import com.feyiuremote.libs.LiveStream.image.RawImage;
+import android.graphics.Bitmap;
 
 public interface IImageStreamObserver {
 
-    void onNewRawFrame(RawImage rawImage);
+    void onNewFrame(Bitmap image);
 
     void onError(String message);
 
