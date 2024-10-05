@@ -3,6 +3,8 @@ package com.feyiuremote.libs.Feiyu.processors.position;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.lifecycle.MutableLiveData;
+
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.Feiyu.FeyiuControls;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
@@ -10,8 +12,6 @@ import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
 
 import java.util.ArrayList;
-
-import androidx.lifecycle.MutableLiveData;
 
 public class GimbalPositionProcessor {
 
@@ -129,7 +129,7 @@ public class GimbalPositionProcessor {
             } else {
                 if (target.panShouldMove()) {
                     FeyiuControls.setPanJoy(target.getPanJoyValue());
-                    debugLog.add("Pan should move (" + target.panDiffInDeg() + " diff)");
+                    debugLog.add("Pan should move (" + target.angleDiffInDeg(mDb.AXIS_PAN) + " diff)");
                 }
             }
 
@@ -146,7 +146,7 @@ public class GimbalPositionProcessor {
             } else {
                 if (target.tiltShouldMove()) {
                     FeyiuControls.setTiltJoy(target.getTiltJoyValue());
-                    debugLog.add("Tilt should move (" + target.tiltDiffInDeg() + " diff)");
+                    debugLog.add("Tilt should move (" + target.angleDiffInDeg(mDb.AXIS_TILT) + " diff)");
 
                 }
             }

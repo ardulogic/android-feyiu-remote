@@ -129,6 +129,9 @@ public class PanasonicCameraLiveView {
                             Log.w(TAG, "Frame read time:" + timeForFrameRead);
                         }
 
+                        // This is not the regular latency we're talking about. It's the camera latency
+                        // which increases/decreases based on the delay between frame requests
+
                         // If 33ms (30fps) is used, for some reason it becomes 1sec latency
                         // 33 - Bad latency, but very stable Thread.sleep(Math.max(1L, 33 - timeForFrameRead));
 //                        Thread.sleep(frames % 4 == 0 ? 25L : 33L); // Holy grail - no delayed frames, and acceptable latency

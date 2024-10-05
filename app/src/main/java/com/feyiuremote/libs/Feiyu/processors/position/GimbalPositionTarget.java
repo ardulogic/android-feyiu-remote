@@ -4,14 +4,14 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Objects;
-
-import androidx.annotation.NonNull;
 
 public class GimbalPositionTarget {
     private final String TAG = GimbalPositionTarget.class.getSimpleName();
@@ -153,7 +153,7 @@ public class GimbalPositionTarget {
         }
 
         if (bestCal == null) {
-            Log.e(TAG, "Could not find " + axis + " calibration for deg diff:" + panDiffInDeg());
+            Log.e(TAG, "Could not find " + axis + " calibration for deg diff:" + angleDiffInDeg(mDb.AXIS_PAN));
             return mDb.getByClosestSpeed(axis, max_speed);
         }
 
@@ -166,10 +166,32 @@ public class GimbalPositionTarget {
     }
 
     public double angleDiffInDeg(String axis) {
+        double target, current;
+
         if (Objects.equals(axis, mDb.AXIS_PAN)) {
-            return pan_angle - FeyiuState.getInstance().angle_pan.value();
+            target = panTarget();
+            current = FeyiuState.getInstance().angle_pan.value();
         } else {
-            return tilt_angle - FeyiuState.getInstance().angle_tilt.value();
+            target = tiltTarget();
+            current = FeyiuState.getInstance().angle_tilt.value();
+        }
+
+        // If rotation is 360 and target 0, it will stay put
+        boolean use_shortcut = true;
+        if (use_shortcut) {
+            // Calculate the raw difference
+            double diff = target - current;
+
+            // Normalize the difference to the range [-180, 180] degrees
+            diff = (diff + 180) % 360 - 180;
+
+            if (diff < -180) {
+                diff += 360;
+            }
+
+            return diff;
+        } else {
+            return target - current;
         }
     }
 
@@ -185,15 +207,6 @@ public class GimbalPositionTarget {
             return speed(axis, this.tilt_speed_cal);
         }
     }
-
-    public double panDiffInDeg() {
-        return panTarget() - FeyiuState.getInstance().angle_pan.value();
-    }
-
-    public double tiltDiffInDeg() {
-        return tiltTarget() - FeyiuState.getInstance().angle_tilt.value();
-    }
-
 
     public int getDir(double diff) {
         if (diff < 0) {
@@ -261,7 +274,7 @@ public class GimbalPositionTarget {
     }
 
     public boolean isPositionReached() {
-        return Math.abs(panDiffInDeg()) < 2 && Math.abs(tiltDiffInDeg()) < 2;
+        return Math.abs(angleDiffInDeg(mDb.AXIS_PAN)) < 2 && Math.abs(angleDiffInDeg(mDb.AXIS_TILT)) < 2;
     }
 
     /**
@@ -324,9 +337,9 @@ public class GimbalPositionTarget {
         }
     }
 
-    public double getInterpolatedMovementTimeMs(double targetAngle, double currentAngle, double angularVelocity, double overshoot) {
+    public double getInterpolatedMovementTimeMs(double angleDiff, double angularVelocity, double overshoot) {
 //        overshoot *= 1.1;
-        double angleToStop = (float) (targetAngle - overshoot - currentAngle);
+        double angleToStop = (float) (angleDiff - overshoot);
         double timeToStop = Math.abs(angleToStop / angularVelocity); // deg / deg/sec
         return (double) (timeToStop) * 1000 - FeyiuState.getInstance().getTimeSinceLastUpdate(); // Convert to milliseconds
     }
@@ -342,8 +355,7 @@ public class GimbalPositionTarget {
 
     public double getPanMovementTime() {
         return getInterpolatedMovementTimeMs(
-                pan_angle,
-                FeyiuState.getInstance().angle_pan.value(),
+                angleDiffInDeg(mDb.AXIS_PAN),
                 getPanSpeedDegPerSec(),
                 getPanOvershoot()
         );
@@ -351,8 +363,7 @@ public class GimbalPositionTarget {
 
     public double getTiltMovementTime() {
         return getInterpolatedMovementTimeMs(
-                tilt_angle,
-                FeyiuState.getInstance().angle_tilt.value(),
+                angleDiffInDeg(mDb.AXIS_TILT),
                 getTiltSpeedDegPerSec(),
                 getTiltOvershoot()
         );
@@ -370,39 +381,37 @@ public class GimbalPositionTarget {
 
     public void logDiffs() {
         Log.d(TAG, String.format("Pan-df: %.2f %.2f | Tilt-df: %.2f %.2f | Pan-reached: %b Tilt-reached: %b",
-                panDiffInDeg(), getPanMovementTime(), tiltDiffInDeg(), getTiltMovementTime(), isPanReached(), isTiltReached()));
+                angleDiffInDeg(mDb.AXIS_PAN), getPanMovementTime(), angleDiffInDeg(mDb.AXIS_TILT), getTiltMovementTime(), isPanReached(), isTiltReached()));
+    }
+
+    public boolean axisIsOvershooting(double currentAngleDiff, double staringAngleDiff) {
+        if (currentAngleDiff == 0) {
+            return false;
+        } else if (Math.signum(currentAngleDiff) != Math.signum(staringAngleDiff)) {
+            return true;
+        }
+
+        return false;
     }
 
     public boolean panIsOvershooting() {
-        if (panDiffInDeg() == 0) {
-            return false;
-        } else if (Math.signum(panDiffInDeg()) != Math.signum(pan_diff_at_start)) {
-            return true;
-        }
-
-        return false;
+        return axisIsOvershooting(angleDiffInDeg(mDb.AXIS_PAN), pan_diff_at_start);
     }
 
     public boolean tiltIsOvershooting() {
-        if (tiltDiffInDeg() == 0) {
-            return false;
-        } else if (Math.signum(tiltDiffInDeg()) != Math.signum(tilt_diff_at_start)) {
-            return true;
-        }
-
-        return false;
+        return axisIsOvershooting(angleDiffInDeg(mDb.AXIS_TILT), tilt_diff_at_start);
     }
 
     public boolean panShouldStop() {
         boolean stoppingPointReached = stoppingPointReached(getPanMovementTime());
-        boolean accurateEnough = Math.abs(panDiffInDeg()) < 1;
+        boolean accurateEnough = Math.abs(angleDiffInDeg(mDb.AXIS_PAN)) < 1;
 
         return stoppingPointReached || accurateEnough || panIsOvershooting();
     }
 
     public boolean tiltShouldStop() {
         boolean stoppingPointReached = stoppingPointReached(getTiltMovementTime());
-        boolean accurateEnough = Math.abs(tiltDiffInDeg()) < 1;
+        boolean accurateEnough = Math.abs(angleDiffInDeg(mDb.AXIS_TILT)) < 1;
         boolean tiltIsOvershooting = tiltIsOvershooting();
 
         return stoppingPointReached || accurateEnough || tiltIsOvershooting;
@@ -425,7 +434,7 @@ public class GimbalPositionTarget {
 
         d += "\nTime: P:" + Math.round(getPanMovementTime()) + " T:" + Math.round(getTiltMovementTime());
         d += "\n Stopping: P:" + panIsStopping() + " T:" + tiltIsStopping();
-        d += "\n Angle Df: P:" + decimalFormat.format(panDiffInDeg()) + " T:" + decimalFormat.format(tiltDiffInDeg());
+        d += "\n Angle Df: P:" + decimalFormat.format(angleDiffInDeg(mDb.AXIS_PAN)) + " T:" + decimalFormat.format(angleDiffInDeg(mDb.AXIS_TILT));
         d += "\n Angle To: P:" + decimalFormat.format(panTarget()) + " T:" + decimalFormat.format(tiltTarget());
         d += "\n Speed: P:" + decimalFormat.format(getPanSpeedDegPerSec()) + " T:" + decimalFormat.format(getTiltSpeedDegPerSec());
         d += "\n Target Joy: P:" + getPanJoyValue() + " T:" + getTiltJoyValue();

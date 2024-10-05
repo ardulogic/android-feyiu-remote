@@ -4,7 +4,6 @@ import android.graphics.Bitmap;
 import android.util.Log;
 
 import com.feyiuremote.libs.AI.ObjectUtils;
-import com.feyiuremote.libs.AI.views.RectangleDrawView;
 import com.feyiuremote.libs.LiveStream.interfaces.IPoiUpdateListener;
 
 import org.opencv.android.Utils;
@@ -23,15 +22,14 @@ import boofcv.factory.tracker.FactoryTrackerObjectQuad;
 import boofcv.struct.image.GrayU8;
 import georegression.struct.shapes.Quadrilateral_F64;
 
-public class BCVObjectTracker {
-    private final String TAG = BCVObjectTracker.class.getSimpleName();
+public class FastObjectTracker {
+    private final String TAG = ReferenceObjectTracker.class.getSimpleName();
     public final static String TRACKER_CIRCULANT = "Circulant";
     public final static String TRACKER_TLD = "TLD";
 
     private final int TRACKING_RES_WIDTH = 640;
     private final int TRACKING_RES_HEIGHT = 480;
     private ExecutorService executor;
-    private RectangleDrawView mRectDrawView;
 
     private Mat mImageMatrix;
 
@@ -50,14 +48,12 @@ public class BCVObjectTracker {
     private IPoiUpdateListener mPoiUpdateListener;
     private POI mPoi;
 
-    public BCVObjectTracker(RectangleDrawView rectDrawView, ExecutorService executor) {
-        this(TRACKER_CIRCULANT, rectDrawView);
+    public FastObjectTracker(ExecutorService executor) {
+        this(TRACKER_CIRCULANT);
         this.executor = executor;
     }
 
-    public BCVObjectTracker(String tracker, RectangleDrawView rectangleDrawView) {
-        this.mRectDrawView = rectangleDrawView;
-
+    public FastObjectTracker(String tracker) {
         if (tracker.equals(TRACKER_CIRCULANT)) {
             mTracker = FactoryTrackerObjectQuad.circulant(null, GrayU8.class);
         } else if (tracker.equals(TRACKER_TLD)) {
@@ -70,42 +66,38 @@ public class BCVObjectTracker {
     }
 
     public Bitmap onNewFrame(Bitmap bitmap) {
-        if (bitmap != null) {
-            // Sometimes bitmap is null
-            mImageMatrix = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC1);
-            Utils.bitmapToMat(bitmap, mImageMatrix);
+        // Sometimes bitmap is null
+        mImageMatrix = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC1);
+        Utils.bitmapToMat(bitmap, mImageMatrix);
 
-            mTrackingImage = new GrayU8(TRACKING_RES_WIDTH, TRACKING_RES_HEIGHT);
-            ConvertBitmap.bitmapToBoof(bitmap, mTrackingImage, null);
+        mTrackingImage = new GrayU8(TRACKING_RES_WIDTH, TRACKING_RES_HEIGHT);
+        ConvertBitmap.bitmapToBoof(bitmap, mTrackingImage, null);
 
-            if (isLocked()) {
-                if (!mIsProcessing) {
-                    track();
-                }
-
-                bitmap = this.drawTrackingRectOnInput();
-
-                if (this.mPoiUpdateListener != null && mTrackingIntRectangle != null) {
-                    this.executor.execute(new mPoiUpdateRunnable(bitmap, mTrackingIntRectangle));
-                }
+        if (isLocked()) {
+            if (!mIsProcessing) {
+                track();
             }
-        } else {
-            Log.d(TAG, "Object tracker not active since bitmap is null");
+
+            bitmap = this.drawTrackingRectOnInput();
+
+            if (this.mPoiUpdateListener != null && mTrackingIntRectangle != null) {
+                this.executor.execute(new mPoiUpdateRunnable(mTrackingIntRectangle));
+            }
         }
 
         return bitmap;
     }
 
-    public void lock(int x1, int y1, int x2, int y2) {
-        updateDrawAreaBounds();
+    public void lock(int x1, int y1, int x2, int y2, int areaW, int areaH) {
+//        updateDrawAreaBounds();
 
         // Rectangle drawing area is not equal in pixels to the original image
         mTrackingExtRectangle = ObjectUtils.pointsToRect(x1, y1, x2, y2);
 
         // Image is resized to lower res for tracking
         // we need to account for this
-        Float widthRatio = (float) mImageMatrix.cols() / mAreaW;
-        Float heightRatio = (float) mImageMatrix.rows() / mAreaH;
+        Float widthRatio = (float) mImageMatrix.cols() / areaW;
+        Float heightRatio = (float) mImageMatrix.rows() / areaH;
 
         mTrackingIntRectangle = ObjectUtils.transformRect(mTrackingExtRectangle, widthRatio, heightRatio);
         mTrackingIntPoly = ObjectUtils.rectToPolygon(mTrackingIntRectangle);
@@ -118,8 +110,8 @@ public class BCVObjectTracker {
     }
 
     private void updateDrawAreaBounds() {
-        mAreaW = mRectDrawView.getWidth();
-        mAreaH = mRectDrawView.getHeight();
+//        mAreaW = mRectDrawView.getWidth();
+//        mAreaH = mRectDrawView.getHeight();
     }
 
     public void track() {
@@ -201,19 +193,17 @@ public class BCVObjectTracker {
 
     private class mPoiUpdateRunnable implements Runnable {
 
-        private final Bitmap poiBitmap;
         private final Rect poiRect;
 
-        public mPoiUpdateRunnable(Bitmap bitmap, Rect poiRect) {
+        public mPoiUpdateRunnable(Rect poiRect) {
             super();
 
-            this.poiBitmap = bitmap;
             this.poiRect = poiRect;
         }
 
         @Override
         public void run() {
-            mPoiUpdateListener.onPoiUpdate(poiBitmap, poiRect);
+            mPoiUpdateListener.onPoiUpdate(new POI(poiRect, TRACKING_RES_WIDTH, TRACKING_RES_HEIGHT));
         }
     }
 

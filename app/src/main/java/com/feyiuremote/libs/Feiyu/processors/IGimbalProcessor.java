@@ -1,10 +1,15 @@
 package com.feyiuremote.libs.Feiyu.processors;
 
-import android.graphics.Bitmap;
-import android.graphics.Rect;
+import com.feyiuremote.libs.AI.trackers.POI;
 
 public interface IGimbalProcessor {
 
-    void onPoiUpdate(Bitmap bitmap, Rect poi);
+    void onPoiLock();
+
+    void onPoiUpdate(POI poi);
+
+    void updatePoiDestination(double x_perc, double y_perc);
+
+    void cancel();
 
 }

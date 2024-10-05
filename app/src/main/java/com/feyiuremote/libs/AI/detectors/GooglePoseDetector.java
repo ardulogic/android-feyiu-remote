@@ -1,10 +1,11 @@
-package com.feyiuremote.libs.AI.trackers;
+package com.feyiuremote.libs.AI.detectors;
 
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.PointF;
 
 import com.feyiuremote.libs.AI.ObjectUtils;
+import com.feyiuremote.libs.AI.trackers.POI;
 import com.feyiuremote.libs.LiveStream.interfaces.IPoiUpdateListener;
 import com.google.android.gms.tasks.Task;
 import com.google.mlkit.vision.interfaces.Detector;
@@ -24,9 +25,9 @@ import org.opencv.imgproc.Imgproc;
 
 import java.util.concurrent.ExecutorService;
 
-public class GooglePoseTracker {
+public class GooglePoseDetector implements IObjectDetector {
 
-    public final static String TAG = GooglePoseTracker.class.getSimpleName();
+    public final static String TAG = GooglePoseDetector.class.getSimpleName();
     private static final boolean USE_GPU = false;
 
     private final int TRACKING_RES_WIDTH = 640;
@@ -35,7 +36,7 @@ public class GooglePoseTracker {
     private ExecutorService executor;
 
     private Rect mTrackingExtRectangle;
-    private final PoseDetector mPoseDetector;
+    private PoseDetector mPoseDetector;
 
     private boolean mIsProcessing = false;
 
@@ -43,10 +44,19 @@ public class GooglePoseTracker {
     private IPoiUpdateListener mPoiUpdateListener;
     private Pose mPose;
 
-    public GooglePoseTracker(Context c, ExecutorService executor) {
+    public GooglePoseDetector(Context c, ExecutorService executor) {
         this.mContext = c;
         this.executor = executor;
+    }
+
+    @Override
+    public void init(Context context) {
         this.mPoseDetector = PoseDetection.getClient(getPoseDetectorOptions());
+    }
+
+    @Override
+    public DetectedObject[] detect(Bitmap bitmap) {
+        return new DetectedObject[0];
     }
 
     private PoseDetectorOptionsBase getPoseDetectorOptions() {
@@ -76,7 +86,12 @@ public class GooglePoseTracker {
         bitmap = this.drawTrackingRect(bitmap);
 
         if (this.mPoiUpdateListener != null && mTrackingExtRectangle != null) {
-            this.executor.execute(new mPoiUpdateRunnable(bitmap, mTrackingExtRectangle));
+            this.executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    mPoiUpdateListener.onPoiUpdate(new POI(mTrackingExtRectangle, TRACKING_RES_WIDTH, TRACKING_RES_HEIGHT));
+                }
+            });
         }
 
         return bitmap;
@@ -143,24 +158,6 @@ public class GooglePoseTracker {
         Imgproc.rectangle(m, r, new Scalar(0, 255, 0), 3);
 
         return m;
-    }
-
-    private class mPoiUpdateRunnable implements Runnable {
-
-        private final Bitmap poiBitmap;
-        private final Rect poiRect;
-
-        public mPoiUpdateRunnable(Bitmap bitmap, Rect poiRect) {
-            super();
-
-            this.poiBitmap = bitmap;
-            this.poiRect = poiRect;
-        }
-
-        @Override
-        public void run() {
-            mPoiUpdateListener.onPoiUpdate(poiBitmap, poiRect);
-        }
     }
 
 }

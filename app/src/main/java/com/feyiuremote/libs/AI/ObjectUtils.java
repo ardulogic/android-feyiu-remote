@@ -1,7 +1,5 @@
 package com.feyiuremote.libs.AI;
 
-import com.feyiuremote.R;
-
 import org.opencv.core.Rect;
 
 import georegression.struct.shapes.Quadrilateral_F64;
@@ -87,4 +85,9 @@ public class ObjectUtils {
     public static Rect polygonToRect(Quadrilateral_F64 poly) {
         return pointsToRect((int) poly.a.x, (int) poly.a.y, (int) poly.c.x, (int) poly.c.y);
     }
+
+    public static android.graphics.Rect cvRectToAndroidRect(org.opencv.core.Rect cvRect) {
+        return new android.graphics.Rect(cvRect.x, cvRect.y, cvRect.x + cvRect.width, cvRect.y + cvRect.height);
+    }
+
 }

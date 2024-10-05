@@ -3,11 +3,11 @@ package com.feyiuremote.libs.Feiyu.processors.position;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.lifecycle.MutableLiveData;
+
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
 
 import java.util.ArrayList;
-
-import androidx.lifecycle.MutableLiveData;
 
 public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     private final String TAG = GimbalWaypointsProcessor.class.getSimpleName();
@@ -15,11 +15,15 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     public static final int MODE_BLEND = 1; // Mode when gimbal "blends" waypoints
 
     public static final int MODE_SINGLE = 2; // Mode when we just need it to go to single waypoint
+
+    public static final int MODE_ENDLESS = 3; // Mode when we just need it to go to single waypoint
     private final MutableLiveData<ArrayList<Waypoint>> waypoints;
 
     private int mode = MODE_DWELL;
 
     private int current_waypoint = 0;
+
+    private boolean is_active = false;
 
     public GimbalWaypointsProcessor(Context context, MutableLiveData<ArrayList<Waypoint>> waypoints) {
         super(context);
@@ -55,11 +59,15 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     }
 
     public void setActiveWaypoint(int index) {
-        getWaypoint(current_waypoint).setActive(false);
-        getWaypoint(index).setActive(true);
-        current_waypoint = index;
+        if (waypointExists(index)) {
+            getWaypoint(current_waypoint).setActive(false);
+            getWaypoint(index).setActive(true);
+            current_waypoint = index;
 
-        waypoints.postValue(waypoints.getValue());
+            waypoints.postValue(waypoints.getValue());
+        }
+
+        // Else waypoint no longer exists, maybe choose a previous one
     }
 
     public void setWaypointAsTarget(int index) {
@@ -87,8 +95,14 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
             setCurrentWaypointAsTarget();
             super.start();
         } else {
-            Log.d(TAG, "Clearing target, last waypoint reached");
-            this.cancel();
+            if (mode != MODE_ENDLESS) {
+                Log.d(TAG, "Clearing target, last waypoint reached");
+                this.cancel();
+            } else {
+                Log.d(TAG, "All over again");
+                setActiveWaypoint(0);
+                setCurrentWaypointAsTarget();
+            }
         }
     }
 
@@ -120,8 +134,8 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
         @Override
         public void onTargetReached() {
             // Blending on last waypoint makes it miss it by big margin
-            // since stopping doesnt really happen onTargetNearbly
-            if (mode == MODE_DWELL || isLastWaypoint()) {
+            // since stopping doesnt really happen onTargetReached()
+            if (mode == MODE_DWELL || isLastWaypoint() || mode == MODE_ENDLESS) {
                 moveToNextWaypoint();
             }
         }

@@ -1,14 +1,13 @@
 package com.feyiuremote.libs.LiveStream.interfaces;
 
-import android.graphics.Bitmap;
+import com.feyiuremote.libs.AI.trackers.POI;
 
-import org.opencv.core.Rect;
 
 public interface IPoiUpdateListener {
 
-    void onPoiLock(Rect poi);
+    void onPoiLock(POI poi);
 
-    void onPoiUpdate(Bitmap bitmap, Rect poi);
+    void onPoiUpdate(POI poi);
 
     void onPoiCancel();
 

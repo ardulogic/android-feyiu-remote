@@ -9,7 +9,7 @@ import androidx.lifecycle.ViewModel;
 import com.feyiuremote.R;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
-import com.feyiuremote.libs.LiveStream.processors.ObjectTrackingProcessor;
+import com.feyiuremote.libs.LiveStream.processors.UnifiedTrackingProcessor;
 import com.feyiuremote.libs.Utils.BitmapHelper;
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
 
@@ -29,8 +29,9 @@ public class CameraViewModel extends ViewModel {
     // Waypoints (This helps to retain data when switching  fragments
     public MutableLiveData<ArrayList<Waypoint>> waypointList = new MutableLiveData<>();
     public MutableLiveData<Boolean> waypointsLoaded = new MutableLiveData<>();
-    //    public MutableLiveData<UnifiedTrackingProcessor> unifiedTrackingProcessor = new MutableLiveData<>();
-    public MutableLiveData<ObjectTrackingProcessor> objectTrackingProcessor = new MutableLiveData<>();
+    public MutableLiveData<UnifiedTrackingProcessor> unifiedTrackingProcessor = new MutableLiveData<>();
+
+    //    public MutableLiveData<ObjectTrackingProcessor> objectTrackingProcessor = new MutableLiveData<>();
     public CameraViewModel() {
         status.setValue("Waiting for camera...");
         streamStarted.setValue(false);
