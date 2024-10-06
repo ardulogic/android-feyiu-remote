@@ -14,6 +14,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class FeyiuControls {
     private final static String TAG = FeyiuControls.class.getSimpleName();
@@ -34,7 +37,9 @@ public class FeyiuControls {
 
     static private JoystickState currentJoyState = new JoystickState(0, 0, null);
 
-    private static long minDelayToNextCommand() {
+    private static ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+
+    private synchronized static long minDelayToNextCommand() {
         return Math.max(0, THRESHOLD_MS - timeSinceLastBtCommand());
     }
 
@@ -48,69 +53,66 @@ public class FeyiuControls {
         } else {
             if (!tick_scheduled) {
                 Log.d(TAG, "Delaying tick since its too close to prev command:" + timeSinceLastBtCommand() + "ms");
-                timer.schedule(new TimerTask() {
-                    @Override
-                    public void run() {
-                        tick();
-                    }
-                }, minDelayToNextCommand());
 
+                executorService.schedule(FeyiuControls::tick, minDelayToNextCommand(), TimeUnit.MILLISECONDS);
+                //TODO: Does not work correctly! Sensitivy is not being set as it should!
+                // Again problem with states/concurrency
                 tick_scheduled = true;
             }
         }
     }
 
-    public static long timeSinceLastBtCommand() {
+    public synchronized static long timeSinceLastBtCommand() {
         return System.currentTimeMillis() - time_last_bt_command;
     }
 
-    public static long timeSinceLastRequest() {
+    public synchronized static long timeSinceLastRequest() {
         return System.currentTimeMillis() - time_last_request;
     }
 
-    private static void updateTimeSinceLastBtCommand() {
+    private synchronized static void updateTimeSinceLastBtCommand() {
         time_last_bt_command = System.currentTimeMillis();
     }
 
-    private static void updateTimeSinceLastRequest() {
+    private synchronized static void updateTimeSinceLastRequest() {
         time_last_request = System.currentTimeMillis();
     }
 
-    public static void setPanJoy(int value) {
+    public synchronized static void setPanJoy(int value) {
         updateTimeSinceLastRequest();
         queuedJoyStates.add(new JoystickState(value, null, 0));
     }
 
-    public static void setTiltJoy(int value) {
+    public synchronized static void setTiltJoy(int value) {
         updateTimeSinceLastRequest();
         queuedJoyStates.add(new JoystickState(null, value, 0));
     }
 
-    public static void setTiltJoyAfter(int value, int delay) {
+    public synchronized static void setTiltJoyAfter(int value, int delay) {
         updateTimeSinceLastRequest();
 
         queuedJoyStates.add(new JoystickState(null, value, delay));
     }
 
 
-    public static void setPanJoyAfter(int value, int delay) {
+    public synchronized static void setPanJoyAfter(int value, int delay) {
         updateTimeSinceLastRequest();
 
         queuedJoyStates.add(new JoystickState(value, null, delay));
     }
 
-    public static void setPanSensitivity(int sensitivity) {
+    public synchronized static void setPanSensitivity(int sensitivity) {
         queuedSensitivityStates.add(new SensitivityState(sensitivity, SensitivityState.TYPE_PAN, null));
         updateTimeSinceLastRequest();
     }
 
-    public static void setTiltSensitivity(int sensitivity) {
+    public synchronized static void setTiltSensitivity(int sensitivity) {
         updateTimeSinceLastRequest();
 
         queuedSensitivityStates.add(new SensitivityState(sensitivity, SensitivityState.TYPE_TILT, null));
     }
 
-    public static void consolidateQueuedSensitivityChanges() {
+    public synchronized static void consolidateQueuedSensitivityChanges() {
         ArrayList<SensitivityState> consolidatedSensitivityStates = (ArrayList<SensitivityState>) queuedSensitivityStates.clone();
 
         consolidatedSensitivityStates.sort(new SensitivityState.SortByTypeAndTime());
@@ -143,7 +145,7 @@ public class FeyiuControls {
         queuedSensitivityStates = consolidatedSensitivityStates;
     }
 
-    public static void consolidateQueuedStates() {
+    public synchronized static void consolidateQueuedStates() {
         // Copying values to avoid concurrent exception
         ArrayList<JoystickState> consolidatedJoyStates = (ArrayList<JoystickState>) queuedJoyStates.clone();
 
@@ -186,7 +188,7 @@ public class FeyiuControls {
         for (JoystickState targetState : queuedJoyStates) {
             timer.schedule(new TimerTask() {
                 @Override
-                public void run() {
+                public synchronized void run() {
                     currentJoyState.mergeWith(targetState);
                     queuedJoyStates.remove(targetState);
                     tick();
@@ -195,7 +197,7 @@ public class FeyiuControls {
         }
     }
 
-    public static void executeCommands() {
+    public synchronized static void executeCommands() {
         if (sensitivityChangesArePending()) {
             changeSensitivity();
         } else {
@@ -203,11 +205,11 @@ public class FeyiuControls {
         }
     }
 
-    public static boolean sensitivityChangesArePending() {
+    public synchronized static boolean sensitivityChangesArePending() {
         return queuedSensitivityStates.size() > 0;
     }
 
-    public static void changeSensitivity() {
+    public synchronized static void changeSensitivity() {
         SensitivityState st = queuedSensitivityStates.get(0);
 
         if (st.differsFromCurrent()) {
@@ -229,7 +231,7 @@ public class FeyiuControls {
         tick();
     }
 
-    public static void moveIfNecessary() {
+    public synchronized static void moveIfNecessary() {
         if (!shouldBeStopped()) {
             stopped = false;
             move();
@@ -242,7 +244,7 @@ public class FeyiuControls {
         }
     }
 
-    public static void move() {
+    public synchronized static void move() {
         if ((timeSinceLastRequest() > 2000) && (currentJoyState.panJoy != 0) && (currentJoyState.tiltJoy != 0)) {
             Log.e(TAG, "Emergency stop! Pan or Tilt was not stopped in time!");
         }
@@ -252,11 +254,11 @@ public class FeyiuControls {
         c.run();
     }
 
-    public static boolean shouldBeStopped() {
+    public synchronized static boolean shouldBeStopped() {
         return currentJoyState.panJoy == 0 && currentJoyState.tiltJoy == 0;
     }
 
-    public static void cancelQueuedCommands() {
+    public synchronized static void cancelQueuedCommands() {
         // Cancel previous timer first
         timer.cancel();
         timer = new Timer();
@@ -265,7 +267,7 @@ public class FeyiuControls {
     }
 
 
-    public static void init(BluetoothLeService mBluetoothLeService) {
+    public synchronized static void init(BluetoothLeService mBluetoothLeService) {
         mBt = mBluetoothLeService;
     }
 }

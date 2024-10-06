@@ -2,7 +2,6 @@ package com.feyiuremote.libs.LiveStream.LiveView.Listeners;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.graphics.RectF;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -14,8 +13,8 @@ import androidx.annotation.NonNull;
 public class OnTouchRectangleDraw implements View.OnTouchListener {
     private final String TAG = "RectangleDrawTouchListener";
     private final int MIN_RECT_SIZE = 30;
-    private final int drawAreaW;
-    private final int drawAreaH;
+    private int drawAreaW;
+    private int drawAreaH;
 
     private int rect_x1;
     private int rect_y1;
@@ -23,11 +22,10 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
     private int rect_y2;
 
     private final GestureDetector gestureDetector;
-    private IRectangleDrawTouchListener mListener;
+    private ILiveViewTouchListener mListener;
 
     public OnTouchRectangleDraw(Context context, View liveView) {
-        this.drawAreaW = liveView.getWidth();
-        this.drawAreaH = liveView.getHeight();
+
         gestureDetector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
             @Override
             public void onLongPress(MotionEvent e) {
@@ -45,15 +43,7 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
         });
     }
 
-    public RectF getRect(int maxWidth, int maxHeight) {
-        float ratioW = (float) maxWidth / drawAreaW;
-        float ratioH = (float) maxHeight / drawAreaH;
-
-        // Draw the rectangle on the canvas
-        return new RectF(rect_x1 * ratioW, rect_y1 * ratioH, rect_x2 * ratioW, rect_y2 * ratioH);
-    }
-
-    public void setListener(IRectangleDrawTouchListener listener) {
+    public void setListener(ILiveViewTouchListener listener) {
         this.mListener = listener;
     }
 
@@ -64,6 +54,9 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
         final int Y = (int) event.getY();
         gestureDetector.onTouchEvent(event);
 
+        drawAreaW = v.getWidth();
+        drawAreaH = v.getHeight();
+
         switch (event.getAction() & MotionEvent.ACTION_MASK) {
             case MotionEvent.ACTION_UP:
                 Log.d(TAG, "MotionEvent.ACTION_UP");
@@ -73,7 +66,7 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
                     }
                 }
 
-                this.mListener.onTooSmallRectangle();
+                this.mListener.onDrawingRectangleFail();
                 break;
             case MotionEvent.ACTION_DOWN:
                 Log.d(TAG, "MotionEvent.ACTION_DOWN");
@@ -82,14 +75,14 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
                 rect_x2 = X;
                 rect_y2 = Y;
 
-                this.mListener.onDrawingRectangle(rect_x1, rect_y1, rect_x2, rect_y2);
+                this.mListener.onDrawingRectangle(rect_x1, rect_y1, rect_x2, rect_y2, drawAreaW, drawAreaH);
                 break;
             case MotionEvent.ACTION_MOVE:
                 Log.d(TAG, "MotionEvent.ACTION_MOVE");
                 rect_x2 = X;
                 rect_y2 = Y;
 
-                this.mListener.onDrawingRectangle(rect_x1, rect_y1, rect_x2, rect_y2);
+                this.mListener.onDrawingRectangle(rect_x1, rect_y1, rect_x2, rect_y2, drawAreaW, drawAreaH);
                 break;
         }
 

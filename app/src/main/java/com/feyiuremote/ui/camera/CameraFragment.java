@@ -45,7 +45,8 @@ public class CameraFragment extends Fragment {
     private FragmentCameraBinding binding;
     private CameraViewModel cameraViewModel;
     private BluetoothViewModel mBluetoothViewModel;
-    private GimbalWaypointsProcessor mWaypointsProcessor;
+
+    private UnifiedTrackingProcessor unifiedTrackingProcessor;
 
 
     @SuppressLint("SetTextI18n")
@@ -60,13 +61,14 @@ public class CameraFragment extends Fragment {
         cameraViewModel.status.observe(getViewLifecycleOwner(), binding.textCameraStatus::setText);
         cameraViewModel.camera.observe(getViewLifecycleOwner(), new CameraObserver(binding));
         cameraViewModel.focus.observe(getViewLifecycleOwner(), new CameraFocusObserver(binding));
-        mWaypointsProcessor = new GimbalWaypointsProcessor(mainActivity.getBaseContext(), cameraViewModel.waypointList);
+
+        unifiedTrackingProcessor = new UnifiedTrackingProcessor(mainActivity, binding, cameraViewModel);
 
         mBluetoothViewModel = new ViewModelProvider(requireActivity()).get(BluetoothViewModel.class);
         mBluetoothViewModel.connected.observe(getViewLifecycleOwner(), new BluetoothConnectivityObserver(binding));
         mBluetoothViewModel.enabled.observe(getViewLifecycleOwner(), new BluetoothEnabledObserver(mainActivity));
         mBluetoothViewModel.characteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)
-                .observe(getViewLifecycleOwner(), new BluetoothGimbalPositionObserver(binding, mWaypointsProcessor));
+                .observe(getViewLifecycleOwner(), new BluetoothGimbalPositionObserver(binding, unifiedTrackingProcessor.mWaypointsProcessor));
 
         binding.buttonCameraConnect.setOnClickListener(view -> {
             if (cameraViewModel.streamIsStarted()) {
@@ -76,10 +78,10 @@ public class CameraFragment extends Fragment {
             }
         });
 
-
-        WaypointListAdapter wpListAdapter = new WaypointListAdapter(mainActivity.getBaseContext(), getViewLifecycleOwner(), cameraViewModel, mWaypointsProcessor);
+        WaypointListAdapter wpListAdapter = new WaypointListAdapter(mainActivity.getBaseContext(), getViewLifecycleOwner(), cameraViewModel, unifiedTrackingProcessor.mWaypointsProcessor);
         binding.listWaypoints.setAdapter(wpListAdapter);
-//        // Drag and drop waypoints
+
+        // Drag and drop waypoints
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelperCallback(wpListAdapter));
         itemTouchHelper.attachToRecyclerView(binding.listWaypoints);
 
@@ -89,15 +91,15 @@ public class CameraFragment extends Fragment {
         binding.buttonCameraFocus.setOnClickListener(new CameraFocusClickListener(cameraViewModel));
 
         binding.buttonPlayWaypoints.setOnClickListener(view -> {
-            mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_DWELL);
+            unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_DWELL);
         });
 
         binding.buttonPlayWaypointsBlend.setOnClickListener(view -> {
-            mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_BLEND);
+            unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_BLEND);
         });
 
         binding.buttonPlayWaypointsEndless.setOnClickListener(view -> {
-            mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_ENDLESS);
+            unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_ENDLESS);
         });
 
         if (cameraViewModel.streamIsStarted()) {
@@ -128,7 +130,7 @@ public class CameraFragment extends Fragment {
                     setLiveImageProcessors(cameraViewModel.liveFeedReceiver.getValue());
                 }));
 
-                mWaypointsProcessor.setCamera(cameraViewModel.camera);
+                unifiedTrackingProcessor.mWaypointsProcessor.setCamera(cameraViewModel.camera);
             }
 
             @Override
@@ -140,7 +142,7 @@ public class CameraFragment extends Fragment {
 
     private void setLiveImageProcessors(LiveFeedReceiver r) {
         if (r != null) {
-            r.setImageProcessor(new UnifiedTrackingProcessor(mainActivity, binding));
+            r.setImageProcessor(unifiedTrackingProcessor);
             Log.d(TAG, "Binding trackers to live view");
         }
     }
@@ -179,10 +181,6 @@ public class CameraFragment extends Fragment {
         UnifiedTrackingProcessor objTracker = cameraViewModel.unifiedTrackingProcessor.getValue();
         if (objTracker != null) {
             objTracker.cancel();
-        }
-
-        if (mWaypointsProcessor != null) {
-            mWaypointsProcessor.cancel();
         }
     }
 

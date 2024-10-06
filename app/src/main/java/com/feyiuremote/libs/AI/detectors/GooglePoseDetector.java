@@ -5,8 +5,6 @@ import android.graphics.Bitmap;
 import android.graphics.PointF;
 
 import com.feyiuremote.libs.AI.ObjectUtils;
-import com.feyiuremote.libs.AI.trackers.POI;
-import com.feyiuremote.libs.LiveStream.interfaces.IPoiUpdateListener;
 import com.google.android.gms.tasks.Task;
 import com.google.mlkit.vision.interfaces.Detector;
 import com.google.mlkit.vision.pose.Pose;
@@ -41,7 +39,7 @@ public class GooglePoseDetector implements IObjectDetector {
     private boolean mIsProcessing = false;
 
     private Bitmap mTrackingImage;
-    private IPoiUpdateListener mPoiUpdateListener;
+
     private Pose mPose;
 
     public GooglePoseDetector(Context c, ExecutorService executor) {
@@ -70,9 +68,9 @@ public class GooglePoseDetector implements IObjectDetector {
         return builder.build();
     }
 
-    public void setOnPoiUpdateListener(IPoiUpdateListener listener) {
-        this.mPoiUpdateListener = listener;
-    }
+//    public void setOnPoiUpdateListener(IPoiUpdateListener listener) {
+//        this.mPoiUpdateListener = listener;
+//    }
 
     public Bitmap onNewFrame(Bitmap bitmap) {
 //        mTrackingImage = bitmap;
@@ -85,14 +83,14 @@ public class GooglePoseDetector implements IObjectDetector {
 
         bitmap = this.drawTrackingRect(bitmap);
 
-        if (this.mPoiUpdateListener != null && mTrackingExtRectangle != null) {
-            this.executor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    mPoiUpdateListener.onPoiUpdate(new POI(mTrackingExtRectangle, TRACKING_RES_WIDTH, TRACKING_RES_HEIGHT));
-                }
-            });
-        }
+//        if (this.mPoiUpdateListener != null && mTrackingExtRectangle != null) {
+//            this.executor.execute(new Runnable() {
+//                @Override
+//                public void run() {
+//                    mPoiUpdateListener.onPoiUpdate(new POI(mTrackingExtRectangle, TRACKING_RES_WIDTH, TRACKING_RES_HEIGHT));
+//                }
+//            });
+//        }
 
         return bitmap;
     }

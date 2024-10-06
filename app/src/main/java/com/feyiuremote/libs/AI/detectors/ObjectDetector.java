@@ -83,11 +83,11 @@ abstract public class ObjectDetector {
             for (DetectedObject obj : detectedObjects) {
                 if (obj.label == label_index) {
                     if (mPOI != null) {
-                        double distance = mPOI.calculateDistance(obj.rect);
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            closestObject = obj;
-                        }
+//                        double distance = mPOI.calculateDistance(obj.rect);
+//                        if (distance < minDistance) {
+//                            minDistance = distance;
+//                            closestObject = obj;
+//                        }
                     } else {
                         return obj;
                     }
@@ -106,19 +106,19 @@ abstract public class ObjectDetector {
         return null;
     }
 
-    public boolean poiOverlapsWithObject(DetectedObject obj, POI poi) {
-        double overlap = calculateOverlap(obj.rect, poi.toOpenCVRect());
-        double overlapReversed = calculateOverlap(poi.toOpenCVRect(), obj.rect);
-        double minOverlap = 0.8; // 90% overlap threshold
-
-        if ((overlap >= minOverlap && overlapReversed >= minOverlap)) {
-            Log.d(TAG, "POI overlaps with object: Label " + obj.label + ", Overlap: " + overlap + " Reversed:" + overlapReversed);
-            // Do something with the overlapping object, for example, update the POI or perform other actions
-            return true;
-        }
-
-        return false;
-    }
+//    public boolean poiOverlapsWithObject(DetectedObject obj, POI poi) {
+//        double overlap = calculateOverlap(obj.rect, poi.toOpenCVRect());
+//        double overlapReversed = calculateOverlap(poi.toOpenCVRect(), obj.rect);
+//        double minOverlap = 0.8; // 90% overlap threshold
+//
+//        if ((overlap >= minOverlap && overlapReversed >= minOverlap)) {
+//            Log.d(TAG, "POI overlaps with object: Label " + obj.label + ", Overlap: " + overlap + " Reversed:" + overlapReversed);
+//            // Do something with the overlapping object, for example, update the POI or perform other actions
+//            return true;
+//        }
+//
+//        return false;
+//    }
 
     private double calculateOverlap(Rect rect1, Rect rect2) {
         double intersectionWidth = Math.min(rect1.x + rect1.width, rect2.x + rect2.width) - Math.max(rect1.x, rect2.x);

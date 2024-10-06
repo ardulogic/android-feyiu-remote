@@ -3,19 +3,12 @@ package com.feyiuremote.libs.AI.trackers;
 import android.graphics.Bitmap;
 import android.util.Log;
 
-import com.feyiuremote.libs.AI.ObjectUtils;
-import com.feyiuremote.libs.LiveStream.interfaces.IPoiUpdateListener;
-
-import org.opencv.android.Utils;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.Rect;
-import org.opencv.core.Scalar;
-import org.opencv.imgproc.Imgproc;
+import com.feyiuremote.MainActivity;
+import com.feyiuremote.libs.Utils.Rectangle;
 
 import java.util.concurrent.ExecutorService;
 
-import boofcv.abst.tracker.ConfigTrackerTld;
+import boofcv.abst.tracker.ConfigCirculantTracker;
 import boofcv.abst.tracker.TrackerObjectQuad;
 import boofcv.android.ConvertBitmap;
 import boofcv.factory.tracker.FactoryTrackerObjectQuad;
@@ -23,192 +16,126 @@ import boofcv.struct.image.GrayU8;
 import georegression.struct.shapes.Quadrilateral_F64;
 
 public class FastObjectTracker {
-    private final String TAG = ReferenceObjectTracker.class.getSimpleName();
+    private final String TAG = FastObjectTracker.class.getSimpleName();
     public final static String TRACKER_CIRCULANT = "Circulant";
     public final static String TRACKER_TLD = "TLD";
 
-    private final int TRACKING_RES_WIDTH = 640;
-    private final int TRACKING_RES_HEIGHT = 480;
+    private MainActivity activity;
     private ExecutorService executor;
 
-    private Mat mImageMatrix;
-
     private TrackerObjectQuad<GrayU8> mTracker;
-    private Integer mAreaW;
-    private Integer mAreaH;
-
-    private Rect mTrackingIntRectangle;
-    private Rect mTrackingExtRectangle;
 
     private boolean mIsProcessing = false;
     private boolean mInitIsPending = false;
 
-    private GrayU8 mTrackingImage;
-    private Quadrilateral_F64 mTrackingIntPoly;
-    private IPoiUpdateListener mPoiUpdateListener;
+    private boolean isLocked = false;
+
+    private GrayU8 mFrame;
+    private IObjectTrackerListener mListener;
+
     private POI mPoi;
+    private Quadrilateral_F64 trackPolygon;
+    private Rectangle trackRectangle;
 
-    public FastObjectTracker(ExecutorService executor) {
-        this(TRACKER_CIRCULANT);
+    public FastObjectTracker(ExecutorService executor, MainActivity a) {
         this.executor = executor;
+        this.activity = a;
+
+        ConfigCirculantTracker config = new ConfigCirculantTracker();
+
+        // Set the parameters according to your needs
+        // This makes the spatial bandwidth slightly larger,
+        // capturing more spatial variations in the target's movement.
+        config.output_sigma_factor = 1.0 / 16; // Default 1.0/16
+
+        // A larger bandwidth would make the kernel smoother and less sensitive to minor appearance changes.
+        config.sigma = 0.2;
+
+        //For stability in tracking people, you may need a bit more regularization to prevent overfitting to momentary changes
+        // (like a person temporarily occluded or partially outside the frame).
+        config.lambda = 1e-2;
+
+        // Since people can change appearance relatively quickly (e.g., rotating or taking off a coat),
+        // a slightly higher update rate is necessary to allow the model to adjust faster. Recommended: 0.1 - 0.12.
+        config.interp_factor = 0.075; // Kernel bandwidth parameter (default is 0.2)
+
+        // People tend to move in and out of regions quickly and their size may change.
+        // A padding value of 1 (which doubles the original region) seems good to capture enough context
+        // around the person. You could experiment with slightly more, like 1.5,
+        // if you're finding that targets are leaving the bounding box too quickly.
+        config.padding = 1; // Amount of padding around the target (default is 1.5)
+
+
+        config.workSpace = 64;
+
+        mTracker = FactoryTrackerObjectQuad.circulant(config, GrayU8.class);
+
     }
 
-    public FastObjectTracker(String tracker) {
-        if (tracker.equals(TRACKER_CIRCULANT)) {
-            mTracker = FactoryTrackerObjectQuad.circulant(null, GrayU8.class);
-        } else if (tracker.equals(TRACKER_TLD)) {
-            mTracker = FactoryTrackerObjectQuad.tld(new ConfigTrackerTld(false), GrayU8.class);
+    public void setListener(IObjectTrackerListener listener) {
+        this.mListener = listener;
+    }
+
+    public synchronized Bitmap onNewFrame(Bitmap bitmap) {
+        if (mFrame == null) {
+            mFrame = new GrayU8(bitmap.getWidth(), bitmap.getHeight());
         }
-    }
-
-    public void setOnPoiUpdateListener(IPoiUpdateListener listener) {
-        this.mPoiUpdateListener = listener;
-    }
-
-    public Bitmap onNewFrame(Bitmap bitmap) {
-        // Sometimes bitmap is null
-        mImageMatrix = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC1);
-        Utils.bitmapToMat(bitmap, mImageMatrix);
-
-        mTrackingImage = new GrayU8(TRACKING_RES_WIDTH, TRACKING_RES_HEIGHT);
-        ConvertBitmap.bitmapToBoof(bitmap, mTrackingImage, null);
 
         if (isLocked()) {
             if (!mIsProcessing) {
-                track();
-            }
-
-            bitmap = this.drawTrackingRectOnInput();
-
-            if (this.mPoiUpdateListener != null && mTrackingIntRectangle != null) {
-                this.executor.execute(new mPoiUpdateRunnable(mTrackingIntRectangle));
+                track(bitmap);
             }
         }
 
         return bitmap;
     }
 
-    public void lock(int x1, int y1, int x2, int y2, int areaW, int areaH) {
-//        updateDrawAreaBounds();
-
-        // Rectangle drawing area is not equal in pixels to the original image
-        mTrackingExtRectangle = ObjectUtils.pointsToRect(x1, y1, x2, y2);
-
-        // Image is resized to lower res for tracking
-        // we need to account for this
-        Float widthRatio = (float) mImageMatrix.cols() / areaW;
-        Float heightRatio = (float) mImageMatrix.rows() / areaH;
-
-        mTrackingIntRectangle = ObjectUtils.transformRect(mTrackingExtRectangle, widthRatio, heightRatio);
-        mTrackingIntPoly = ObjectUtils.rectToPolygon(mTrackingIntRectangle);
-
-        mInitIsPending = true;
+    public synchronized void lock(Rectangle rectangle) {
+        if (mFrame != null) {
+            trackPolygon = rectangle.getRescaled(mFrame.width, mFrame.height).toPolygon();
+            trackRectangle = rectangle;
+            mInitIsPending = true;
+            isLocked = true;
+        }
     }
 
-    public void clear() {
-        mTrackingIntRectangle = null;
-    }
+    public synchronized void track(Bitmap bitmap) {
+        this.executor.execute(() -> {
+            mIsProcessing = true;
+            ConvertBitmap.bitmapToBoof(bitmap, mFrame, null);
 
-    private void updateDrawAreaBounds() {
-//        mAreaW = mRectDrawView.getWidth();
-//        mAreaH = mRectDrawView.getHeight();
-    }
+            if (mInitIsPending) {
+                mTracker.initialize(mFrame, trackPolygon);
+                mInitIsPending = false;
+            } else {
+                try {
+                    mTracker.process(mFrame, trackPolygon);
+                    trackRectangle.update(trackPolygon, mFrame.width, mFrame.height);
 
-    public void track() {
-        if (isLocked()) {
-            this.executor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    mIsProcessing = true;
-
-                    if (mInitIsPending) {
-                        mTracker.initialize(mTrackingImage, mTrackingIntPoly);
-                        mInitIsPending = false;
-                    } else {
-                        try {
-                            mTracker.process(mTrackingImage, mTrackingIntPoly);
-                            mTrackingIntRectangle = ObjectUtils.polygonToRect(mTrackingIntPoly);
-                            updatePOI();
-                        } catch (IllegalArgumentException e) {
-                            Log.e(TAG, "Tracking image size has changed!");
-                            mTracker.initialize(mTrackingImage, mTrackingIntPoly);
-                        }
+                    if (this.mListener != null) {
+                        this.executor.execute(() -> mListener.onUpdate(trackRectangle));
                     }
-
-                    mIsProcessing = false;
+                } catch (IllegalArgumentException e) {
+                    Log.e(TAG, "Tracking image size has changed!");
+                    mInitIsPending = true;
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    Log.e(TAG, "There was a memory leak / bad references! Method not synchronized?");
+                    this.stop();
                 }
-            });
-        }
-    }
+            }
 
-    private void updatePOI() {
-        mPoi = new POI(
-                mTrackingIntRectangle.x,
-                mTrackingIntRectangle.y,
-                mTrackingIntRectangle.width,
-                mTrackingIntRectangle.height,
-                mTrackingImage.width,
-                mTrackingImage.height
-        );
-    }
-
-    public Bitmap drawTrackingRectOnInput() {
-        Mat im = mImageMatrix.clone();
-        Imgproc.rectangle(im, ObjectUtils.polygonToRect(mTrackingIntPoly), new Scalar(0, 255, 0), 3);
-
-        Bitmap bitmapOut = Bitmap.createBitmap(im.cols(), im.rows(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(im, bitmapOut);
-
-        return bitmapOut;
-    }
-
-    /**
-     * This is in case we want to keep input image intact
-     * and draw rect over its copy
-     *
-     * @param originalBitmap
-     * @return
-     */
-    public Bitmap drawTrackingRect(Bitmap originalBitmap) {
-        // Rectangle drawing area is not equal in pixels to the original image
-        float widthRatio = originalBitmap.getWidth() / (float) mAreaW;
-        float heightRatio = originalBitmap.getHeight() / (float) mAreaH;
-
-        Rect imgTrackingRectangle = ObjectUtils.transformRect(mTrackingExtRectangle, widthRatio, heightRatio);
-
-        Mat im = new Mat(originalBitmap.getHeight(), originalBitmap.getWidth(), CvType.CV_8UC1);
-        Utils.bitmapToMat(originalBitmap, im);
-        Imgproc.rectangle(im, imgTrackingRectangle, new Scalar(0, 255, 0), 3);
-
-        Bitmap bitmapOut = Bitmap.createBitmap(im.cols(), im.rows(), Bitmap.Config.ARGB_8888);
-        Utils.matToBitmap(im, bitmapOut);
-
-        return bitmapOut;
-    }
-
-
-    public POI getPOI() {
-        return mPoi;
-    }
-
-    private class mPoiUpdateRunnable implements Runnable {
-
-        private final Rect poiRect;
-
-        public mPoiUpdateRunnable(Rect poiRect) {
-            super();
-
-            this.poiRect = poiRect;
-        }
-
-        @Override
-        public void run() {
-            mPoiUpdateListener.onPoiUpdate(new POI(poiRect, TRACKING_RES_WIDTH, TRACKING_RES_HEIGHT));
-        }
+            mIsProcessing = false;
+        });
     }
 
     public boolean isLocked() {
-        return mTrackingIntRectangle != null;
+        return isLocked;
     }
+
+    public void stop() {
+        isLocked = false;
+        mInitIsPending = false;
+    }
+
 
 }

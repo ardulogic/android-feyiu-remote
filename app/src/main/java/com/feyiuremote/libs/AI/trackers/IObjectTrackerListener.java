@@ -1,6 +1,8 @@
 package com.feyiuremote.libs.AI.trackers;
 
+import com.feyiuremote.libs.Utils.Rectangle;
+
 public interface IObjectTrackerListener {
-    void onUpdate(POI poi);
+    void onUpdate(Rectangle rectangle);
 
 }

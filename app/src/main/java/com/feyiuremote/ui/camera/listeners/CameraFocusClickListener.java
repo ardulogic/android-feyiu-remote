@@ -16,7 +16,7 @@ public class CameraFocusClickListener implements View.OnClickListener {
     }
 
     private void focusOnPOI(POI poi) {
-        cameraViewModel.camera.getValue().controls.touchFocus(poi.centerXPerc(), poi.centerYPerc(),
+        cameraViewModel.camera.getValue().controls.touchFocus(poi.rect.centerXPercInFrame(), poi.rect.centerYPercInFrame(),
                 new ICameraControlListener() {
                     @Override
                     public void onSuccess() {
