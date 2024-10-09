@@ -67,8 +67,8 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
             tiltSettings.put("joy_val", 0);
         }
 
-        FeyiuControls.setPanJoy(panSettings.getAsInteger("joy_val"));
-        FeyiuControls.setTiltJoy(tiltSettings.getAsInteger("joy_val"));
+        FeyiuControls.setPanJoy(panSettings.getAsInteger("joy_val"), "Following target");
+        FeyiuControls.setTiltJoy(tiltSettings.getAsInteger("joy_val"), "Following target");
     }
 
     @Override
@@ -84,7 +84,7 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
 
     @Override
     public void stop() {
-        FeyiuControls.setTiltJoy(0);
-        FeyiuControls.setPanJoy(0);
+        FeyiuControls.setTiltJoy(0, "Stopping gimbal follow processor (Tilt)");
+        FeyiuControls.setPanJoy(0, "Stopping gimbal follow processor (Pan)");
     }
 }

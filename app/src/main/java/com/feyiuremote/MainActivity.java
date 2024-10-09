@@ -263,6 +263,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onDestroy() {
         this.mWakeLock.release();
+        mBluetoothLeService.disconnect();
+
         super.onDestroy();
     }
 

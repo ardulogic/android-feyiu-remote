@@ -10,5 +10,5 @@ public interface ILiveFeedProcessor {
 
     POI getPOI();
 
-    void cancel();
+    void stop();
 }

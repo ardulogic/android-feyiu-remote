@@ -37,7 +37,10 @@ public class FeyiuState {
     }
 
     public void update(byte[] data) {
-        update_interval = System.currentTimeMillis() - last_update;
+        if (last_update > 0) {
+            update_interval = System.currentTimeMillis() - last_update;
+        }
+
         last_update = System.currentTimeMillis();
 
         if (data.length > 15) {
@@ -56,6 +59,15 @@ public class FeyiuState {
 
     public Long getUpdateInterval() {
         return this.update_interval;
+    }
+
+    public Long nextUpdateInMs() {
+        if (this.update_interval > 0 && this.last_update > 0) {
+
+            return this.update_interval - getTimeSinceLastUpdate();
+        } else {
+            return getAverageUpdateInterval();
+        }
     }
 
     public Long getAverageUpdateInterval() {

@@ -2,22 +2,22 @@ package com.feyiuremote.libs.Cameras.abstracts.Connection;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.net.Network;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.util.Log;
+
+import com.feyiuremote.libs.Utils.Networks;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -39,13 +39,14 @@ public class SSDPConnection {
     protected final int SSDP_MX = 2;
     protected final String SSDP_ADDR = "239.255.255.250";
     protected final String SSDP_ST = "urn:schemas-upnp-org:device:MediaServer:1";
+    private final Network network;
     private Context context;
     private final ExecutorService executor;
-    private NetworkInterface wlanInterface;
 
     public SSDPConnection(Context context, ExecutorService executor) {
         this.context = context;
         this.executor = executor;
+        this.network = Networks.getWifiNetwork(context);
     }
 
     public void inquire(ISSDPDiscoveryListener listener) {
@@ -173,6 +174,11 @@ public class SSDPConnection {
 
         DatagramSocket socket = new DatagramSocket();
         socket.setReuseAddress(true);
+        try {
+            network.bindSocket(socket);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         // Get the Wi-Fi network information
         WifiManager wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
@@ -200,18 +206,5 @@ public class SSDPConnection {
 
         return socket;
     }
-
-    // Method to get and set the list of network interfaces
-    private void acquireWlanInterface() throws SocketException {
-        Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
-        while (networkInterfaces.hasMoreElements()) {
-            NetworkInterface iface = networkInterfaces.nextElement();
-            // You might want to filter out loopback or inactive interfaces based on your requirements
-            if (iface.isUp() && !iface.isLoopback() && Objects.equals(iface.getName(), "wlan0")) {
-                this.wlanInterface = iface;
-            }
-        }
-    }
-
 
 }

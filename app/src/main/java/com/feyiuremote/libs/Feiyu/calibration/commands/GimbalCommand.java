@@ -15,7 +15,6 @@ abstract public class GimbalCommand {
     public float pan_angle;
     public float tilt_angle;
 
-    public Long delay;
     private Long delayed_execution_time;
     public String comment = "";
 

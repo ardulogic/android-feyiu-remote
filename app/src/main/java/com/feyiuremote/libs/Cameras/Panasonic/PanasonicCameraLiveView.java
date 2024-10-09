@@ -44,16 +44,17 @@ public class PanasonicCameraLiveView {
     private Integer frameSinceStreamRequest = 0;
     private boolean streamActive;
 
-    private final int MAX_EXCEPTIONS = 1000;
+    private final int MAX_EXCEPTIONS_RESTART = 15;
+    private final int MAX_EXCEPTIONS_HALT = 30;
+
+    private int exceptionsRestart = 0;
+    private int exceptionsHalt = 0;
+
     private final int RECEIVE_BUFFER_SIZE = 2000000;
     private final int TIMEOUT_FRAME = 500;
 
     private boolean requestingStream = false;
     private int requestRetries = 0;
-
-    final int JPEG_START_INDEX = 188;
-
-    byte[] tempBuffer = new byte[RECEIVE_BUFFER_SIZE];
 
     private final JpegPacket jpegPacket;
 
@@ -85,8 +86,9 @@ public class PanasonicCameraLiveView {
      */
     private void listenToUdpSocket() {
         Log.d(TAG, "Listening to UDP socket");
+
+
         this.withLiveViewReceiver(() -> {
-            int exceptions = 0;
             frames = 0;
             frameSinceStreamRequest = 0;
 
@@ -97,37 +99,44 @@ public class PanasonicCameraLiveView {
             try {
                 streamActive = true;
 
-                Long lastFrameTime = System.currentTimeMillis();
                 socket = new DatagramSocket(PORT);
                 socket.setReuseAddress(true);
                 socket.setSoTimeout(TIMEOUT_FRAME);
 
-                while (streamActive && exceptions < MAX_EXCEPTIONS) {
-                    long frameStartRead = System.currentTimeMillis();
-
+                while (streamActive && exceptionsHalt < MAX_EXCEPTIONS_HALT) {
                     try {
-                        if (frameSinceStreamRequest > 200) {
-                            PanasonicCameraControls.executor.execute(() -> {
-                                requestStream();
-                                frameSinceStreamRequest = 0;
-                            });
+                        if (frameSinceStreamRequest > 200 || exceptionsRestart > MAX_EXCEPTIONS_RESTART) {
+                            Log.d(TAG, "frame:" + frameSinceStreamRequest + " exceptions restart:" + exceptionsRestart);
+
+                            frameSinceStreamRequest = 0;
+                            exceptionsRestart = 0;
+
+                            PanasonicCameraControls.executor.execute(this::requestStream);
                         }
+
+                        long refTime = System.currentTimeMillis();
 
                         // IT will receive only one jpeg no matter the buffer size
                         socket.receive(receivePacket);
+
+                        long refEndTime = System.currentTimeMillis() - refTime;
+                        if (refEndTime > 20) {
+                            Log.w(TAG, "Long frame packet time:" + refEndTime);
+                        }
+
+                        refTime = System.currentTimeMillis();
 
                         // It used to block this loop, so its better to launch handling
                         // on a separate thread
                         executor.execute(() -> handleImagePacket(receivePacket.getData(), receivePacket.getLength()));
 
-                        exceptions = 0;
+                        refEndTime = System.currentTimeMillis() - refTime;
+                        if (refEndTime > 20) {
+                            Log.w(TAG, "Long frame process time:" + refEndTime);
+                        }
+
                         frames++;
                         frameSinceStreamRequest++;
-
-                        long timeForFrameRead = System.currentTimeMillis() - frameStartRead;
-                        if (timeForFrameRead > 10) {
-                            Log.w(TAG, "Frame read time:" + timeForFrameRead);
-                        }
 
                         // This is not the regular latency we're talking about. It's the camera latency
                         // which increases/decreases based on the delay between frame requests
@@ -135,44 +144,43 @@ public class PanasonicCameraLiveView {
                         // If 33ms (30fps) is used, for some reason it becomes 1sec latency
                         // 33 - Bad latency, but very stable Thread.sleep(Math.max(1L, 33 - timeForFrameRead));
 //                        Thread.sleep(frames % 4 == 0 ? 25L : 33L); // Holy grail - no delayed frames, and acceptable latency
-                        Thread.sleep(Math.max(33L - timeForFrameRead, 5L));
-//                        Thread.sleep(20L);
-                    } catch (SocketTimeoutException e) {
-                        Log.d(TAG, "Socket timeout");
-                        exceptions++;
-//                    mLiveViewListener.onWarning("Stream Socket Timed Out:" + exceptions);
-                    } catch (SocketException e) {
-                        mLiveViewReceiver.onError("Could not open socket!");
-                        e.printStackTrace();
-                    } catch (IOException e) {
-                        exceptions++;
-                        mLiveViewReceiver.onError("Stream IO exception:" + exceptions);
-                        e.printStackTrace();
-                        break;
-                    } catch (RejectedExecutionException e) {
-                        mLiveViewReceiver.onError("Could not execute job");
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+                        Thread.sleep(frames % 4 == 0 ? 25L : 33L); // I dont know if sleeping the thread causes inconsistencies
 
+                        exceptionsHalt = 0;
+                        exceptionsRestart = 0;
+                    } catch (Exception e) {
+                        exceptionsHalt++;
+                        exceptionsRestart++;
 
-                    long elapsedTime = System.currentTimeMillis() - lastFrameTime;
-                    try {
-                        if (frames % 30 == 0) {
-                            double fps = (double) (1000 / (elapsedTime / frames));
-                            Log.d(TAG, "Frames per second: " + fps + " / " + frames);
+                        if (e instanceof SocketTimeoutException) {
+                            mLiveViewReceiver.onWarning("Stream Socket Timed Out:" + exceptionsHalt);
+                        } else if (e instanceof InterruptedException) {
+                            mLiveViewReceiver.onError("Stream Thread Interrupted.");
+                            streamActive = false;
+                        } else if (e instanceof SocketException) {
+                            mLiveViewReceiver.onError("Could not open/use socket!");
+                            streamActive = false;
+                        } else if (e instanceof IOException) {
+                            mLiveViewReceiver.onError("Could not open socket!");
+                            streamActive = false;
+                        } else if (e instanceof RejectedExecutionException) {
+                            mLiveViewReceiver.onError("Could not execute job");
+                            streamActive = false;
+                        } else {
+                            mLiveViewReceiver.onError("Unknown stream error.");
+                            streamActive = false;
                         }
-                    } catch (ArithmeticException e) {
-
                     }
                 }
             } catch (SocketException e) {
                 Log.d(TAG, "Socket exception!");
+                streamActive = false;
             } finally {
                 if (socket != null) {
                     if (!socket.isClosed()) {
                         socket.close();
                     }
+
                     Log.d(TAG, "Socket closed due to endless timeouts!");
                     mLiveViewReceiver.onInfo("Socket timeout limit reached.");
                 }

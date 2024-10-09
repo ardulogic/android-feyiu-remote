@@ -182,7 +182,8 @@ public class PanasonicFocus {
     }
 
     public boolean focusTargetReached() {
-        return (getAbsFocusDiff() < stepSizes[0] * 1.1);
+        //TODO: This should be smarter in case its overshooting
+        return (getAbsFocusDiff() < stepSizes[0] * 1.2);
     }
 
     private int chooseBestSpeed() {
@@ -239,7 +240,7 @@ public class PanasonicFocus {
                 }
             });
         } else {
-            Log.e(TAG, "Could not focus, because focus position is uknown!");
+            Log.e(TAG, "Could not focus, because focus position is unknown!");
         }
     }
 

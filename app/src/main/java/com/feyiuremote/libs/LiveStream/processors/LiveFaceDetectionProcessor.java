@@ -19,7 +19,7 @@ public class LiveFaceDetectionProcessor implements ILiveFeedProcessor {
     }
 
     @Override
-    public void cancel() {
+    public void stop() {
 
     }
 

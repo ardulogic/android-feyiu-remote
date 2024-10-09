@@ -121,6 +121,7 @@ public class CameraFragment extends Fragment {
     public void startLiveView() {
         cameraViewModel.status.postValue("Enabling camera controls...");
         PanasonicCamera camera = cameraViewModel.camera.getValue();
+
         camera.controls.enable(new ICameraControlListener() {
             @Override
             public void onSuccess() {
@@ -135,7 +136,7 @@ public class CameraFragment extends Fragment {
 
             @Override
             public void onFailure() {
-                cameraViewModel.status.postValue("Failed to start stream.");
+                cameraViewModel.status.postValue("Could not enable camera controls.");
             }
         });
     }
@@ -180,7 +181,7 @@ public class CameraFragment extends Fragment {
     private void cancelAll() {
         UnifiedTrackingProcessor objTracker = cameraViewModel.unifiedTrackingProcessor.getValue();
         if (objTracker != null) {
-            objTracker.cancel();
+            objTracker.stop();
         }
     }
 

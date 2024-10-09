@@ -87,4 +87,12 @@ public class SensitivityState {
             return Long.compare(state1.executesIn(), state2.executesIn());
         }
     }
+
+    public String toString() {
+        return "SensitivityState{" +
+                "sens=" + sens +
+                ", type=" + (type == TYPE_PAN ? "PAN" : "TILT") +
+                ", executesIn=" + executesIn() + "ms" +
+                '}';
+    }
 }

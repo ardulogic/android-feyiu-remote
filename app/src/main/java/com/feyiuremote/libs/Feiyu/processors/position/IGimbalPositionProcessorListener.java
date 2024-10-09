@@ -1,7 +1,7 @@
 package com.feyiuremote.libs.Feiyu.processors.position;
 
 public interface IGimbalPositionProcessorListener {
-    void onTargetReached();
+    void onTargetReached(GimbalPositionTarget target);
 
     void onTargetNearlyReached();
 }

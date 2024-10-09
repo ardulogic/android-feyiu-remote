@@ -27,7 +27,7 @@ public class PoseTrackingProcessor implements ILiveFeedProcessor {
     }
 
     @Override
-    public void cancel() {
+    public void stop() {
 
     }
 

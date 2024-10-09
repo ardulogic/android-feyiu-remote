@@ -67,6 +67,7 @@ public class UnifiedTrackingProcessor implements ILiveFeedProcessor {
             public void onDoubleTap() {
                 mPOI = null;
                 tracker.stop();
+                gimbalFollowProcessor.stop();
             }
 
             @Override
@@ -113,7 +114,7 @@ public class UnifiedTrackingProcessor implements ILiveFeedProcessor {
     }
 
     @Override
-    public void cancel() {
+    public void stop() {
         this.tracker.stop();
         this.mWaypointsProcessor.cancel();
     }

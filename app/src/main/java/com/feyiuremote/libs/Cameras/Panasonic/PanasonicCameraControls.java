@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -26,35 +27,73 @@ public class PanasonicCameraControls extends CameraControls {
     private final PanasonicCamera camera;
     private final HttpClient httpClient;
 
-    protected static final ThreadFactory threadFactory = new NamedThreadFactory("PanasonicControls");
+    private boolean executing = false;
 
-    protected static final ExecutorService executor = Executors.newFixedThreadPool(2, threadFactory);
+    private static final ThreadFactory threadFactory = new NamedThreadFactory("PanasonicControls");
+    public static final ExecutorService executor = Executors.newFixedThreadPool(1, threadFactory); // Single-thread executor
+    private final ArrayBlockingQueue<CameraCommand> commandQueue = new ArrayBlockingQueue<>(100);
 
     public PanasonicCameraControls(Context context, PanasonicCamera panasonicCamera) {
         super(context);
-
         this.camera = panasonicCamera;
         this.httpClient = new HttpClient(context);
     }
 
+    private void executeQueuedCommand() {
+        CameraCommand command = null;
+
+        try {
+            // Blocking call, waits for a command
+            command = commandQueue.take();
+            if (command != null) {
+                command.execute();
+            }
+        } catch (InterruptedException e) {
+            Log.e(TAG, "Could not execute queued command! Thread interrupted.");
+        }
+    }
+
+    private synchronized void executeQueuedCommands() {
+        if (!commandQueue.isEmpty() && !executing) {
+            executing = true;
+            executeQueuedCommand();
+            executing = false;
+
+            executeQueuedCommands();
+        }
+    }
+
+    private synchronized void queueCommand(CameraCommand command) {
+        commandQueue.add(command);
+        executeQueuedCommands();
+    }
+
+    // Command interface
+    interface CameraCommand {
+        void execute();
+    }
+
+    // Modify existing methods to use the command queue
     public void enable(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String ctrl_url = camera.state.getBaseUrl() + "cam.cgi?mode=accctrl&type=req_acc&value=" + UUID.randomUUID().toString() + "&value2=" + clientName;
-            String reply = null;
+            String reply = httpClient.get(ctrl_url, 1000);
 
-            while (reply == null || reply.contains("ok_under_research_no_msg")) {
-                reply = httpClient.get(ctrl_url, 1000);
-
+            if (reply != null) {
                 if (reply.contains("ok") || reply.contains("err_non_support")) {
                     listener.onSuccess();
-                    break;
+                } else if (reply.contains("ok_under_research_no_msg")) {
+                    enable(listener);
+                    return;
                 }
             }
+
+            listener.onFailure();
         });
     }
 
     public void updateBaseInfo(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String xml_string = httpClient.get(camera.state.url, -1);
 
             if (!xml_string.isEmpty()) {
@@ -77,10 +116,10 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     public void updateModeState(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String xml_string = httpClient.get(camera.state.getBaseUrl() + "cam.cgi?mode=getstate", -1);
 
-            if (!xml_string.isEmpty()) {
+            if (xml_string != null && !xml_string.isEmpty()) {
                 ArrayList<String> fields = new ArrayList<String>(Arrays.asList(
                         "batt", "cammode", "remaincapacity", "videoremaincapacity", "rec", "temperature"
                 ));
@@ -95,6 +134,7 @@ public class PanasonicCameraControls extends CameraControls {
 //                    state.videoCapacity = Integer.parseInt(Objects.requireNonNull(data.get("videoremaincapacity")));
 //                    state.isRecording = !Objects.requireNonNull(data.get("rec")).contains("off");
 //                    state.temperature = data.get("temperature");
+
                 camera.state.available = true;
 
                 listener.onSuccess();
@@ -105,9 +145,8 @@ public class PanasonicCameraControls extends CameraControls {
         });
     }
 
-
     public void recMode(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=recmode";
             String reply = httpClient.get(url, 2000);
 
@@ -120,28 +159,30 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     public void startStream(ICameraControlListener listener) {
-        this.recMode(new ICameraControlListener() {
-            @Override
-            public void onSuccess() {
-                String url = camera.state.getBaseUrl() + "cam.cgi?mode=startstream&value=" + PanasonicCameraLiveView.PORT;
-                String reply = httpClient.get(url, 2000);
+        queueCommand(() -> {
+            recMode(new ICameraControlListener() {
+                @Override
+                public void onSuccess() {
+                    String url = camera.state.getBaseUrl() + "cam.cgi?mode=startstream&value=" + PanasonicCameraLiveView.PORT;
+                    String reply = httpClient.get(url, 2000);
 
-                if (reply.contains("<result>ok</result>")) {
-                    listener.onSuccess();
-                } else {
+                    if (reply.contains("<result>ok</result>")) {
+                        listener.onSuccess();
+                    } else {
+                        listener.onFailure();
+                    }
+                }
+
+                @Override
+                public void onFailure() {
                     listener.onFailure();
                 }
-            }
-
-            @Override
-            public void onFailure() {
-                listener.onFailure();
-            }
+            });
         });
     }
 
     public void stopStream(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=stopstream";
             String reply = httpClient.get(url, 1000);
 
@@ -154,7 +195,7 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     public void takePicture(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=capture";
             String reply = httpClient.get(url, 1000);
 
@@ -167,7 +208,7 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     public void startVideoRecording(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=video_recstart";
             String reply = httpClient.get(url, 1000);
 
@@ -189,7 +230,7 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     public void stopVideoRecording(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=video_recstop";
             String reply = httpClient.get(url, 1000);
 
@@ -203,7 +244,7 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     public void keepAlive(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=playmode";
             String reply = httpClient.get(url, 1000);
 
@@ -221,7 +262,7 @@ public class PanasonicCameraControls extends CameraControls {
      * @param listener
      */
     public void getCapability(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=getinfo&type=capability";
             String reply = httpClient.get(url, 1000);
 
@@ -234,7 +275,7 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     public void getAllMenuSettings(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=getinfo&type=allmenu";
             String reply = httpClient.get(url, 1000);
 
@@ -247,7 +288,7 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     public void getCurrentMenuSettings(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=getinfo&type=curmenu";
             String reply = httpClient.get(url, 1000);
 
@@ -259,10 +300,9 @@ public class PanasonicCameraControls extends CameraControls {
         });
     }
 
-
-    public void setShutter(String shutter, ICameraControlListener listener) {
-        executor.execute(() -> {
-            String shutterSpeedValue = PanasonicShutterSpeeds.getControlValue(shutter);
+    public void setShutterSpeed(String speed, ICameraControlListener listener) {
+        queueCommand(() -> {
+            String shutterSpeedValue = PanasonicShutterSpeeds.getControlValue(speed);
 
             if (shutterSpeedValue != null) {
                 String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=shtrspeed&shutter=" + shutterSpeedValue;
@@ -280,7 +320,7 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     public void setAperture(String aperture, ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String value = PanasonicApertures.getControlValue(aperture);
 
             if (value != null) {
@@ -316,7 +356,7 @@ public class PanasonicCameraControls extends CameraControls {
     // After changing focus:
     // NOTE IT DOES NOT WORK WITH MANUAL FOCUS MODE, WONT UPDATE!!!!
     public void getLensInfo(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=getinfo&type=lens";
             String reply = httpClient.get(url, 1000);
 
@@ -329,7 +369,7 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     public void getFocusState(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "/cam.cgi?mode=camctrl&type=focus&value=wide-normal";
             String reply = httpClient.get(url, 1000);
 
@@ -342,7 +382,7 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     public void getFocusMode(ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "/cam.cgi?mode=getsetting&type=focusmode";
             String reply = httpClient.get(url, 1000);
 
@@ -355,25 +395,28 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     public void focus(int speed, IPanasonicCameraFocusControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String value = PanasonicFocusSpeeds.getControlValue(speed);
             String url = camera.state.getBaseUrl() + "/cam.cgi?mode=camctrl&type=focus&value=" + value;
             String reply = httpClient.get(url, 1000);
-            String[] parts = reply.split(",");
 
-            try {
-                // Parse the middle and last numbers
-                String status = parts[0];
+            if (reply != null) {
+                String[] parts = reply.split(",");
 
-                if (status.contains("ok")) {
-                    int currentState = Integer.parseInt(parts[1]);
-                    int maxState = Integer.parseInt(parts[2]);
-                    double percentage = (double) currentState / maxState * 100;
-                    listener.onSuccess(percentage);
-                    return;
+                try {
+                    // Parse the middle and last numbers
+                    String status = parts[0];
+
+                    if (status.contains("ok")) {
+                        int currentState = Integer.parseInt(parts[1]);
+                        int maxState = Integer.parseInt(parts[2]);
+                        double percentage = (double) currentState / maxState * 100;
+                        listener.onSuccess(percentage);
+                        return;
+                    }
+                } catch (NumberFormatException e) {
+                    System.out.println("Failed to parse focal numbers.");
                 }
-            } catch (NumberFormatException e) {
-                System.out.println("Failed to parse focal numbers.");
             }
 
             listener.onFailure();
@@ -457,7 +500,7 @@ public class PanasonicCameraControls extends CameraControls {
      * @param listener
      */
     public void touchTraceContinue(int x, int y, ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "/cam.cgi?mode=camctrl&type=touch_trace&value=continue&value2=" + x + "/" + y;
             String reply = httpClient.get(url, 1000);
             Log.d("POI", url);
@@ -480,7 +523,7 @@ public class PanasonicCameraControls extends CameraControls {
      * @param listener
      */
     public void touchTraceStop(int x, int y, ICameraControlListener listener) {
-        executor.execute(() -> {
+        queueCommand(() -> {
             //value=continue also exists
             String url = camera.state.getBaseUrl() + "/cam.cgi?mode=camctrl&type=touch_trace&value=stop&value2=" + x + "/" + y;
             String reply = httpClient.get(url, 1000);
@@ -504,18 +547,15 @@ public class PanasonicCameraControls extends CameraControls {
      * @param listener
      */
     public void lockAEL(ICameraControlListener listener) {
-        executor.execute(new Runnable() {
-            @Override
-            public void run() {
-                // It stays in lock mode for a bit, you can send "off" to cancel it
-                String url = camera.state.getBaseUrl() + "/cam.cgi?mode=camctrl&type=af_ae_lock&value=on";
-                String reply = httpClient.get(url, 1000);
+        queueCommand(() -> {
+            // It stays in lock mode for a bit, you can send "off" to cancel it
+            String url = camera.state.getBaseUrl() + "/cam.cgi?mode=camctrl&type=af_ae_lock&value=on";
+            String reply = httpClient.get(url, 1000);
 
-                if (reply.contains("<result>ok</result>")) {
-                    listener.onSuccess();
-                } else {
-                    listener.onFailure();
-                }
+            if (reply.contains("<result>ok</result>")) {
+                listener.onSuccess();
+            } else {
+                listener.onFailure();
             }
         });
     }

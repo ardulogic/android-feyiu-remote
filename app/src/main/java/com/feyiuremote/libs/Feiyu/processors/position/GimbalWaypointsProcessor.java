@@ -8,6 +8,9 @@ import androidx.lifecycle.MutableLiveData;
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
 
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     private final String TAG = GimbalWaypointsProcessor.class.getSimpleName();
@@ -23,7 +26,7 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
 
     private int current_waypoint = 0;
 
-    private boolean is_active = false;
+    private ExecutorService executor = Executors.newSingleThreadExecutor();
 
     public GimbalWaypointsProcessor(Context context, MutableLiveData<ArrayList<Waypoint>> waypoints) {
         super(context);
@@ -80,10 +83,11 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     }
 
     public void moveToStart() {
+        Log.d(TAG, "Moving to starting waypoint");
+
         setActiveWaypoint(0);
         setCurrentWaypointAsTarget();
         super.start();
-        Log.d(TAG, "Moving to starting waypoint");
     }
 
     private void moveToNextWaypoint() {
@@ -102,6 +106,7 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
                 Log.d(TAG, "All over again");
                 setActiveWaypoint(0);
                 setCurrentWaypointAsTarget();
+                super.start();
             }
         }
     }
@@ -132,11 +137,23 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     class positionProcessorListener implements IGimbalPositionProcessorListener {
 
         @Override
-        public void onTargetReached() {
+        public void onTargetReached(GimbalPositionTarget target) {
             // Blending on last waypoint makes it miss it by big margin
             // since stopping doesnt really happen onTargetReached()
             if (mode == MODE_DWELL || isLastWaypoint() || mode == MODE_ENDLESS) {
-                moveToNextWaypoint();
+                executor.submit(() -> {
+                    try {
+                        // Wait for the dwell time asynchronously
+                        TimeUnit.MILLISECONDS.sleep(target.dwell_time_ms);
+
+                        // After dwell time, move to the next waypoint
+                        moveToNextWaypoint();
+                    } catch (InterruptedException e) {
+                        // Handle interruption
+                        Thread.currentThread().interrupt();
+                        System.err.println("Dwell time interrupted: " + e.getMessage());
+                    }
+                });
             }
         }
 

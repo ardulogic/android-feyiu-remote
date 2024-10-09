@@ -15,8 +15,6 @@ import java.util.Objects;
 
 public class GimbalPositionTarget {
     private final String TAG = GimbalPositionTarget.class.getSimpleName();
-    private static final int SPEED_NEGATIVE = 0;
-    private static final int SPEED_POSITIVE = 1;
 
     private final double pan_angle;
     private final double tilt_angle;
@@ -111,16 +109,20 @@ public class GimbalPositionTarget {
             if (time_diff < min_time_diff) {
                 min_time_diff = time_diff;
                 bestCal = cal;
-                Log.d(TAG, String.format("Finding matching calibration for %s. Original:  %.1f deg/s in %.1fms, ideal: %.1fms, Better: %.1f deg/s in  %.1fms, diff: %.1fms",
-                        axis,
-                        speed(axis),
-                        getMovementTimeInMs(axis), // original
-                        getMovementTimeInMs(otherAxis(axis)), // ideal other axis
-                        speed(axis, bestCal), // better deg/s
-                        getMovementTimeInMs(axis, bestCal), // better ms
-                        time_diff //diff
-                ));
+//                Log.d(TAG, String.format("Finding matching calibration for %s. Original:  %.1f deg/s in %.1fms, ideal: %.1fms, Better: %.1f deg/s in  %.1fms, diff: %.1fms",
+//                        axis,
+//                        speed(axis),
+//                        getMovementTimeInMs(axis), // original
+//                        getMovementTimeInMs(otherAxis(axis)), // ideal other axis
+//                        speed(axis, bestCal), // better deg/s
+//                        getMovementTimeInMs(axis, bestCal), // better ms
+//                        time_diff //diff
+//                ));
             }
+        }
+
+        if (min_time_diff > 100) {
+            Log.w(TAG, "Matching calibration difference high: " + min_time_diff);
         }
 
         if (bestCal == null) {
@@ -270,7 +272,7 @@ public class GimbalPositionTarget {
     }
 
     public boolean isReached() {
-        return isPanReached() && isTiltReached();
+        return (panIsStopping() || tiltIsStopping());
     }
 
     public boolean isPositionReached() {
@@ -385,9 +387,7 @@ public class GimbalPositionTarget {
     }
 
     public boolean axisIsOvershooting(double currentAngleDiff, double staringAngleDiff) {
-        if (currentAngleDiff == 0) {
-            return false;
-        } else if (Math.signum(currentAngleDiff) != Math.signum(staringAngleDiff)) {
+        if (Math.signum(currentAngleDiff) != Math.signum(staringAngleDiff)) {
             return true;
         }
 
@@ -426,7 +426,7 @@ public class GimbalPositionTarget {
 
     @NonNull
     public String toString() {
-        DecimalFormat decimalFormat = new DecimalFormat("#.#");
+        DecimalFormat decimalFormat = new DecimalFormat(" #.#; -#.#");
         String d = String.format("%s, %s, %s",
                 FeyiuState.getInstance().angle_pan.speedToString(),
                 FeyiuState.getInstance().angle_tilt.speedToString(),
