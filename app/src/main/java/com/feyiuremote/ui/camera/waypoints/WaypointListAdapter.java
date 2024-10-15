@@ -1,6 +1,7 @@
 package com.feyiuremote.ui.camera.waypoints;
 
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
@@ -8,7 +9,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
@@ -36,8 +39,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 
-public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapter.ItemViewHolder>
-        implements ItemTouchHelperAdapter {
+public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapter.ItemViewHolder> implements ItemTouchHelperAdapter {
     private final String TAG = WaypointListAdapter.class.getSimpleName();
     private static final String PREF_KEY_WAYPOINT_LIST = "saved_waypoints";
 
@@ -82,8 +84,7 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
     }
 
     private void updateLocalWaypoints() {
-        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(
-                new WaypointDiffCallback(localWaypointList, waypointList.getValue()));
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new WaypointDiffCallback(localWaypointList, waypointList.getValue()));
 
         localWaypointList.clear();
 
@@ -133,6 +134,7 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
         return new ItemViewHolder(view);
     }
 
+    @SuppressLint("DefaultLocale")
     @Override
     public void onBindViewHolder(@NonNull ItemViewHolder holder, int position) {
         Waypoint item = waypointList.getValue().get(holder.getBindingAdapterPosition());
@@ -145,9 +147,38 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
 
         holder.imageWaypoint.setImageBitmap(item.getWaypointImage());
 
+        holder.textDwellTime.setText(String.format("%.1fs", item.dwellTimeMs / 1000.0));
+
         holder.buttonGoTo.setOnClickListener(view -> {
             waypointsProcessor.goToWaypoint(holder.getBindingAdapterPosition());
             Log.d("WaypointListAdapter", "Target has been set");
+        });
+
+        // Adding long click listener for dwell time input
+        holder.buttonGoTo.setOnLongClickListener(view -> {
+            // Create an EditText for input
+            EditText input = new EditText(view.getContext());
+
+            // Pre-populate with the current dwell time (assuming 'item' is available in your adapter)
+            input.setText(String.valueOf(item.dwellTimeMs));
+
+            // Create an AlertDialog to input the dwell time
+            new AlertDialog.Builder(view.getContext()).setTitle("Set Dwell Time").setMessage("How long do you want the camera to stay at this waypoint?").setView(input) // Set the EditText as the dialog view
+                    .setPositiveButton("OK", (dialog, whichButton) -> {
+                        // Parse and set the dwell time
+                        try {
+                            int dwellTime = Integer.parseInt(input.getText().toString());
+                            item.dwellTimeMs = dwellTime;  // Update the dwell time
+                            triggerWaypointObserver();
+                            Log.d("WaypointListAdapter", "Dwell time updated to: " + dwellTime);
+                        } catch (NumberFormatException e) {
+                            Log.e("WaypointListAdapter", "Invalid dwell time input", e);
+                        }
+                    }).setNegativeButton("Cancel", (dialog, whichButton) -> {
+                        // Handle cancel action
+                        dialog.dismiss();
+                    }).show();
+            return true;
         });
 
         holder.toggleWaypointSpeed.clearOnButtonCheckedListeners();
@@ -216,9 +247,7 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
         double angleSpeed = item.getAngleSpeed();
         Double focusPoint = item.getFocusPoint();
 
-        @SuppressLint("DefaultLocale") String s = (focusPoint != null) ?
-                String.format("%.1f° / %.1f° / %.1f%%", panAngle, tiltAngle, focusPoint) :
-                String.format("%.1f° / %.1f° / -.-%%", panAngle, tiltAngle);
+        @SuppressLint("DefaultLocale") String s = (focusPoint != null) ? String.format("%.1f° / %.1f° / %.1f%%", panAngle, tiltAngle, focusPoint) : String.format("%.1f° / %.1f° / -.-%%", panAngle, tiltAngle);
 
         holder.buttonGoTo.setText(s);
 
@@ -253,8 +282,7 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
         View layout;
         MaterialButtonToggleGroup toggleWaypointSpeed;
         ImageView imageWaypoint;
-
-
+        TextView textDwellTime;
         Button buttonDelete;
         Button buttonGoTo;
 
@@ -265,6 +293,7 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
             toggleWaypointSpeed = itemView.findViewById(R.id.toggleButtonWaypointSpeed);
             buttonDelete = itemView.findViewById(R.id.deleteButton);
             buttonGoTo = itemView.findViewById(R.id.buttonGoToWaypoint);
+            textDwellTime = itemView.findViewById(R.id.textDwellTime);
             layout = itemView.findViewById(R.id.linearLayoutWaypointControl);
         }
     }

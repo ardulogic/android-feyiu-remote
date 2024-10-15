@@ -8,21 +8,22 @@ import androidx.lifecycle.MutableLiveData;
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
 
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     private final String TAG = GimbalWaypointsProcessor.class.getSimpleName();
-    public static final int MODE_DWELL = 0; // Mode when gimbal stops after each waypoint
-    public static final int MODE_BLEND = 1; // Mode when gimbal "blends" waypoints
+    // TODO: Implement proper dwelling on/off
+    public static final String MODE_SINGLE = "single"; // Mode when we just need it to go to single waypoint
 
-    public static final int MODE_SINGLE = 2; // Mode when we just need it to go to single waypoint
+    public static final String MODE_ALL = "all"; // Mode when we just need to go through all waypoints once
 
-    public static final int MODE_ENDLESS = 3; // Mode when we just need it to go to single waypoint
+    public static final String MODE_ENDLESS = "endless"; // Mode when we want to loop waypoints
     private final MutableLiveData<ArrayList<Waypoint>> waypoints;
 
-    private int mode = MODE_DWELL;
+    private String mode = MODE_SINGLE;
 
     private int current_waypoint = 0;
 
@@ -36,22 +37,22 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
         this.setListener(new positionProcessorListener());
     }
 
-    public boolean enoughWaypointsAvailable() {
+    public boolean atLeastTwoWaypointsExist() {
         return this.waypoints.getValue().size() >= 2;
     }
 
-    public void start(int mode) {
+    public void start(String mode) {
         this.mode = mode;
 
-        if (mode == MODE_SINGLE) {
+        if (Objects.equals(mode, MODE_SINGLE)) {
             super.start();
         } else {
-            if (enoughWaypointsAvailable()) {
+            if (atLeastTwoWaypointsExist()) {
                 if (isAtStart()) {
                     setActiveWaypoint(0);
                     moveToNextWaypoint();
                 } else {
-                    moveToStart();
+                    startFromFirstWaypoint();
                 }
             }
         }
@@ -82,7 +83,7 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
         setTarget(getWaypoint(current_waypoint));
     }
 
-    public void moveToStart() {
+    public void startFromFirstWaypoint() {
         Log.d(TAG, "Moving to starting waypoint");
 
         setActiveWaypoint(0);
@@ -92,22 +93,20 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
 
     private void moveToNextWaypoint() {
         int next_index = current_waypoint + 1;
-        Log.d(TAG, "Moving to next waypoint: " + next_index);
+        if (!waypointExists(next_index)) {
+            next_index = 0;
+        }
 
         if (waypointExists(next_index)) {
+            Log.d(TAG, "Moving to next waypoint: " + next_index);
+
             setActiveWaypoint(next_index);
             setCurrentWaypointAsTarget();
             super.start();
         } else {
-            if (mode != MODE_ENDLESS) {
-                Log.d(TAG, "Clearing target, last waypoint reached");
-                this.cancel();
-            } else {
-                Log.d(TAG, "All over again");
-                setActiveWaypoint(0);
-                setCurrentWaypointAsTarget();
-                super.start();
-            }
+            Log.w(TAG, "Waypoint no longer exists: " + next_index);
+
+            super.cancel();
         }
     }
 
@@ -140,14 +139,15 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
         public void onTargetReached(GimbalPositionTarget target) {
             // Blending on last waypoint makes it miss it by big margin
             // since stopping doesnt really happen onTargetReached()
-            if (mode == MODE_DWELL || isLastWaypoint() || mode == MODE_ENDLESS) {
+            if (mode.equals(MODE_ENDLESS) || mode.equals(MODE_ALL)) {
                 executor.submit(() -> {
                     try {
-                        // Wait for the dwell time asynchronously
                         TimeUnit.MILLISECONDS.sleep(target.dwell_time_ms);
 
                         // After dwell time, move to the next waypoint
-                        moveToNextWaypoint();
+                        if (mode.equals(MODE_ENDLESS) || !isLastWaypoint()) {
+                            moveToNextWaypoint();
+                        }
                     } catch (InterruptedException e) {
                         // Handle interruption
                         Thread.currentThread().interrupt();
@@ -159,9 +159,7 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
 
         @Override
         public void onTargetNearlyReached() {
-            if (mode == MODE_BLEND && !isLastWaypoint()) {
-                moveToNextWaypoint();
-            }
+            // TODO: Properly implement blending
         }
     }
 

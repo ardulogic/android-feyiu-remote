@@ -90,16 +90,24 @@ public class CameraFragment extends Fragment {
         binding.buttonCameraTakeVideo.setOnClickListener(new CameraControlClickListener(cameraViewModel, camera -> camera.controls.toggleVideoRecording(new CameraControlListener())));
         binding.buttonCameraFocus.setOnClickListener(new CameraFocusClickListener(cameraViewModel));
 
-        binding.buttonPlayWaypoints.setOnClickListener(view -> {
-            unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_DWELL);
+        binding.buttonStartStopWaypoints.setOnClickListener(view -> {
+            if (!unifiedTrackingProcessor.mWaypointsProcessor.isActive) {
+                unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_ALL);
+            } else {
+                unifiedTrackingProcessor.mWaypointsProcessor.stop();
+            }
         });
 
-        binding.buttonPlayWaypointsBlend.setOnClickListener(view -> {
-            unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_BLEND);
-        });
+//        binding.buttonPlayWaypointsBlend.setOnClickListener(view -> {
+//            unifiedTrackingProcessor.mWaypointsProcessor.toggleFlag(GimbalWaypointsProcessor.FLAG_DWELL);
+//        });
 
         binding.buttonPlayWaypointsEndless.setOnClickListener(view -> {
-            unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_ENDLESS);
+            if (!unifiedTrackingProcessor.mWaypointsProcessor.isActive) {
+                unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_ENDLESS);
+            } else {
+                unifiedTrackingProcessor.mWaypointsProcessor.stop();
+            }
         });
 
         if (cameraViewModel.streamIsStarted()) {

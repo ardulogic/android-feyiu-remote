@@ -39,36 +39,6 @@
             android:orientation="horizontal"
             android:showDividers="middle">
 
-            <Button
-                android:id="@+id/buttonCameraConnect"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Connect" />
-
-            <Button
-                android:id="@+id/buttonCameraFocus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Focus" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonCameraTakeVideo"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:text="REC"
-                app:icon="@drawable/record_paused"
-                app:iconSize="16dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonCameraTakePhoto"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:text="PIC"
-                app:icon="@drawable/photo"
-                app:iconSize="32dp"
-                app:iconTintMode="src_in" />
-
 
         </LinearLayout>
 
@@ -91,54 +61,9 @@
             android:orientation="horizontal"
             android:showDividers="middle">
 
-            <Button
-                android:id="@+id/buttonAddWaypoint"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:text="+ WP" />
-
-            <Button
-                android:id="@+id/buttonPlayWaypoints"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="St-Stop" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonPlayWaypointsBlend"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:text="Blend"
-                app:iconSize="16dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonPlayWaypointsEndless"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:text="Endless"
-                app:iconSize="16dp" />
-
         </LinearLayout>
 
     </HorizontalScrollView>
-
-    <ProgressBar
-        android:id="@+id/progressBarFocus"
-        style="@style/VerticalProgressBarStyle"
-        android:layout_width="4dp"
-        android:layout_height="0dp"
-        android:layout_marginBottom="40dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginTop="60dp"
-        android:orientation="horizontal"
-        android:progress="0"
-        android:progressDrawable="@drawable/vertical_progress_bar"
-        android:progressTintMode="src_in"
-        android:rotation="180"
-        android:scrollbarStyle="outsideInset"
-        app:layout_constraintBottom_toBottomOf="@+id/liveView"
-        app:layout_constraintEnd_toEndOf="@+id/liveView"
-        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/textGimbalAngles"
@@ -156,13 +81,13 @@
         android:id="@+id/textCameraFocus"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
+        android:layout_marginTop="16dp"
         android:text="- %"
         android:textColor="#FFFFFF"
         android:textSize="10sp"
-        app:layout_constraintBottom_toBottomOf="@+id/progressBarFocus"
-        app:layout_constraintEnd_toStartOf="@+id/progressBarFocus"
-        app:layout_constraintTop_toTopOf="@+id/progressBarFocus" />
+        app:layout_constraintEnd_toEndOf="@+id/textGimbalAngles"
+        app:layout_constraintStart_toStartOf="@+id/textGimbalAngles"
+        app:layout_constraintTop_toBottomOf="@+id/textGimbalAngles" />
 
     <TextView
         android:id="@+id/textGimbalSpeeds"
@@ -193,11 +118,123 @@
         android:id="@+id/listWaypoints"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:layout_marginTop="8dp"
         android:divider="@drawable/layout_divider"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         app:layout_constraintBottom_toTopOf="@+id/horizontalScrollViewCamera"
+        app:layout_constraintEnd_toStartOf="@+id/linearLayout2"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/progressBarFocus" />
+
+    <ProgressBar
+        android:id="@+id/progressBarFocus"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="64dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="64dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/liveView" />
+
+    <ImageView
+        android:id="@+id/imageViewMacro"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:src="@drawable/macro"
+        app:layout_constraintBottom_toBottomOf="@+id/progressBarFocus"
+        app:layout_constraintEnd_toStartOf="@+id/progressBarFocus"
+        app:layout_constraintTop_toTopOf="@+id/progressBarFocus" />
+
+    <ImageView
+        android:id="@+id/imageViewTele"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:src="@drawable/tele"
+        app:layout_constraintBottom_toBottomOf="@+id/progressBarFocus"
+        app:layout_constraintStart_toEndOf="@+id/progressBarFocus"
+        app:layout_constraintTop_toTopOf="@+id/progressBarFocus" />
+
+    <LinearLayout
+        android:id="@+id/linearLayout2"
+        android:layout_width="50dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="6dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/progressBarFocus">
+
+        <Button
+            android:id="@+id/buttonCameraConnect"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:isScrollContainer="false"
+            android:scaleType="center"
+            app:icon="@drawable/ic_baseline_camera_24"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="20dp" />
+
+        <Button
+            android:id="@+id/buttonCameraFocus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:scaleType="center"
+            app:icon="@drawable/focus"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="20dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonCameraTakeVideo"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:icon="@drawable/record_paused"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="20dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonCameraTakePhoto"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:icon="@drawable/photo"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="22dp"
+            app:iconTintMode="src_in" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonPlayWaypointsEndless"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            app:icon="@drawable/repeat"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="20dp" />
+
+        <Button
+            android:id="@+id/buttonStartStopWaypoints"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:icon="@drawable/play"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="20dp" />
+
+        <Button
+            android:id="@+id/buttonAddWaypoint"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:icon="@drawable/wp"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="20dp" />
+
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
