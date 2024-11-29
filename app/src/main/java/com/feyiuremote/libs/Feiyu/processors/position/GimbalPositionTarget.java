@@ -6,6 +6,7 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import com.feyiuremote.libs.Feiyu.FeyiuControls;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
 
@@ -37,19 +38,30 @@ public class GimbalPositionTarget {
         // Note that without pan_angle panDiff is wrong!
         this.pan_angle = pan_angle;
         this.pan_diff_at_start = angleDiffInDeg(mDb.AXIS_PAN);
-        this.pan_speed_cal = findFastestCalibration(mDb.AXIS_PAN, max_pan_speed);
 
         // Note that without tilt_angle tiltDiff is wrong!
         this.tilt_angle = tilt_angle;
         this.tilt_diff_at_start = angleDiffInDeg(mDb.AXIS_TILT);
-        this.tilt_speed_cal = findFastestCalibration(mDb.AXIS_TILT, max_tilt_speed);
+
+        this.pan_speed_cal = findFastestCalibration(mDb.AXIS_PAN, max_pan_speed, CalibrationDbHelper.LOCKED);
+        this.tilt_speed_cal = findFastestCalibration(mDb.AXIS_TILT, max_tilt_speed, CalibrationDbHelper.LOCKED);
+
+        if (tiltShouldStop()) {
+            this.pan_speed_cal = findFastestCalibration(mDb.AXIS_PAN, max_pan_speed, CalibrationDbHelper.PAN_ONLY);
+        }
+
+        if (panShouldStop()) {
+            this.tilt_speed_cal = findFastestCalibration(mDb.AXIS_TILT, max_tilt_speed, CalibrationDbHelper.TILT_ONLY);
+        }
 
         this.focus = focus;
         this.dwell_time_ms = dwell_time_ms;
 
         // Slow down faster axis
-        String faster_axis = getFasterAxis();
-        setCal(faster_axis, findMatchingCalibration(faster_axis));
+        if (!tiltShouldStop() && !panShouldStop()) {
+            String faster_axis = getFasterAxis();
+            setCal(faster_axis, findMatchingCalibration(faster_axis, CalibrationDbHelper.LOCKED));
+        }
 
         Log.d(TAG, "Ready");
     }
@@ -93,9 +105,9 @@ public class GimbalPositionTarget {
         }
     }
 
-    private ContentValues findMatchingCalibration(String axis) {
+    private ContentValues findMatchingCalibration(String axis, int type) {
 
-        ArrayList<ContentValues> cals = mDb.getSlowerThan(axis, getDir(angleDiffInDeg(axis)), speed(axis));
+        ArrayList<ContentValues> cals = mDb.getSlowerThan(axis, getDir(angleDiffInDeg(axis)), speed(axis), type);
         if (cals.size() == 0) {
             Log.e(TAG, "No calibrations slower than " + speed(axis) + " found for " + axis);
         }
@@ -133,10 +145,10 @@ public class GimbalPositionTarget {
         return bestCal;
     }
 
-    private ContentValues findFastestCalibration(String axis, double max_speed) {
+    private ContentValues findFastestCalibration(String axis, double max_speed, int type) {
         double angle_diff = angleDiffInDeg(axis);
         max_speed = Math.max(1.5, Math.min(max_speed, Math.abs(angle_diff) * 1.5));
-        ArrayList<ContentValues> cals = mDb.getSlowerThan(axis, getDir(angle_diff), max_speed);
+        ArrayList<ContentValues> cals = mDb.getSlowerThan(axis, getDir(angle_diff), max_speed, type);
 
         double min_time = (double) FeyiuState.getInstance().getAverageUpdateInterval();
         double max_time = 99999999;
@@ -156,7 +168,7 @@ public class GimbalPositionTarget {
 
         if (bestCal == null) {
             Log.e(TAG, "Could not find " + axis + " calibration for deg diff:" + angleDiffInDeg(mDb.AXIS_PAN));
-            return mDb.getByClosestSpeed(axis, max_speed);
+            return mDb.getByClosestSpeed(axis, max_speed, type);
         }
 
         return bestCal;
@@ -287,11 +299,13 @@ public class GimbalPositionTarget {
      * @return
      */
     public boolean stoppingPointReached(double movement_time) {
-        return Math.abs(movement_time) < FeyiuState.getInstance().getAverageUpdateInterval();
+        return movement_time < 0 ||
+                Math.abs(movement_time) < FeyiuControls.BLUETOOTH_COMMAND_DEFAULT_DELAY * 3;
     }
 
     public boolean nearPointReached(double movement_time) {
-        return Math.abs(movement_time) < FeyiuState.getInstance().getAverageUpdateInterval() * 1.5;
+        return movement_time < 0 ||
+                Math.abs(movement_time) < FeyiuState.getInstance().getAverageUpdateInterval() * 1.5;
     }
 
     public boolean panIsStopping() {
@@ -341,9 +355,23 @@ public class GimbalPositionTarget {
 
     public double getInterpolatedMovementTimeMs(double angleDiff, double angularVelocity, double overshoot) {
 //        overshoot *= 1.1;
-        double angleToStop = (float) (angleDiff - overshoot);
-        double timeToStop = Math.abs(angleToStop / angularVelocity); // deg / deg/sec
-        return (double) (timeToStop) * 1000 - FeyiuState.getInstance().getTimeSinceLastUpdate(); // Convert to milliseconds
+        double extraAngle = (double) (FeyiuState.getInstance().getTimeSinceLastUpdateMs() * (angularVelocity / 1000));
+
+        Log.d(TAG, "Extra angle:" + extraAngle + " Angle diff:" + angleDiff + " Overshoot:" + overshoot);
+
+        // Accounts for time passed since last update
+        angleDiff -= extraAngle;
+
+        if (Math.abs(angleDiff) > Math.abs(overshoot)) {
+            angleDiff -= overshoot;
+        } else {
+            angleDiff = 0;
+        }
+
+        double timeToStop = angleDiff / angularVelocity; // deg / deg/sec
+
+//        return (double) (timeToStop) * 1000 - FeyiuState.getInstance().getTimeSinceLastUpdate(); // Convert to milliseconds
+        return timeToStop * 1000; // Convert to milliseconds
     }
 
 
@@ -433,6 +461,7 @@ public class GimbalPositionTarget {
                 FeyiuState.getInstance().angle_yaw.speedToString());
 
         d += "\nTime: P:" + Math.round(getPanMovementTime()) + " T:" + Math.round(getTiltMovementTime());
+        d += "\n Stopping: P:" + panIsStopping() + " T:" + tiltIsStopping();
         d += "\n Stopping: P:" + panIsStopping() + " T:" + tiltIsStopping();
         d += "\n Angle Df: P:" + decimalFormat.format(angleDiffInDeg(mDb.AXIS_PAN)) + " T:" + decimalFormat.format(angleDiffInDeg(mDb.AXIS_TILT));
         d += "\n Angle To: P:" + decimalFormat.format(panTarget()) + " T:" + decimalFormat.format(tiltTarget());

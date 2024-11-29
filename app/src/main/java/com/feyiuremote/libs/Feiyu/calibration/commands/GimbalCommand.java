@@ -27,6 +27,7 @@ abstract public class GimbalCommand {
         pan_angle = getCurrentPanAngle();
         tilt_angle = getCurrentTiltAngle();
         execute();
+        log();
     }
 
     public float getCurrentPanAngle() {

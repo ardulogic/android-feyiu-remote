@@ -13,6 +13,9 @@ import java.util.ArrayList;
 
 public class CalibrationDbHelper extends SQLiteTableWrapper {
 
+    public static final int PAN_ONLY = 1;
+    public static final int TILT_ONLY = 2;
+    public static final int LOCKED = 0;
     public final String AXIS_PAN = "pan";
     public final String AXIS_TILT = "tilt";
 
@@ -27,7 +30,14 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
 
     @Override
     protected String getTableCreateSQL() {
-        return "create table " + getDatabaseTableName() + "(_id integer primary key autoincrement, "
+        return "create table " + getDatabaseTableName() + "("
+                + "_id integer primary key autoincrement, "
+                + "preset VARCHAR(64) NOT NULL, "
+
+                + "pan_only INTEGER NOT NULL CHECK (pan_only IN (0, 1)), "
+                + "tilt_only INTEGER NOT NULL CHECK (tilt_only IN (0, 1)), "
+                + "locked INTEGER NOT NULL CHECK (tilt_only IN (0, 1)), "
+
                 + "joy_sens int not null,"
                 + "joy_val int not null,"
 
@@ -45,8 +55,8 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
     }
 
     @Override
-    protected String[] getColumnNames() {
-        return new String[]{"_id", "joy_sens", "joy_val",
+    public String[] getColumnNames() {
+        return new String[]{"_id", "preset", "pan_only", "tilt_only", "locked", "joy_sens", "joy_val",
                 "pan_speed", "pan_angle_overshoot", "pan_angle_diff",
                 "tilt_speed", "tilt_angle_overshoot", "tilt_angle_diff",
                 "dir", "time_ms"
@@ -58,16 +68,20 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
         ContentValues row = new ContentValues();
 
         row.put("_id", c.getLong(0));
-        row.put("joy_sens", c.getInt(1));
-        row.put("joy_val", c.getInt(2));
-        row.put("pan_speed", c.getDouble(3));
-        row.put("pan_angle_overshoot", c.getDouble(4));
-        row.put("pan_angle_diff", c.getDouble(5));
-        row.put("tilt_speed", c.getDouble(6));
-        row.put("tilt_angle_overshoot", c.getDouble(7));
-        row.put("tilt_angle_diff", c.getDouble(8));
-        row.put("dir", c.getInt(9));
-        row.put("time_ms", c.getInt(10));
+        row.put("preset", c.getString(1));
+        row.put("pan_only", c.getInt(2));
+        row.put("tilt_only", c.getInt(3));
+        row.put("locked", c.getInt(4));
+        row.put("joy_sens", c.getInt(5));
+        row.put("joy_val", c.getInt(6));
+        row.put("pan_speed", c.getDouble(7));
+        row.put("pan_angle_overshoot", c.getDouble(8));
+        row.put("pan_angle_diff", c.getDouble(9));
+        row.put("tilt_speed", c.getDouble(10));
+        row.put("tilt_angle_overshoot", c.getDouble(11));
+        row.put("tilt_angle_diff", c.getDouble(12));
+        row.put("dir", c.getInt(13));
+        row.put("time_ms", c.getInt(14));
 
         return row;
     }
@@ -76,7 +90,11 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
         int dir = cv.getAsInteger("joy_val") > 0 ? 1 : -1;
         cv.put("dir", dir);
 
-        int id = (int) dbHandler.update(getDatabaseTableName(), cv, "joy_val=? AND joy_sens=? AND dir=?", new String[]{
+        int id = (int) dbHandler.update(getDatabaseTableName(), cv, "preset=? AND pan_only=? AND tilt_only=? AND locked=? AND joy_val=? AND joy_sens=? AND dir=?", new String[]{
+                cv.getAsString("preset"),
+                cv.getAsString("pan_only"),
+                cv.getAsString("tilt_only"),
+                cv.getAsString("locked"),
                 cv.getAsString("joy_val"),
                 cv.getAsString("joy_sens"),
                 String.valueOf(dir),
@@ -91,15 +109,26 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
         dbHandler.update(getDatabaseTableName(), values, "_id=" + rowId, null);
     }
 
-    public ArrayList<ContentValues> getByJoyState(int joy_sen, int joy_val) {
+    public ArrayList<ContentValues> getByJoyState(int joy_sen, int joy_val, int type) {
+        String type_col = "locked";
+
+        if (type == PAN_ONLY) {
+            type_col = "pan_only";
+        }
+
+        if (type == TILT_ONLY) {
+            type_col = "tilt_only";
+        }
+
         try (Cursor c = dbHandler.query(
                 getDatabaseTableName(),
                 getColumnNames(),
-                "(joy_val=? OR joy_val=?) AND joy_sens=?",
+                "(joy_val=? OR joy_val=?) AND joy_sens=? AND " + type_col + "=?",
                 new String[]{
                         String.valueOf(joy_val),
                         String.valueOf(-joy_val),
-                        String.valueOf(joy_sen)
+                        String.valueOf(joy_sen),
+                        String.valueOf(1)
                 },
                 null,
                 null,
@@ -114,11 +143,23 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
         return new ArrayList<>();
     }
 
-    public ContentValues getByClosestSpeed(String axis, Double v) {
+    public ContentValues getByClosestSpeed(String axis, Double speed, int type) {
+        String type_col = "locked";
+
+        if (type == PAN_ONLY) {
+            type_col = "pan_only";
+        }
+
+        if (type == TILT_ONLY) {
+            type_col = "tilt_only";
+        }
+
         try (Cursor c = dbHandler.rawQuery(
-                "SELECT * FROM " + getDatabaseTableName() + " ORDER BY ABS(? - " + axis + "_speed) " +
+                "SELECT * FROM " + getDatabaseTableName() + " WHERE " + type_col + "=1 ORDER BY ABS(? - " + axis + "_speed) " +
                         "LIMIT 1;",
-                new String[]{String.valueOf(v)}
+                new String[]{
+                        String.valueOf(speed)
+                }
         )) {
 
             if (c.getCount() > 0) {
@@ -132,11 +173,23 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
         return null;
     }
 
-    public ContentValues getByClosestSpeed(String axis, int sens, Double v) {
+    public ContentValues getByClosestSpeed(String axis, int sens, Double speed, int type) {
+        String type_col = "locked";
+
+        if (type == PAN_ONLY) {
+            type_col = "pan_only";
+        }
+
+        if (type == TILT_ONLY) {
+            type_col = "tilt_only";
+        }
+
         try (Cursor c = dbHandler.rawQuery(
-                "SELECT * FROM " + getDatabaseTableName() + " WHERE joy_sens=" + sens + " ORDER BY ABS(? - " + axis + "_speed) " +
+                "SELECT * FROM " + getDatabaseTableName() + " WHERE joy_sens=" + sens + " AND " + type_col + "=1 ORDER BY ABS(? - " + axis + "_speed) " +
                         "LIMIT 1;",
-                new String[]{String.valueOf(v)}
+                new String[]{
+                        String.valueOf(speed)
+                }
         )) {
 
             if (c.getCount() > 0) {
@@ -150,11 +203,21 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
         return null;
     }
 
-    public ArrayList<ContentValues> getSlowerThan(String axis, int dir, Double max_speed) {
+    public ArrayList<ContentValues> getSlowerThan(String axis, int dir, Double max_speed, int type) {
+        String type_col = "locked";
+
+        if (type == PAN_ONLY) {
+            type_col = "pan_only";
+        }
+
+        if (type == TILT_ONLY) {
+            type_col = "tilt_only";
+        }
+
         try (Cursor c = dbHandler.query(
                 getDatabaseTableName(),
                 getColumnNames(),
-                "dir=" + dir + " and ABS(" + axis + "_speed) <= " + Math.abs(max_speed),
+                "dir=" + dir + " and " + type_col + "=1 and ABS(" + axis + "_speed) <= " + Math.abs(max_speed),
                 null, // Selection Args DONT WORK WITH FUCKING NUMBERS!
                 null,
                 null,

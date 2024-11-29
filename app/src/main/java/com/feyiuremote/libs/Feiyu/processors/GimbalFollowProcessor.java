@@ -44,8 +44,8 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
         double spd_x = evaluatePolynomial(Math.abs(dev_x)) * (dev_x > 0 ? 1 : -1);
         double spd_y = evaluatePolynomial(Math.abs(dev_y)) * (dev_y > 0 ? 1 : -1);
 
-        ContentValues panSettings = mDbCal.getByClosestSpeed(mDbCal.AXIS_PAN, joy_sens, spd_x);
-        ContentValues tiltSettings = mDbCal.getByClosestSpeed(mDbCal.AXIS_TILT, joy_sens, spd_y);
+        ContentValues panSettings = mDbCal.getByClosestSpeed(mDbCal.AXIS_PAN, joy_sens, spd_x, CalibrationDbHelper.LOCKED);
+        ContentValues tiltSettings = mDbCal.getByClosestSpeed(mDbCal.AXIS_TILT, joy_sens, spd_y, CalibrationDbHelper.LOCKED);
 
         if (panSettings == null || tiltSettings == null) {
             Log.e(TAG, "Please calibrate first!");

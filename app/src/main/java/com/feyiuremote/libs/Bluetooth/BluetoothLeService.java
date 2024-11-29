@@ -158,15 +158,19 @@ public class BluetoothLeService extends Service {
     @SuppressLint("MissingPermission")
     public void scan() {
         withBluetoothEnabled(() -> {
-            if (!scanning) {
-                Log.d(TAG, "Starting scan...");
-                scanning = true;
-                bluetoothLeScanner.startScan(bleScanCallback);
-                stopScanAfter(SCAN_PERIOD);
-            } else {
-                Log.d(TAG, "Stopping scan...");
-                scanning = false;
-                bluetoothLeScanner.stopScan(bleScanCallback);
+            try {
+                if (!scanning) {
+                    Log.d(TAG, "Starting scan...");
+                    scanning = true;
+                    bluetoothLeScanner.startScan(bleScanCallback);
+                    stopScanAfter(SCAN_PERIOD);
+                } else {
+                    Log.d(TAG, "Stopping scan...");
+                    scanning = false;
+                    bluetoothLeScanner.stopScan(bleScanCallback);
+                }
+            } catch (NullPointerException e) {
+                Log.e(TAG, "Scanner is not available yet");
             }
         });
 
@@ -228,6 +232,7 @@ public class BluetoothLeService extends Service {
                 BluetoothGattCharacteristic gattCharacteristic = gattService.getCharacteristic(UUID.fromString(characteristicId));
 
                 if (gattCharacteristic != null) {
+                    Log.e(TAG, "Sending:" + message);
                     byte[] b = hexStringToByteArray(message);
                     gattCharacteristic.setValue(b); // call this BEFORE(!) you 'write' any stuff to the server
 

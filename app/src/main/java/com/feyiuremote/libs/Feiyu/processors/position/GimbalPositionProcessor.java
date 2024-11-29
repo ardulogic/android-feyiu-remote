@@ -3,6 +3,7 @@ package com.feyiuremote.libs.Feiyu.processors.position;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.lifecycle.MutableLiveData;
 
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
@@ -10,6 +11,8 @@ import com.feyiuremote.libs.Feiyu.FeyiuControls;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
+
+import java.text.DecimalFormat;
 
 public class GimbalPositionProcessor {
 
@@ -34,6 +37,7 @@ public class GimbalPositionProcessor {
     private Float pan_end_angle = null;
     private Long tilt_end_time = null;
     private Float tilt_end_angle = null;
+
 
     private IGimbalPositionProcessorStartedListener startListener;
 
@@ -122,48 +126,43 @@ public class GimbalPositionProcessor {
 
             // Wait for other commands to finish
             if (!target.panIsOvershooting()) {
-                if (target.panShouldStop() || target.panIsStopping()) {
-                    if (!target.panIsStopping()) {
-                        FeyiuControls.setPanJoyAfter(0, (int) target.getPanMovementTime(), "Stopping pan in: " + target.getPanMovementTime() + "ms since its close.");
-                        target.setPanIsStopping();
-                    }
+                if (target.panShouldStop()) {
+                    Log.d(TAG, "Moving/Stopping in :" + target.getPanMovementTime());
+                    FeyiuControls.setPanJoyAfter(0, (int) target.getPanMovementTime(), "Stopping pan in: " + target.getPanMovementTime() + "ms since its close.");
                 } else {
                     FeyiuControls.setPanJoy(target.getPanJoyValue(), "Rotating pan to target");
                 }
             } else {
-                FeyiuControls.setPanJoyAsFinal(0, "Pan is overshooting");
+                Log.d(TAG, "Pan is overshooting!");
+                FeyiuControls.setPanJoy(0, "Pan is overshooting");
             }
 
             if (!target.tiltIsOvershooting()) {
-                if (target.tiltShouldStop() || target.tiltIsStopping()) {
-                    if (!target.tiltIsStopping()) {
-                        FeyiuControls.setTiltJoyAfter(0, (int) target.getTiltMovementTime(), "Stopping tilt in: " + target.getTiltMovementTime() + "ms since its close.");
-                        target.setTiltIsStopping();
-                    }
+                if (target.tiltShouldStop()) {
+                    FeyiuControls.setTiltJoyAfter(0, (int) target.getTiltMovementTime(), "Stopping tilt in: " + target.getTiltMovementTime() + "ms since its close.");
                 } else {
                     FeyiuControls.setTiltJoy(target.getTiltJoyValue(), "Rotating tilt to target");
                 }
             } else {
-                FeyiuControls.setTiltJoyAsFinal(0, "Tilt is overshooting");
+                Log.d(TAG, "Tilt is overshooting!");
+                FeyiuControls.setTiltJoy(0, "Tilt is overshooting");
             }
 
             withTargetAvailable(() -> {
                 if (listener != null) {
-                    if (target.isReached()) {
-                        if (FeyiuControls.shouldBeStopped()) {
-                            Log.i(TAG, "Target is reached");
-                            listener.onTargetReached(target);
-                            this.isActive = false;
-                        }
-                    }
+//                    if (target.isReached()) {
+//                        Log.i(TAG, "Target is reached");
+//                        listener.onTargetReached(target);
+//                        this.isActive = false;
+//                    }
 
                     // Note that target dissapears on blend when is nearby
                     // can cause null exception if used after this
                     // maybe its best not to clear the targets, idk
-                    if (target.isNearby()) {
-                        Log.i(TAG, "Target is nearby");
-                        listener.onTargetNearlyReached();
-                    }
+//                    if (target.isNearby()) {
+//                        Log.i(TAG, "Target is nearby");
+//                        listener.onTargetNearlyReached();
+//                    }
                 }
             });
         });
@@ -214,6 +213,25 @@ public class GimbalPositionProcessor {
 
             Log.d(TAG, d);
         });
+    }
+
+    @NonNull
+    public String toString() {
+        DecimalFormat decimalFormat = new DecimalFormat(" #.#; -#.#");
+        String d = String.format("%s, %s, %s",
+                FeyiuState.getInstance().angle_pan.speedToString(),
+                FeyiuState.getInstance().angle_tilt.speedToString(),
+                FeyiuState.getInstance().angle_yaw.speedToString());
+
+        if (target != null) {
+            d += "\nTime: P:" + Math.round(target.getPanMovementTime()) + " T:" + Math.round(target.getTiltMovementTime());
+            d += "\n Overshooting: P:" + target.panIsOvershooting() + " T:" + target.tiltIsOvershooting();
+            d += "\n Angle Df: P:" + decimalFormat.format(target.angleDiffInDeg(mDb.AXIS_PAN)) + " T:" + decimalFormat.format(target.angleDiffInDeg(mDb.AXIS_TILT));
+        }
+
+        d += FeyiuControls.commandsToString();
+
+        return d;
     }
 
 }

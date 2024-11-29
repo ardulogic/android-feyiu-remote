@@ -19,10 +19,17 @@ public class MoveCommand extends GimbalCommand {
         this.tilt = joy_tilt_value;
     }
 
+    public MoveCommand(BluetoothLeService mBt, int panJoy, int tiltJoy, String currentComment) {
+        super(mBt);
+
+        this.pan = panJoy;
+        this.tilt = tiltJoy;
+
+        this.comment = currentComment;
+    }
+
     @Override
     void execute() {
-        Log.d(TAG, "Moving: Pan: " + pan + " Tilt: " + tilt + " Comment: " + comment);
-
         mBt.send(FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
                 FeyiuUtils.move(pan, tilt)
         );

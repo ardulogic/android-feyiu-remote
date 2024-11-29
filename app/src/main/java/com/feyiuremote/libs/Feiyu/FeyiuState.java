@@ -64,7 +64,7 @@ public class FeyiuState {
     public Long nextUpdateInMs() {
         if (this.update_interval > 0 && this.last_update > 0) {
 
-            return this.update_interval - getTimeSinceLastUpdate();
+            return this.update_interval - getTimeSinceLastUpdateMs();
         } else {
             return getAverageUpdateInterval();
         }
@@ -74,7 +74,7 @@ public class FeyiuState {
         return 243L;
     }
 
-    public Long getTimeSinceLastUpdate() {
+    public Long getTimeSinceLastUpdateMs() {
         if (last_update > 0) {
             return System.currentTimeMillis() - last_update;
         }

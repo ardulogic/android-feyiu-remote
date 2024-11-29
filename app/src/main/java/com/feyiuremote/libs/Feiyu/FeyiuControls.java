@@ -1,6 +1,7 @@
 package com.feyiuremote.libs.Feiyu;
 
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
 import android.util.Log;
 
@@ -22,27 +23,38 @@ public class FeyiuControls {
     static private long time_last_bt_command = 0;
     static private long time_last_request = 0;
 
-    static int THRESHOLD_MS = 30;
+    static int THRESHOLD_MS = 10;
 
-    static int BLUETOOTH_COMMAND_MIN_DELAY = 60;
+    static int DEFAULT_JOY_DURATION = 1000;
 
-    static private boolean stopped = false;
+    static int BLUETOOTH_COMMAND_MIN_DELAY = 40;
 
-    static private final LinkedList<JoystickState> queuedJoyStates = new LinkedList<>();
-    static private final LinkedList<SensitivityState> queuedSensitivityStates = new LinkedList<>();
+    static public int BLUETOOTH_COMMAND_DEFAULT_DELAY = 100;
 
-    static private final JoystickState currentJoyState = new JoystickState(0, 0, null, "default state");
+
+    static public final LinkedList<JoystickState> queuedJoyStates = new LinkedList<>();
+    static public final LinkedList<SensitivityState> queuedSensitivityStates = new LinkedList<>();
 
     private static final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
 
-    static Handler backgroundHandler = new Handler(Looper.myLooper());
+    private static HandlerThread handlerThread;
 
-    private synchronized static long minDelayToNextCommand() {
-        return Math.max(0, THRESHOLD_MS - timeSinceLastBtCommand());
+    private static Handler backgroundHandler;
+
+    private static String currentComment = "";
+
+
+    private static Handler getBackgroundThreadHandler() {
+        handlerThread = new HandlerThread("FeyiuControlsHandlerThread");
+
+        if (backgroundHandler == null) {
+            handlerThread.start();
+            backgroundHandler = new Handler(handlerThread.getLooper());
+        }
+
+        return backgroundHandler;
     }
 
-
-    // Step 1: Create a background thread
     private static final Thread backgroundThread = new Thread(() -> {
         Looper.prepare();
 
@@ -52,26 +64,58 @@ public class FeyiuControls {
             public void run() {
                 tick(); // Call your processing method
 
-                Long timeToNextOp = timeToNextOperation();
-                long delay = Math.max(BLUETOOTH_COMMAND_MIN_DELAY, timeToNextOp == null ? 0 : timeToNextOp);
+                long delay = BLUETOOTH_COMMAND_DEFAULT_DELAY;
 
-                if (!queuedJoyStates.isEmpty()) {
-                    Log.d(TAG, "JoystickStates - Scheduling process in: " + delay + "  Ttop:" + timeToNextOp);
+                JoystickState js = nextJoystickState();
+                if (js != null && js.hasDelay()) {
+                    if ((js.executesInMs() >= BLUETOOTH_COMMAND_MIN_DELAY) && (js.executesInMs() < BLUETOOTH_COMMAND_DEFAULT_DELAY * 1.5)) {
+                        delay = js.executesInMs();
+                        Log.d(TAG, "Move - Scheduling next process in: " + delay + " (orig: " + js.executesInMs() + ")");
+                    } else {
+                        Log.d(TAG, "Move - Scheduling next process in default delay (orig: " + js.executesInMs() + ")");
+                    }
                 }
 
-                backgroundHandler.postDelayed(this, delay);
+                if (!queuedJoyStates.isEmpty()) {
+                    Log.d(TAG, "JoystickStates - Scheduling process in: " + delay);
+                }
+
+                getBackgroundThreadHandler().postDelayed(this, delay);
             }
         };
 
         // Initial post to start the loop
         long delay = FeyiuState.getInstance().nextUpdateInMs();
-        backgroundHandler.postDelayed(task, delay); // 10 milliseconds delay
+        getBackgroundThreadHandler().postDelayed(task, delay); // 10 milliseconds delay
 
         // Start the message loop for this thread
         Looper.loop();
     });
 
-    private static Long timeToNextOperation() {
+    public synchronized static void init(BluetoothLeService mBluetoothLeService) {
+        mBt = mBluetoothLeService;
+
+        // Check if the thread is already started and alive
+        if (!backgroundThread.isAlive()) {
+            try {
+                backgroundThread.start();
+            } catch (IllegalThreadStateException e) {
+                Log.e(TAG, "Background thread already started: " + e.getMessage());
+            }
+        } else {
+            Log.d(TAG, "Background thread is already running.");
+        }
+    }
+
+
+    private synchronized static long minDelayToNextCommand() {
+        return Math.max(0, THRESHOLD_MS - timeSinceLastBtCommand());
+    }
+
+
+    // Step 1: Create a background thread
+
+    private synchronized static Long timeToNextOperation() {
         Long timeMin = null;
 
         for (JoystickState j : queuedJoyStates) {
@@ -83,6 +127,18 @@ public class FeyiuControls {
         return timeMin;
     }
 
+    private synchronized static JoystickState nextJoystickState() {
+        if (!queuedJoyStates.isEmpty()) {
+            for (JoystickState queuedJoyState : queuedJoyStates) {
+                if (!queuedJoyState.isExecuting()) {
+                    return queuedJoyState;
+                }
+            }
+        }
+
+        return null;
+    }
+
     public static void logQueuedJoyCommands() {
         for (JoystickState j : queuedJoyStates) {
             Log.d(TAG, j.toString());
@@ -90,8 +146,6 @@ public class FeyiuControls {
     }
 
     public static synchronized void tick() {
-        consolidateQueuedJoystickStates();
-        consolidateQueuedSensitivityChanges();
         executeCommands();
     }
 
@@ -112,145 +166,104 @@ public class FeyiuControls {
     }
 
     public static void setPanJoy(int value, String reason) {
-        updateTimeSinceLastRequest();
-        queuedJoyStates.add(new JoystickState(value, null, 0, reason));
+        queuePanState(value, DEFAULT_JOY_DURATION, 0, reason);
     }
 
     public static void setTiltJoy(int value, String reason) {
-        updateTimeSinceLastRequest();
-
-
-        queuedJoyStates.add(new JoystickState(null, value, 0, reason));
+        queueTiltState(value, DEFAULT_JOY_DURATION, 0, reason);
     }
 
-    public static void setTiltJoyAsFinal(int value, String reason) {
-        updateTimeSinceLastRequest();
-
-
-        queuedJoyStates.add(new JoystickState(null, value, 0, true, reason));
+    public static void setPanJoyAfter(int value, int delay_ms, String reason) {
+        queuePanState(value, DEFAULT_JOY_DURATION, delay_ms, reason);
     }
 
-    public static void setPanJoyAsFinal(int value, String reason) {
-        updateTimeSinceLastRequest();
-
-
-        queuedJoyStates.add(new JoystickState(value, null, 0, true, reason));
+    public static void setTiltJoyAfter(int value, int delay_ms, String reason) {
+        queueTiltState(value, DEFAULT_JOY_DURATION, delay_ms, reason);
     }
 
-    public static void setTiltJoyAfter(int value, int delay, String reason) {
-        updateTimeSinceLastRequest();
-
-        queuedJoyStates.add(new JoystickState(null, value, delay, reason));
+    public static void queuePanState(Integer joyValue, int duration, int delay, String reason) {
+        queueState(joyValue, duration, delay, JoystickState.AXIS_PAN, reason);
     }
 
+    public static void queueTiltState(Integer joyValue, int duration, int delay, String reason) {
+        queueState(joyValue, duration, delay, JoystickState.AXIS_TILT, reason);
+    }
 
-    public static void setPanJoyAfter(int value, int delay, String reason) {
+    public static void queueState(Integer joyValue, int duration, int delay, int axis, String reason) {
         updateTimeSinceLastRequest();
 
-        queuedJoyStates.add(new JoystickState(value, null, delay, reason));
+        JoystickState newState = new JoystickState(joyValue, duration, axis, delay, reason);
+        Log.d(TAG, "Queueing new joystick state:" + newState);
+
+        // Remove any existing joystick states with the same axis
+        queuedJoyStates.removeIf((state) ->
+                state.overlappingWith(newState)
+        );
+
+        if (!newState.matchesStoppedState()) {
+            queuedJoyStates.add(newState);
+        }
+
+        // Transfer the elements to a temporary list for sorting and consolidation
+        queuedJoyStates.sort(new JoystickState.SortByTimeAsc());
+
+        Log.d(TAG, "Moving:" + queuedJoyStates.toString());
     }
 
     public static void setPanSensitivity(int sensitivity) {
-        queuedSensitivityStates.add(new SensitivityState(sensitivity, SensitivityState.TYPE_PAN, null));
         updateTimeSinceLastRequest();
+        queuedSensitivityStates.add(new SensitivityState(sensitivity, SensitivityState.TYPE_PAN, null));
+        consolidateQueuedSensitivityChanges();
+
     }
 
     public static void setTiltSensitivity(int sensitivity) {
         updateTimeSinceLastRequest();
-
         queuedSensitivityStates.add(new SensitivityState(sensitivity, SensitivityState.TYPE_TILT, null));
+        consolidateQueuedSensitivityChanges();
     }
 
     public static void consolidateQueuedSensitivityChanges() {
-        // Transfer the elements to a temporary list for sorting and consolidation
-        LinkedList<SensitivityState> sensitivityStates = new LinkedList<>(queuedSensitivityStates);
-
         // Sort by type and time first
-        sensitivityStates.sort(new SensitivityState.SortByTypeAndTime());
-
-        // Clear the original deque as we're going to replace it with consolidated data
-        queuedSensitivityStates.clear();
-
-        // Iterate through the sorted list and merge sensitivity states that are similar
-        for (SensitivityState targetState : sensitivityStates) {
-            if (targetState.differsFromCurrent()) {
-                queuedSensitivityStates.add(targetState);
-            }
-        }
+        queuedSensitivityStates.sort(new SensitivityState.SortByTypeAndTime());
+        queuedSensitivityStates.removeIf((state) -> !state.differsFromCurrent());
     }
 
-    private static boolean ignoreStateBecauseOfPreviousFinalState(Integer finalPan, Integer finalTilt, JoystickState joyState) {
-        if (finalPan != null) {
-            if (joyState.tiltJoy == null) {
-                return true;
-            }
-        }
+    public static int[] getCurrentJoyValues() {
+        // Repeat previous state if no command is given
+        int joyPan = FeyiuState.joy_val_pan;
+        int joyTilt = FeyiuState.joy_val_tilt;
 
-        if (finalTilt != null) {
-            if (joyState.panJoy == null) {
-                return true;
-            }
-        }
+        LinkedList<JoystickState> expiredStates = new LinkedList<>();
 
-        return false;
-    }
-
-    public static synchronized void consolidateQueuedJoystickStates() {
-        // Transfer the elements to a temporary list for sorting and consolidation
-        if (queuedJoyStates.isEmpty()) {
-            return;
-        }
-
-        LinkedList<JoystickState> joyStates = new LinkedList<JoystickState>(queuedJoyStates);
-        LinkedList<JoystickState> newStates = new LinkedList<JoystickState>();
-
-        // Sort by type and time first
-        joyStates.sort(new JoystickState.SortByTimeAsc());
-
-        Integer finalPan = null;
-        Integer finalTilt = null;
-
-        try {
-            for (int i = 0; i < joyStates.size(); i++) {
-                JoystickState joyState = joyStates.get(i);
-
-                if (joyState.matchesCurrentState()) {
-                    continue;
-                }
-
-                if (joyState.isFinal) {
-                    finalPan = joyState.panJoy == null ? finalPan : joyState.panJoy;
-                    finalTilt = joyState.tiltJoy == null ? finalTilt : joyState.tiltJoy;
-                } else {
-                    if (ignoreStateBecauseOfPreviousFinalState(finalPan, finalTilt, joyState)) {
-                        continue;
-                    }
-
-                    joyState.tiltJoy = finalTilt == null ? joyState.tiltJoy : finalTilt;
-                    joyState.panJoy = finalPan == null ? joyState.panJoy : finalPan;
-                }
-
-                if (joyState.executesInMs() < THRESHOLD_MS) {
-                    if (newStates.isEmpty()) {
-                        newStates.add(joyState);
+        currentComment = "";
+        String panComment = "Default value";
+        String tiltComment = "Default value";
+        for (JoystickState queuedJoyState : queuedJoyStates) {
+            if (!queuedJoyState.executionEnded()) {
+                if (queuedJoyState.executesInMs() < THRESHOLD_MS) {
+                    if (queuedJoyState.axis == JoystickState.AXIS_PAN) {
+                        joyPan = queuedJoyState.joy_value;
+                        panComment = queuedJoyState.reason;
                     } else {
-                        newStates.getFirst().mergeWith(joyState);
+                        joyTilt = queuedJoyState.joy_value;
+                        tiltComment = queuedJoyState.reason;
                     }
                 } else {
-                    if (!newStates.isEmpty() && newStates.getLast().timeDiffMsWith(joyState) < THRESHOLD_MS) {
-                        newStates.getLast().mergeWith(joyState);
-                    } else {
-                        newStates.add(joyState);
-                    }
+                    Log.e(TAG, "Moving / skipping:" + queuedJoyState.toString());
                 }
+            } else {
+                expiredStates.add(queuedJoyState);
+                Log.w(TAG, "Moving (Execution ended for " + queuedJoyState.toString());
             }
-        } catch (NullPointerException e) {
-            Log.w(TAG, "State no longer exists");
         }
 
-        // Clear the original deque as we're going to replace it with consolidated data
-        queuedJoyStates.clear();
-        queuedJoyStates.addAll(newStates);
+        // delete expired states from queuedJoyStates
+        queuedJoyStates.removeAll(expiredStates);
+
+        currentComment = panComment + " | " + tiltComment;
+
+        return new int[]{joyPan, joyTilt};
     }
 
     public synchronized static void executeCommands() {
@@ -282,53 +295,21 @@ public class FeyiuControls {
     }
 
     public synchronized static void moveIfNecessary() {
-        JoystickState state = queuedJoyStates.peek();
-        if (state != null && state.executesInNs() <= 0) {
-            queuedJoyStates.poll();
+        int[] states = getCurrentJoyValues();
 
-            if (state.panJoy != null) {
-                currentJoyState.panJoy = state.panJoy;
-            }
+        boolean requestToStop = (states[0] == 0) && (states[1] == 0);
+        boolean stateIsStopped = FeyiuState.joy_val_pan == 0 && FeyiuState.joy_val_tilt == 0;
 
-            if (state.tiltJoy != null) {
-                currentJoyState.tiltJoy = state.tiltJoy;
-            }
-
-            Log.d(TAG, "Acquired next state");
-        }
-
-        if (!shouldBeStopped()) {
-            stopped = false;
-            move();
-        } else {
-            if (!stopped) {
-                move();
-            }
-
-            stopped = true;
+        if (!requestToStop || !stateIsStopped) {
+            move(states[0], states[1]);
         }
     }
 
-    public synchronized static void move() {
-        if ((timeSinceLastRequest() > 2000) && (currentJoyState.panJoy != 0) && (currentJoyState.tiltJoy != 0)) {
-            Log.e(TAG, "Emergency stop! Pan or Tilt was not stopped in time!");
-        }
-
+    public synchronized static void move(int panJoy, int tiltJoy) {
         updateTimeSinceLastBtCommand();
-        MoveCommand c = new MoveCommand(mBt, currentJoyState.panJoy, currentJoyState.tiltJoy);
+
+        MoveCommand c = new MoveCommand(mBt, panJoy, tiltJoy, currentComment);
         c.run();
-    }
-
-    public synchronized static boolean shouldBeStopped() {
-        try {
-            if (currentJoyState != null) {
-                return currentJoyState.panJoy == 0 && currentJoyState.tiltJoy == 0;
-            }
-        } catch (NullPointerException e) {
-            Log.d(TAG, "Wtf happened?");
-        }
-
-        return false;
     }
 
     public synchronized static void cancelQueuedCommands() {
@@ -336,16 +317,18 @@ public class FeyiuControls {
         queuedSensitivityStates.clear();
     }
 
+    public synchronized static String commandsToString() {
+        StringBuilder d = new StringBuilder();
 
-    public synchronized static void init(BluetoothLeService mBluetoothLeService) {
-        mBt = mBluetoothLeService;
-
-        try {
-            backgroundThread.start();
-        } catch (IllegalThreadStateException e) {
-            backgroundHandler.getLooper().quitSafely();
-            backgroundThread.start();
+        for (SensitivityState targetState : queuedSensitivityStates) {
+            d.append("\n" + targetState.toString());
         }
+
+        for (JoystickState targetState : queuedJoyStates) {
+            d.append("\n" + targetState.toString());
+        }
+
+        return d.toString();
     }
 
 }

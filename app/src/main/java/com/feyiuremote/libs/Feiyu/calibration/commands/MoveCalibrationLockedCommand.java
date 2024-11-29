@@ -5,13 +5,14 @@ import android.util.Log;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 
-public class StartCommand extends GimbalCommand {
+/**
+ * Main thing is not to induce endless update cycle while observing FeyiuState
+ * CalibrationMove commands do not change FeyiuState
+ */
+public class MoveCalibrationLockedCommand extends GimbalCommand {
+    private final int joyVal;
 
-
-    private static final String TAG = "StartCommand";
-    private int joyVal;
-
-    public StartCommand(BluetoothLeService bt, int joy_value) {
+    public MoveCalibrationLockedCommand(BluetoothLeService bt, int joy_value) {
         super(bt);
 
         this.joyVal = joy_value;
@@ -26,6 +27,6 @@ public class StartCommand extends GimbalCommand {
 
     @Override
     public void log() {
-        Log.d(TAG, "Start command initiated, joyVal:" + joyVal);
+        Log.d("MoveLockedCommand", "Locked axis at: " + this.joyVal + " Comment:" + comment);
     }
 }

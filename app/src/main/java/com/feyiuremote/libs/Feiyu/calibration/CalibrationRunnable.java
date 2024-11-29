@@ -7,8 +7,8 @@ import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 import com.feyiuremote.libs.Feiyu.calibration.commands.FinaliseCommand;
 import com.feyiuremote.libs.Feiyu.calibration.commands.GimbalCommand;
-import com.feyiuremote.libs.Feiyu.calibration.commands.LogCommand;
-import com.feyiuremote.libs.Feiyu.calibration.commands.MoveLockedCommand;
+import com.feyiuremote.libs.Feiyu.calibration.commands.MoveCalibrationCommand;
+import com.feyiuremote.libs.Feiyu.calibration.commands.MoveCalibrationLockedCommand;
 import com.feyiuremote.libs.Feiyu.calibration.commands.StartCommand;
 import com.feyiuremote.libs.Feiyu.calibration.commands.StopCommand;
 
@@ -21,17 +21,20 @@ public class CalibrationRunnable {
     private final int mJoyVal;
     private final BluetoothLeService mBt;
     private final ICalibrationListener mListener;
+    private String type = "default"; // Calibration mode
 
     private LinkedList<GimbalCommand> commandQueue;
     private int commandIndex = 0;
 
     private boolean isActive = false;
 
-    public CalibrationRunnable(int joy_sens, int joy_val, BluetoothLeService bt, ICalibrationListener listener) {
+    public CalibrationRunnable(String id, int joy_sens, int joy_val, LinkedList<GimbalCommand> commandQueue, BluetoothLeService bt, ICalibrationListener listener) {
         this.mJoySens = joy_sens;
         this.mJoyVal = joy_val;
         this.mBt = bt;
+        this.commandQueue = commandQueue;
         this.mListener = listener;
+        this.type = id;
     }
 
     private void setSensitivity() {
@@ -51,11 +54,10 @@ public class CalibrationRunnable {
     }
 
     public void start() {
-        buildCalibrationQueue();
-        setSensitivity();
-
         try {
             Thread.sleep(200);
+            setSensitivity();
+            Thread.sleep(500);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -63,20 +65,21 @@ public class CalibrationRunnable {
         this.isActive = true;
     }
 
-    public void onGimbalUpdate() {
+    public synchronized void onGimbalUpdate() {
         if (isActive) {
             if (commandIndex < commandQueue.size()) {
                 GimbalCommand command = this.commandQueue.get(commandIndex);
+                command.setComment(this.type);
                 command.run();
                 commandIndex++;
             } else {
-                finaliseCalibration();
                 isActive = false;
+                finaliseCalibration();
             }
         }
     }
 
-    private void finaliseCalibration() {
+    private synchronized void finaliseCalibration() {
         int START = 0;
         int ACCELERATED = 1;
         int STOPPING = 2;
@@ -92,7 +95,7 @@ public class CalibrationRunnable {
                 pan_angle[START] = command.pan_angle;
                 tilt_angle[START] = command.tilt_angle;
                 time[START] = command.actual_execution_time;
-            } else if (command instanceof MoveLockedCommand) {
+            } else if ((command instanceof MoveCalibrationLockedCommand) || (command instanceof MoveCalibrationCommand)) {
                 move_commands++;
                 if (move_commands == 6) {
                     pan_angle[ACCELERATED] = command.pan_angle;
@@ -115,6 +118,26 @@ public class CalibrationRunnable {
         DecimalFormat df = new DecimalFormat("#.###");
 
         ContentValues cv = new ContentValues();
+        cv.put("preset", "default");
+
+        if (type.equals("pan_only")) {
+            cv.put("pan_only", 1);
+        } else {
+            cv.put("pan_only", 0);
+        }
+
+        if (type.equals("tilt_only")) {
+            cv.put("tilt_only", 1);
+        } else {
+            cv.put("tilt_only", 0);
+        }
+
+        if (type.equals("locked")) {
+            cv.put("locked", 1);
+        } else {
+            cv.put("locked", 0);
+        }
+
         cv.put("joy_sens", mJoySens);
         cv.put("joy_val", mJoyVal);
 
@@ -136,24 +159,6 @@ public class CalibrationRunnable {
 
     private double calculateSpeed(double angle_diff, long time_end_ms, long time_start_ms) {
         return angle_diff / (time_end_ms - time_start_ms) * 1000;
-    }
-
-    public void buildCalibrationQueue() {
-        this.commandQueue = new LinkedList<>();
-
-        commandQueue.add(new StartCommand(mBt, mJoyVal));
-
-        for (int i = 0; i < 20; i++) {
-            commandQueue.add(new MoveLockedCommand(mBt, mJoyVal));
-        }
-
-        commandQueue.add(new StopCommand(mBt));
-
-        for (int i = 0; i < 5; i++) {
-            commandQueue.add(new LogCommand(mBt));
-        }
-
-        commandQueue.add(new FinaliseCommand(mBt));
     }
 
     public static double angleDifference(double angle1, double angle2) {

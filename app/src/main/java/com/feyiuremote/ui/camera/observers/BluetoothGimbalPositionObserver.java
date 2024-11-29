@@ -39,7 +39,7 @@ public class BluetoothGimbalPositionObserver implements Observer<byte[]> {
             waypointsProcessor.onGimbalUpdate();
 
             if (waypointsProcessor.getTarget() != null) {
-                binding.textGimbalSpeeds.setText(waypointsProcessor.getTarget().toString());
+                binding.textGimbalSpeeds.setText(waypointsProcessor.toString());
             }
         }
     }
