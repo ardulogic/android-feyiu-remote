@@ -63,6 +63,10 @@ public class GimbalPositionProcessor {
         target = new GimbalPositionTarget(context, waypoint.getPanAngle(), waypoint.getTiltAngle(), waypoint.getPanSpeed(), waypoint.getTiltSpeed(), waypoint.getDwellTimeMs(), waypoint.getFocusPoint());
     }
 
+    public void clearTarget() {
+        target = null;
+    }
+
     public void start() {
         Log.d(TAG, "Starting...");
 
@@ -129,32 +133,34 @@ public class GimbalPositionProcessor {
                 if (target.panShouldStop()) {
                     Log.d(TAG, "Moving/Stopping in :" + target.getPanMovementTime());
                     FeyiuControls.setPanJoyAfter(0, (int) target.getPanMovementTime(), "Stopping pan in: " + target.getPanMovementTime() + "ms since its close.");
+                    target.setPanHasReached();
                 } else {
                     FeyiuControls.setPanJoy(target.getPanJoyValue(), "Rotating pan to target");
                 }
             } else {
                 Log.d(TAG, "Pan is overshooting!");
                 FeyiuControls.setPanJoy(0, "Pan is overshooting");
+                target.setPanHasReached();
             }
 
             if (!target.tiltIsOvershooting()) {
                 if (target.tiltShouldStop()) {
                     FeyiuControls.setTiltJoyAfter(0, (int) target.getTiltMovementTime(), "Stopping tilt in: " + target.getTiltMovementTime() + "ms since its close.");
+                    target.setTiltHasReached();
                 } else {
                     FeyiuControls.setTiltJoy(target.getTiltJoyValue(), "Rotating tilt to target");
                 }
             } else {
                 Log.d(TAG, "Tilt is overshooting!");
                 FeyiuControls.setTiltJoy(0, "Tilt is overshooting");
+                target.setTiltHasReached();
             }
 
-            withTargetAvailable(() -> {
-                if (listener != null) {
-//                    if (target.isReached()) {
-//                        Log.i(TAG, "Target is reached");
-//                        listener.onTargetReached(target);
-//                        this.isActive = false;
-//                    }
+            if (listener != null) {
+                if (target.isReached()) {
+
+                    Log.i(TAG, "Target is reached");
+                    listener.onTargetReached(target);
 
                     // Note that target dissapears on blend when is nearby
                     // can cause null exception if used after this
@@ -164,10 +170,10 @@ public class GimbalPositionProcessor {
 //                        listener.onTargetNearlyReached();
 //                    }
                 }
-            });
-        });
+            }
 
-//        log();
+            log();
+        });
     }
 
     public void debugCalAccuracy() {

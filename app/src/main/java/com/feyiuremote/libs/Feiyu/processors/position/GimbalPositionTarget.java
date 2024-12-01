@@ -31,6 +31,9 @@ public class GimbalPositionTarget {
     private boolean pan_stopping = false;
     private boolean tilt_stopping = false;
 
+    private boolean pan_reached = false;
+    private boolean tilt_reached = false;
+
 
     public GimbalPositionTarget(Context context, double pan_angle, double tilt_angle, double max_pan_speed, double max_tilt_speed, int dwell_time_ms, Double focus) {
         this.mDb = new CalibrationDbHelper(context);
@@ -284,7 +287,7 @@ public class GimbalPositionTarget {
     }
 
     public boolean isReached() {
-        return (panIsStopping() || tiltIsStopping());
+        return pan_reached && tilt_reached;
     }
 
     public boolean isPositionReached() {
@@ -355,9 +358,9 @@ public class GimbalPositionTarget {
 
     public double getInterpolatedMovementTimeMs(double angleDiff, double angularVelocity, double overshoot) {
 //        overshoot *= 1.1;
-        double extraAngle = (double) (FeyiuState.getInstance().getTimeSinceLastUpdateMs() * (angularVelocity / 1000));
+        double extraAngle = ((double) FeyiuState.getInstance().getTimeSinceLastUpdateMs() * (angularVelocity / 1000));
 
-        Log.d(TAG, "Extra angle:" + extraAngle + " Angle diff:" + angleDiff + " Overshoot:" + overshoot);
+//        Log.d(TAG, "Extra angle:" + extraAngle + " Angle diff:" + angleDiff + " Overshoot:" + overshoot);
 
         // Accounts for time passed since last update
         angleDiff -= extraAngle;
@@ -472,5 +475,13 @@ public class GimbalPositionTarget {
         d += "\n Actual Sens: P:" + FeyiuState.joy_sens_pan + " T:" + FeyiuState.joy_sens_tilt;
 
         return d;
+    }
+
+    public void setPanHasReached() {
+        this.pan_reached = true;
+    }
+
+    public void setTiltHasReached() {
+        this.tilt_reached = true;
     }
 }

@@ -212,13 +212,14 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:layout_weight="1"
+            app:backgroundTintMode="add"
             app:icon="@drawable/repeat"
             app:iconGravity="textStart"
             app:iconPadding="0dp"
             app:iconSize="20dp" />
 
         <Button
-            android:id="@+id/buttonStartStopWaypoints"
+            android:id="@+id/button_play_waypoints_once"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:icon="@drawable/play"

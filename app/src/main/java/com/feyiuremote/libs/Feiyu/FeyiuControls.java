@@ -70,14 +70,14 @@ public class FeyiuControls {
                 if (js != null && js.hasDelay()) {
                     if ((js.executesInMs() >= BLUETOOTH_COMMAND_MIN_DELAY) && (js.executesInMs() < BLUETOOTH_COMMAND_DEFAULT_DELAY * 1.5)) {
                         delay = js.executesInMs();
-                        Log.d(TAG, "Move - Scheduling next process in: " + delay + " (orig: " + js.executesInMs() + ")");
+//                        Log.d(TAG, "Move - Scheduling next process in: " + delay + " (orig: " + js.executesInMs() + ")");
                     } else {
-                        Log.d(TAG, "Move - Scheduling next process in default delay (orig: " + js.executesInMs() + ")");
+//                        Log.d(TAG, "Move - Scheduling next process in default delay (orig: " + js.executesInMs() + ")");
                     }
                 }
 
                 if (!queuedJoyStates.isEmpty()) {
-                    Log.d(TAG, "JoystickStates - Scheduling process in: " + delay);
+//                    Log.d(TAG, "JoystickStates - Scheduling process in: " + delay);
                 }
 
                 getBackgroundThreadHandler().postDelayed(this, delay);
@@ -189,11 +189,11 @@ public class FeyiuControls {
         queueState(joyValue, duration, delay, JoystickState.AXIS_TILT, reason);
     }
 
-    public static void queueState(Integer joyValue, int duration, int delay, int axis, String reason) {
+    public static synchronized void queueState(Integer joyValue, int duration, int delay, int axis, String reason) {
         updateTimeSinceLastRequest();
 
         JoystickState newState = new JoystickState(joyValue, duration, axis, delay, reason);
-        Log.d(TAG, "Queueing new joystick state:" + newState);
+//        Log.d(TAG, "Queueing new joystick state:" + newState);
 
         // Remove any existing joystick states with the same axis
         queuedJoyStates.removeIf((state) ->
@@ -239,24 +239,32 @@ public class FeyiuControls {
         currentComment = "";
         String panComment = "Default value";
         String tiltComment = "Default value";
-        for (JoystickState queuedJoyState : queuedJoyStates) {
-            if (!queuedJoyState.executionEnded()) {
-                if (queuedJoyState.executesInMs() < THRESHOLD_MS) {
-                    if (queuedJoyState.axis == JoystickState.AXIS_PAN) {
-                        joyPan = queuedJoyState.joy_value;
-                        panComment = queuedJoyState.reason;
+
+        if (!queuedJoyStates.isEmpty()) {
+            for (JoystickState queuedJoyState : queuedJoyStates) {
+                if (!queuedJoyState.executionEnded()) {
+                    if (queuedJoyState.executesInMs() < THRESHOLD_MS) {
+                        if (queuedJoyState.axis == JoystickState.AXIS_PAN) {
+                            joyPan = queuedJoyState.joy_value;
+                            panComment = queuedJoyState.reason;
+                        } else {
+                            joyTilt = queuedJoyState.joy_value;
+                            tiltComment = queuedJoyState.reason;
+                        }
                     } else {
-                        joyTilt = queuedJoyState.joy_value;
-                        tiltComment = queuedJoyState.reason;
+//                        Log.e(TAG, "Moving / skipping:" + queuedJoyState.toString());
                     }
                 } else {
-                    Log.e(TAG, "Moving / skipping:" + queuedJoyState.toString());
+                    expiredStates.add(queuedJoyState);
+//                    Log.w(TAG, "Moving (Execution ended for " + queuedJoyState.toString());
                 }
-            } else {
-                expiredStates.add(queuedJoyState);
-                Log.w(TAG, "Moving (Execution ended for " + queuedJoyState.toString());
             }
+        } else {
+            joyPan = 0;
+            joyTilt = 0;
         }
+
+        Log.d(TAG, joyPan + " : " + joyTilt);
 
         // delete expired states from queuedJoyStates
         queuedJoyStates.removeAll(expiredStates);

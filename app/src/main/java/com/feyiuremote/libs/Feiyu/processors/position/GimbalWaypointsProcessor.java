@@ -9,8 +9,9 @@ import com.feyiuremote.ui.camera.waypoints.Waypoint;
 
 import java.util.ArrayList;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
@@ -23,11 +24,15 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     public static final String MODE_ENDLESS = "endless"; // Mode when we want to loop waypoints
     private final MutableLiveData<ArrayList<Waypoint>> waypoints;
 
-    private String mode = MODE_SINGLE;
+    public String mode = MODE_SINGLE;
 
     private int current_waypoint = 0;
 
-    private ExecutorService executor = Executors.newSingleThreadExecutor();
+    private Future<?> currentScheduledTask;
+
+    private IGimbalWaypointsProcessorStateListener stateListener;
+
+    ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     public GimbalWaypointsProcessor(Context context, MutableLiveData<ArrayList<Waypoint>> waypoints) {
         super(context);
@@ -41,20 +46,34 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
         return this.waypoints.getValue().size() >= 2;
     }
 
+    public void setStateListener(IGimbalWaypointsProcessorStateListener listener) {
+        this.stateListener = listener;
+    }
+
     public void start(String mode) {
         this.mode = mode;
+        setActive(true);
 
         if (Objects.equals(mode, MODE_SINGLE)) {
             super.start();
         } else {
             if (atLeastTwoWaypointsExist()) {
                 if (isAtStart()) {
-                    setActiveWaypoint(0);
                     moveToNextWaypoint();
                 } else {
                     startFromFirstWaypoint();
                 }
+            } else {
+                setActive(false);
             }
+        }
+    }
+
+    private void setActive(boolean state) {
+        this.isActive = state;
+
+        if (stateListener != null) {
+            stateListener.onStateChange(mode, isActive);
         }
     }
 
@@ -92,21 +111,23 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     }
 
     private void moveToNextWaypoint() {
-        int next_index = current_waypoint + 1;
-        if (!waypointExists(next_index)) {
-            next_index = 0;
-        }
+        if (isActive) {
+            int next_index = current_waypoint + 1;
+            if (!waypointExists(next_index)) {
+                next_index = 0;
+            }
 
-        if (waypointExists(next_index)) {
-            Log.d(TAG, "Moving to next waypoint: " + next_index);
+            if (waypointExists(next_index)) {
+                Log.d(TAG, "Moving to next waypoint: " + next_index);
 
-            setActiveWaypoint(next_index);
-            setCurrentWaypointAsTarget();
-            super.start();
-        } else {
-            Log.w(TAG, "Waypoint no longer exists: " + next_index);
+                setActiveWaypoint(next_index);
+                setCurrentWaypointAsTarget();
+                super.start();
+            } else {
+                Log.w(TAG, "Waypoint no longer exists: " + next_index);
 
-            super.cancel();
+                super.cancel();
+            }
         }
     }
 
@@ -137,23 +158,34 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
 
         @Override
         public void onTargetReached(GimbalPositionTarget target) {
-            // Blending on last waypoint makes it miss it by big margin
-            // since stopping doesnt really happen onTargetReached()
-            if (mode.equals(MODE_ENDLESS) || mode.equals(MODE_ALL)) {
-                executor.submit(() -> {
-                    try {
-                        TimeUnit.MILLISECONDS.sleep(target.dwell_time_ms);
+            clearTarget();
 
+            // Cancel the previous task if it exists and hasn't finished
+            if (currentScheduledTask != null) {
+                currentScheduledTask.cancel(false); // Cancel without interrupting the task
+            }
+
+            if (!mode.equals(MODE_SINGLE)) {
+                int dwell = target.dwell_time_ms;
+                Log.d(TAG, "Scheduling next waypoint in :" + target.dwell_time_ms);
+
+                // Schedule a new task to move to the next waypoint after a delay
+                currentScheduledTask = scheduler.schedule(() -> {
+                    Log.d(TAG, "Executing scheduled waypoint:" + target.dwell_time_ms);
+                    try {
                         // After dwell time, move to the next waypoint
                         if (mode.equals(MODE_ENDLESS) || !isLastWaypoint()) {
+                            Log.d(TAG, "Moving to next waypoint");
                             moveToNextWaypoint();
+                        } else {
+                            setActive(false);
                         }
-                    } catch (InterruptedException e) {
-                        // Handle interruption
-                        Thread.currentThread().interrupt();
-                        System.err.println("Dwell time interrupted: " + e.getMessage());
+                    } catch (Exception e) {
+                        System.err.println("Error during waypoint transition: " + e.getMessage());
                     }
-                });
+                }, dwell, TimeUnit.MILLISECONDS);
+            } else {
+                setActive(false);
             }
         }
 

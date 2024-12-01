@@ -39,6 +39,10 @@ public class PanasonicCameraControls extends CameraControls {
         this.httpClient = new HttpClient(context);
     }
 
+    private HttpClient getHttpClient() {
+        return new HttpClient(context);
+    }
+
     private void executeQueuedCommand() {
         CameraCommand command = null;
 
@@ -127,6 +131,8 @@ public class PanasonicCameraControls extends CameraControls {
                 Map<String, String> data = XmlParser.parse(xml_string, fields);
                 camera.state.battery = data.get("batt");
                 camera.state.isRecording = data.get("rec") == "off" ? false : true;
+                camera.state.remainingCapacity = Integer.parseInt(data.get("remaincapacity"));
+//                camera.state.remainingCapacity = Integer.parseInt(data.get("remaincapacity"));
 //                    state.mode = data.get("cammode");
 
 
@@ -210,9 +216,10 @@ public class PanasonicCameraControls extends CameraControls {
     public void startVideoRecording(ICameraControlListener listener) {
         queueCommand(() -> {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=video_recstart";
-            String reply = httpClient.get(url, 1000);
+            Log.d(TAG, url);
+            String reply = getHttpClient().get(url, 3000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 camera.state.isRecording = true;
                 listener.onSuccess();
             } else {
@@ -234,7 +241,7 @@ public class PanasonicCameraControls extends CameraControls {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=video_recstop";
             String reply = httpClient.get(url, 1000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 camera.state.isRecording = false;
                 listener.onSuccess();
             } else {

@@ -1,27 +1,31 @@
 package com.feyiuremote.ui.camera.observers;
 
+import android.content.Context;
+
+import androidx.core.content.ContextCompat;
+import androidx.lifecycle.Observer;
+
 import com.feyiuremote.R;
 import com.feyiuremote.databinding.FragmentCameraBinding;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 
-import androidx.lifecycle.Observer;
-
 public class CameraObserver implements Observer<PanasonicCamera> {
 
     private final FragmentCameraBinding binding; // Replace 'YourBindingType' with the actual type of your 'binding' variable
+    private final Context context;
 
-    public CameraObserver(FragmentCameraBinding binding) {
+    public CameraObserver(Context context, FragmentCameraBinding binding) {
+        this.context = context;
         this.binding = binding;
     }
 
     @Override
     public void onChanged(PanasonicCamera c) {
         if (c.state.isRecording) {
-            binding.buttonCameraTakeVideo.setIconResource(R.drawable.record_active);
-            binding.buttonCameraTakeVideo.setText("STOP");
+            binding.buttonCameraTakeVideo.setBackgroundTintList(ContextCompat.getColorStateList(context, R.color.button_recording));
         } else {
-            binding.buttonCameraTakeVideo.setIconResource(R.drawable.record_paused);
-            binding.buttonCameraTakeVideo.setText("REC");
+            binding.buttonCameraTakeVideo.setBackgroundTintList(null);
+
         }
     }
 }

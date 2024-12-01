@@ -17,6 +17,7 @@ public class PanasonicCameraState {
     public Integer videoCapacity;
     public boolean isRecording;
     public String temperature;
+    public int remainingCapacity;
 
     public PanasonicCameraState(String ddUrl) {
         this.url = ddUrl;

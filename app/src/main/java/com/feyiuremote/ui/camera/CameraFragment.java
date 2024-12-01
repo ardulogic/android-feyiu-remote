@@ -1,6 +1,7 @@
 package com.feyiuremote.ui.camera;
 
 import android.annotation.SuppressLint;
+import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -8,11 +9,13 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.ItemTouchHelper;
 
 import com.feyiuremote.MainActivity;
+import com.feyiuremote.R;
 import com.feyiuremote.databinding.FragmentCameraBinding;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
@@ -37,6 +40,9 @@ import com.feyiuremote.ui.camera.observers.CameraObserver;
 import com.feyiuremote.ui.camera.waypoints.ItemTouchHelperCallback;
 import com.feyiuremote.ui.camera.waypoints.WaypointListAdapter;
 
+import java.util.Objects;
+import java.util.concurrent.Executors;
+
 public class CameraFragment extends Fragment {
 
     private final String TAG = CameraFragment.class.getSimpleName();
@@ -59,7 +65,7 @@ public class CameraFragment extends Fragment {
 
         cameraViewModel = new ViewModelProvider(requireActivity()).get(CameraViewModel.class);
         cameraViewModel.status.observe(getViewLifecycleOwner(), binding.textCameraStatus::setText);
-        cameraViewModel.camera.observe(getViewLifecycleOwner(), new CameraObserver(binding));
+        cameraViewModel.camera.observe(getViewLifecycleOwner(), new CameraObserver(getContext(), binding));
         cameraViewModel.focus.observe(getViewLifecycleOwner(), new CameraFocusObserver(binding));
 
         unifiedTrackingProcessor = new UnifiedTrackingProcessor(mainActivity, binding, cameraViewModel);
@@ -80,17 +86,38 @@ public class CameraFragment extends Fragment {
 
         WaypointListAdapter wpListAdapter = new WaypointListAdapter(mainActivity.getBaseContext(), getViewLifecycleOwner(), cameraViewModel, unifiedTrackingProcessor.mWaypointsProcessor);
         binding.listWaypoints.setAdapter(wpListAdapter);
+        unifiedTrackingProcessor.mWaypointsProcessor.setStateListener((mode, isActive) -> {
+            boolean endlessActive = isActive && Objects.equals(mode, GimbalWaypointsProcessor.MODE_ENDLESS);
+            boolean allOnceActive = isActive && Objects.equals(mode, GimbalWaypointsProcessor.MODE_ALL);
+
+            ColorStateList endlessBtnColor = endlessActive ? ContextCompat.getColorStateList(getContext(), R.color.button_active) : null;
+            ColorStateList playBtnColor = allOnceActive ? ContextCompat.getColorStateList(getContext(), R.color.button_active) : null;
+
+            binding.buttonPlayWaypointsEndless.setBackgroundTintList(endlessBtnColor);
+            binding.buttonPlayWaypointsOnce.setBackgroundTintList(playBtnColor);
+        });
 
         // Drag and drop waypoints
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelperCallback(wpListAdapter));
         itemTouchHelper.attachToRecyclerView(binding.listWaypoints);
 
         binding.buttonAddWaypoint.setOnClickListener(new WaypointAddClickListener(cameraViewModel, mainActivity));
-        binding.buttonCameraTakePhoto.setOnClickListener(new CameraControlClickListener(cameraViewModel, camera -> camera.controls.takePicture(new CameraControlListener())));
-        binding.buttonCameraTakeVideo.setOnClickListener(new CameraControlClickListener(cameraViewModel, camera -> camera.controls.toggleVideoRecording(new CameraControlListener())));
+
+        binding.buttonCameraTakePhoto.setOnClickListener(new CameraControlClickListener(cameraViewModel, camera -> {
+            Executors.newSingleThreadExecutor().execute(() ->
+                    camera.controls.takePicture(new CameraControlListener())
+            );
+        }));
+
+        binding.buttonCameraTakeVideo.setOnClickListener(new CameraControlClickListener(cameraViewModel, camera -> {
+            Executors.newSingleThreadExecutor().execute(() ->
+                    camera.controls.toggleVideoRecording(new CameraControlListener())
+            );
+        }));
+
         binding.buttonCameraFocus.setOnClickListener(new CameraFocusClickListener(cameraViewModel));
 
-        binding.buttonStartStopWaypoints.setOnClickListener(view -> {
+        binding.buttonPlayWaypointsOnce.setOnClickListener(view -> {
             if (!unifiedTrackingProcessor.mWaypointsProcessor.isActive) {
                 unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_ALL);
             } else {
@@ -103,10 +130,12 @@ public class CameraFragment extends Fragment {
 //        });
 
         binding.buttonPlayWaypointsEndless.setOnClickListener(view -> {
-            if (!unifiedTrackingProcessor.mWaypointsProcessor.isActive) {
-                unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_ENDLESS);
-            } else {
+            boolean isActive = unifiedTrackingProcessor.mWaypointsProcessor.isActive;
+
+            if (isActive) {
                 unifiedTrackingProcessor.mWaypointsProcessor.stop();
+            } else {
+                unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_ENDLESS);
             }
         });
 

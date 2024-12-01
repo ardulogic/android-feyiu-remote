@@ -74,6 +74,7 @@ public class HttpClient {
                 replyString = responseBuf.toString();
             }
 
+            return replyString;
         } catch (Exception e) {
             Log.w(TAG, "httpGet: " + url + "  " + e.getMessage());
             e.printStackTrace();
@@ -83,8 +84,6 @@ public class HttpClient {
                 httpConn.disconnect();
             }
         }
-
-        return replyString;
     }
 
 

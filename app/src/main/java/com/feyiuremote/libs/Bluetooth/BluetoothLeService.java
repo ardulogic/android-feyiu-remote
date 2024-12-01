@@ -232,7 +232,7 @@ public class BluetoothLeService extends Service {
                 BluetoothGattCharacteristic gattCharacteristic = gattService.getCharacteristic(UUID.fromString(characteristicId));
 
                 if (gattCharacteristic != null) {
-                    Log.e(TAG, "Sending:" + message);
+//                    Log.e(TAG, "Sending:" + message);
                     byte[] b = hexStringToByteArray(message);
                     gattCharacteristic.setValue(b); // call this BEFORE(!) you 'write' any stuff to the server
 

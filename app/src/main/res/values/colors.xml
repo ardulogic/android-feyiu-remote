@@ -14,4 +14,6 @@
     <color name="secondary">#221B2E</color>
     <color name="tertiary">#373B4A</color>
     <color name="lock_overlay">#0A000000</color>
+    <color name="button_active">#2EBF52</color>
+    <color name="button_recording">#BF2D39</color>
 </resources>
