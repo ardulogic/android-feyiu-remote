@@ -1,6 +1,8 @@
 package com.feyiuremote.libs.Feiyu.controls;
 
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 
 import com.feyiuremote.libs.Feiyu.FeyiuState;
@@ -12,6 +14,7 @@ public class JoystickState {
 
     public static final int AXIS_PAN = 0;
     public static final int AXIS_TILT = 1;
+    private static final String TAG = "JoystickState";
 
     public Integer joy_value;
 
@@ -24,6 +27,9 @@ public class JoystickState {
 
     public Long time_start_ns;
     public Long time_end_ns;
+
+    private Long time_first_execution = null;
+    private Long time_last_execution = null;
 
 
     public String reason;
@@ -45,6 +51,9 @@ public class JoystickState {
         return this.delay_ms > 0;
     }
 
+    public Long executesInMs() {
+        return executesInNs() / 1_000_000;
+    }
     public Long executesInNs() {
         return this.time_start_ns - System.nanoTime();
     }
@@ -74,10 +83,6 @@ public class JoystickState {
         return this.time_end_ns - System.nanoTime();
     }
 
-    public Long executesInMs() {
-        return executesInNs() / 1_000_000;
-    }
-
     public Long executionEndsInMs() {
         return executionEndsInNs() / 1_000_000;
     }
@@ -88,6 +93,20 @@ public class JoystickState {
 
     public boolean hasSameAxis(JoystickState upcommingState) {
         return Objects.equals(upcommingState.axis, this.axis);
+    }
+
+    public void onExecution() {
+        if (time_first_execution == null) {
+            time_first_execution = System.nanoTime();
+
+            long timeDiff = (Math.abs(time_first_execution - this.time_start_ns) - executesInNs()) / 1_000_000;
+
+            if (timeDiff > 40) {
+                Log.w(TAG, axisToString() + " execution error:" + timeDiff + "ms (" + delay_ms + " ms delay)");
+            }
+        }
+
+        time_last_execution = System.currentTimeMillis();
     }
 
     public boolean replaceIfSameAxis(JoystickState upcommingState) {
