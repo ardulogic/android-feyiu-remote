@@ -15,12 +15,8 @@ import boofcv.factory.tracker.FactoryTrackerObjectQuad;
 import boofcv.struct.image.GrayU8;
 import georegression.struct.shapes.Quadrilateral_F64;
 
-public class FastObjectTracker {
+public class FastObjectTracker implements IObjectTracker {
     private final String TAG = FastObjectTracker.class.getSimpleName();
-    public final static String TRACKER_CIRCULANT = "Circulant";
-    public final static String TRACKER_TLD = "TLD";
-
-    private MainActivity activity;
     private ExecutorService executor;
 
     private TrackerObjectQuad<GrayU8> mTracker;
@@ -33,13 +29,11 @@ public class FastObjectTracker {
     private GrayU8 mFrame;
     private IObjectTrackerListener mListener;
 
-    private POI mPoi;
     private Quadrilateral_F64 trackPolygon;
     private Rectangle trackRectangle;
 
     public FastObjectTracker(ExecutorService executor, MainActivity a) {
         this.executor = executor;
-        this.activity = a;
 
         ConfigCirculantTracker config = new ConfigCirculantTracker();
 

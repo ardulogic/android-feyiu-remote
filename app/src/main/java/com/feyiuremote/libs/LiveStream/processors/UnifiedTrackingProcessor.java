@@ -6,7 +6,8 @@ import android.graphics.Color;
 
 import com.feyiuremote.MainActivity;
 import com.feyiuremote.databinding.FragmentCameraBinding;
-import com.feyiuremote.libs.AI.trackers.FastObjectTracker;
+import com.feyiuremote.libs.AI.trackers.IObjectTracker;
+import com.feyiuremote.libs.AI.trackers.MediaPipeObjectTrackerCPU;
 import com.feyiuremote.libs.AI.trackers.POI;
 import com.feyiuremote.libs.Feiyu.processors.GimbalFollowProcessor;
 import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
@@ -20,7 +21,8 @@ import java.util.concurrent.ExecutorService;
 public class UnifiedTrackingProcessor implements ILiveFeedProcessor {
 
     public final static String TAG = UnifiedTrackingProcessor.class.getSimpleName();
-    private final FastObjectTracker tracker;
+    //    private final FastObjectTracker tracker;
+    private final IObjectTracker tracker;
     private final GimbalFollowProcessor gimbalFollowProcessor;
     private final ExecutorService executor;
     private final FragmentCameraBinding binding;
@@ -38,7 +40,7 @@ public class UnifiedTrackingProcessor implements ILiveFeedProcessor {
 
         gimbalFollowProcessor = new GimbalFollowProcessor(mainActivity.mBluetoothLeService);
 
-        tracker = new FastObjectTracker(mainActivity.executor, mainActivity);
+        tracker = new MediaPipeObjectTrackerCPU(mainActivity.executor, mainActivity);
         tracker.setListener(rectangle -> { // onUpdate
             if (mPOI != null) {
                 mPOI.update(rectangle);

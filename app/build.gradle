@@ -36,7 +36,7 @@ android {
         }
     }
     ndkVersion '21.4.7075529'
-    buildToolsVersion '32.0.0'
+    buildToolsVersion '33.0.3'
     namespace 'com.feyiuremote'
 }
 
@@ -51,8 +51,14 @@ dependencies {
     implementation 'androidx.navigation:navigation-ui:2.4.2'
     implementation 'androidx.camera:camera-core:1.0.2'
 
-    implementation 'com.google.android.odml:image:1.0.0-beta1'
-    implementation 'com.google.mlkit:pose-detection:18.0.0-beta2'
+    implementation('com.google.android.odml:image:1.0.0-beta1') {
+        exclude group: 'com.google.protobuf', module: 'protobuf-java'
+    }
+
+    implementation('com.google.mlkit:pose-detection:18.0.0-beta2') {
+        exclude group: 'com.google.protobuf', module: 'protobuf-java'
+    }
+
     implementation 'androidx.recyclerview:recyclerview:1.3.1'
 
     testImplementation 'junit:junit:4.13.2'
@@ -66,6 +72,19 @@ dependencies {
     implementation 'com.google.android.material:material:1.5.0'
     implementation 'com.google.code.gson:gson:2.8.8'
 
+    // MediaPipe Tracking
+    // add Flogger API + a backend so MediaPipe’s internal calls to FluentLogger resolve
+    implementation 'com.google.flogger:flogger:0.7.4'
+    implementation 'com.google.flogger:flogger-system-backend:0.7.4'
+
+    // Guava for ByteStreams, etc.
+    implementation 'com.google.guava:guava:31.1-android'
+
+    implementation 'com.google.protobuf:protobuf-javalite:3.14.0'
+    implementation(name: 'box_tracking_cpu', ext: 'aar') {
+        exclude group: 'com.google.protobuf', module: 'protobuf-java'
+    }    // <— the AAR
+
 
     // Instrumented testing dependencies
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
@@ -78,4 +97,10 @@ dependencies {
         String a -> implementation group: 'org.boofcv', name: a, version: '0.40'
     }
 
+
+}
+
+configurations.configureEach {
+    // forcibly drop any protobuf-java
+    exclude group: 'com.google.protobuf', module: 'protobuf-java'
 }

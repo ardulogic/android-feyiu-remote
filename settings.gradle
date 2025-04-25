@@ -12,6 +12,12 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url 'https://jitpack.io' }
+
+        // NEW: let Gradle look in app/libs/ for local AARs or JARs
+        flatDir {
+            // absolute path is safest; use "$rootDir/app/libs" so it works
+            dirs("$rootDir/app/libs")
+        }
     }
 }
 rootProject.name = "feyiuremote"
