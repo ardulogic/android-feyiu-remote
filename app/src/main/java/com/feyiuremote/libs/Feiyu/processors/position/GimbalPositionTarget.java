@@ -163,15 +163,15 @@ public class GimbalPositionTarget {
             if (time > min_time && time < max_time) {
                 max_time = time;
                 bestCal = cal;
-                Log.d(TAG, String.format("Finding fastest cal for %s (%.1f deg diff): %.1f %.1fms",
-                        axis, angle_diff, speed(axis, bestCal), time
-                ));
+//                Log.d(TAG, String.format("Finding fastest cal for %s (%.1f deg diff): %.1f %.1fms",
+//                        axis, angle_diff, speed(axis, bestCal), time
+//                ));
             }
         }
 
         if (bestCal == null) {
             Log.e(TAG, "Could not find " + axis + " calibration for deg diff:" + angleDiffInDeg(mDb.AXIS_PAN));
-            return mDb.getByClosestSpeed(axis, max_speed, type);
+            bestCal = mDb.getByClosestSpeed(axis, max_speed, type);
         }
 
         return bestCal;

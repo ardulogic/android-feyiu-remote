@@ -13,6 +13,7 @@ import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
 
 import java.text.DecimalFormat;
+import java.util.concurrent.Executors;
 
 public class GimbalPositionProcessor {
 
@@ -81,13 +82,16 @@ public class GimbalPositionProcessor {
             FeyiuControls.setTiltSensitivity(target.getTiltSensitivity());
 
             PanasonicCamera cam = camera != null ? camera.getValue() : null;
+
             if (cam != null) {
-                // TODO: Fix auto focus so it no longer crashes the system
-//                if (target.getFocus() != null) {
-//                    cam.focus.focusTo(target.getFocus());
-//                } else {
-//                    Log.e(TAG, "Could not focus!");
-//                }
+                Executors.newSingleThreadExecutor().execute(() -> {
+                    if (target.getFocus() != null) {
+                        cam.focus.focusTo(target.getFocus());
+                    } else {
+                        Log.e(TAG, "Could not focus!");
+                    }
+                    ;
+                });
             }
 
             Log.d(TAG, "Gimbal position target is active.");
@@ -157,7 +161,9 @@ public class GimbalPositionProcessor {
             }
 
             if (listener != null) {
-                if (target.isReached()) {
+                boolean systemHasStopped = FeyiuState.joy_val_pan == 0 && FeyiuState.joy_val_tilt == 0;
+
+                if (target.isReached() && systemHasStopped) {
 
                     Log.i(TAG, "Target is reached");
                     listener.onTargetReached(target);

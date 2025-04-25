@@ -23,6 +23,8 @@ public class FeyiuControls {
     static private long time_last_bt_command = 0;
     static private long time_last_request = 0;
 
+    static private long time_next_execution = 0;
+
     static int THRESHOLD_MS = 10;
 
     static int DEFAULT_JOY_DURATION = 1000;
@@ -55,42 +57,45 @@ public class FeyiuControls {
         return backgroundHandler;
     }
 
+    // Step 4: Create a Runnable that performs the task
+    static Runnable executionTask = new Runnable() {
+        @Override
+        public void run() {
+            tick(); // Call your processing method
+
+            long delay = BLUETOOTH_COMMAND_DEFAULT_DELAY;
+
+            JoystickState js = nextJoystickState();
+            if (js != null && js.hasDelay()) {
+                delay = js.executesInMs();
+
+                if (timeSinceLastBtCommand() < BLUETOOTH_COMMAND_MIN_DELAY) {
+                    delay = BLUETOOTH_COMMAND_MIN_DELAY;
+                }
+            }
+
+            if (!queuedJoyStates.isEmpty()) {
+//                    Log.d(TAG, "JoystickStates - Scheduling process in: " + delay);
+            }
+
+            runTaskAfter(delay);
+        }
+    };
+
     private static final Thread backgroundThread = new Thread(() -> {
         Looper.prepare();
 
-        // Step 4: Create a Runnable that performs the task
-        Runnable task = new Runnable() {
-            @Override
-            public void run() {
-                tick(); // Call your processing method
-
-                long delay = BLUETOOTH_COMMAND_DEFAULT_DELAY;
-
-                JoystickState js = nextJoystickState();
-                if (js != null && js.hasDelay()) {
-                    if ((js.executesInMs() >= BLUETOOTH_COMMAND_MIN_DELAY) && (js.executesInMs() < BLUETOOTH_COMMAND_DEFAULT_DELAY * 1.5)) {
-                        delay = js.executesInMs();
-//                        Log.d(TAG, "Move - Scheduling next process in: " + delay + " (orig: " + js.executesInMs() + ")");
-                    } else {
-//                        Log.d(TAG, "Move - Scheduling next process in default delay (orig: " + js.executesInMs() + ")");
-                    }
-                }
-
-                if (!queuedJoyStates.isEmpty()) {
-//                    Log.d(TAG, "JoystickStates - Scheduling process in: " + delay);
-                }
-
-                getBackgroundThreadHandler().postDelayed(this, delay);
-            }
-        };
-
         // Initial post to start the loop
         long delay = FeyiuState.getInstance().nextUpdateInMs();
-        getBackgroundThreadHandler().postDelayed(task, delay); // 10 milliseconds delay
+        runTaskAfter(delay);
 
         // Start the message loop for this thread
         Looper.loop();
     });
+
+    public static long nextExecutionInMs() {
+        return time_next_execution - System.currentTimeMillis();
+    }
 
     public synchronized static void init(BluetoothLeService mBluetoothLeService) {
         mBt = mBluetoothLeService;
@@ -193,21 +198,35 @@ public class FeyiuControls {
         updateTimeSinceLastRequest();
 
         JoystickState newState = new JoystickState(joyValue, duration, axis, delay, reason);
-//        Log.d(TAG, "Queueing new joystick state:" + newState);
-
-        // Remove any existing joystick states with the same axis
-        queuedJoyStates.removeIf((state) ->
-                state.overlappingWith(newState)
-        );
-
         if (!newState.matchesStoppedState()) {
-            queuedJoyStates.add(newState);
+            // Remove any existing joystick states with the same axis
+            queuedJoyStates.removeIf((state) ->
+                    state.overlappingWith(newState)
+            );
+
+            if (!newState.matchesStoppedState()) {
+                queuedJoyStates.add(newState);
+            }
+
+            // Transfer the elements to a temporary list for sorting and consolidation
+            queuedJoyStates.sort(new JoystickState.SortByTimeAsc());
+
+            Log.d(TAG, "Queued states:" + queuedJoyStates.toString());
+
+
+            if (newState.executesInMs() < nextExecutionInMs()) {
+                Log.e(TAG, newState.axisToString() + " execution is sooner than schedule:" + newState.executesInMs() + " ms");
+                runTaskAfter(Math.max(newState.executesInMs(), 0));
+            } else {
+                Log.w(TAG, newState.axisToString() + " execution diff:" + newState.executesInMs() + " ms");
+            }
         }
+    }
 
-        // Transfer the elements to a temporary list for sorting and consolidation
-        queuedJoyStates.sort(new JoystickState.SortByTimeAsc());
-
-        Log.d(TAG, "Moving:" + queuedJoyStates.toString());
+    private static void runTaskAfter(long delay) {
+        getBackgroundThreadHandler().removeCallbacks(executionTask);
+        getBackgroundThreadHandler().postDelayed(executionTask, delay);
+        time_next_execution = System.currentTimeMillis() + delay;
     }
 
     public static void setPanSensitivity(int sensitivity) {
@@ -240,14 +259,18 @@ public class FeyiuControls {
         String panComment = "Default value";
         String tiltComment = "Default value";
 
+        JoystickState panState = null, tiltState = null;
+
         if (!queuedJoyStates.isEmpty()) {
             for (JoystickState queuedJoyState : queuedJoyStates) {
                 if (!queuedJoyState.executionEnded()) {
                     if (queuedJoyState.executesInMs() < THRESHOLD_MS) {
                         if (queuedJoyState.axis == JoystickState.AXIS_PAN) {
+                            panState = queuedJoyState;
                             joyPan = queuedJoyState.joy_value;
                             panComment = queuedJoyState.reason;
                         } else {
+                            tiltState = queuedJoyState;
                             joyTilt = queuedJoyState.joy_value;
                             tiltComment = queuedJoyState.reason;
                         }
@@ -262,6 +285,14 @@ public class FeyiuControls {
         } else {
             joyPan = 0;
             joyTilt = 0;
+        }
+
+        if (panState != null) {
+            panState.onExecution();
+        }
+
+        if (tiltState != null) {
+            tiltState.onExecution();
         }
 
         Log.d(TAG, joyPan + " : " + joyTilt);
