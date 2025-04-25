@@ -23,6 +23,81 @@ public class Rectangle {
         this.max_h = maxHeight;
     }
 
+    public int getXmin() {
+        return Math.min(x1, x2);
+    }
+
+    /**
+     * Pixel-based minimum Y (top-most)
+     */
+    public int getYmin() {
+        return Math.min(y1, y2);
+    }
+
+    /**
+     * Pixel-based maximum X (right-most)
+     */
+    public int getXmax() {
+        return Math.max(x1, x2);
+    }
+
+    /**
+     * Pixel-based maximum Y (bottom-most)
+     */
+    public int getYmax() {
+        return Math.max(y1, y2);
+    }
+
+    /**
+     * Normalized Xmin in [0..1]
+     */
+    public float getRelativeXmin() {
+        return getXmin() / (float) max_w;
+    }
+
+    public float getRelativeLeft() {
+        return getRelativeXmin();
+    }
+
+    /**
+     * Normalized Ymin in [0..1]
+     */
+    public float getRelativeYmin() {
+        return getYmin() / (float) max_h;
+    }
+
+    public float getRelativeTop() {
+        return getRelativeYmin();
+    }
+
+    /**
+     * Normalized right (max(x1,x2)/max_w)
+     */
+    public float getRelativeRight() {
+        return getXmax() / (float) max_w;
+    }
+
+    /**
+     * Normalized bottom (max(y1,y2)/max_h)
+     */
+    public float getRelativeBottom() {
+        return getYmax() / (float) max_h;
+    }
+
+    /**
+     * Normalized width (pixel width / max_w)
+     */
+    public float getRelativeWidth() {
+        return width() / (float) max_w;
+    }
+
+    /**
+     * Normalized height (pixel height / max_h)
+     */
+    public float getRelativeHeight() {
+        return height() / (float) max_h;
+    }
+
     public Rectangle getRescaled(int new_max_w, int new_max_h) {
         if (new_max_w != this.max_w || new_max_h != this.max_h) {
             float ratioW = (float) new_max_w / this.max_w;

@@ -51,8 +51,40 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
 
                 + "dir int not null,"
                 + "time_ms int not null"
-                + ");";
+                + ");"
+
+                // Add indexes for optimization
+                + "CREATE INDEX idx_dir_type ON " + getDatabaseTableName() + " (dir, pan_only, tilt_only, locked); "
+                + "CREATE INDEX idx_pan_speed ON " + getDatabaseTableName() + " (pan_speed); "
+                + "CREATE INDEX idx_tilt_speed ON " + getDatabaseTableName() + " (tilt_speed); "
+                + "CREATE INDEX idx_type_pan_speed ON " + getDatabaseTableName() + " (pan_only, pan_speed); "
+                + "CREATE INDEX idx_type_tilt_speed ON " + getDatabaseTableName() + " (tilt_only, tilt_speed); ";
     }
+
+    public void createIndexes() {
+        String tableName = getDatabaseTableName();
+        try {
+            // Create index for dir, pan_only, tilt_only, locked
+            dbHandler.execSQL("CREATE INDEX IF NOT EXISTS idx_dir_type ON " + tableName + " (dir, pan_only, tilt_only, locked);");
+
+            // Create index for pan_speed
+            dbHandler.execSQL("CREATE INDEX IF NOT EXISTS idx_pan_speed ON " + tableName + " (pan_speed);");
+
+            // Create index for tilt_speed
+            dbHandler.execSQL("CREATE INDEX IF NOT EXISTS idx_tilt_speed ON " + tableName + " (tilt_speed);");
+
+            // Create index for pan_only and pan_speed
+            dbHandler.execSQL("CREATE INDEX IF NOT EXISTS idx_type_pan_speed ON " + tableName + " (pan_only, pan_speed);");
+
+            // Create index for tilt_only and tilt_speed
+            dbHandler.execSQL("CREATE INDEX IF NOT EXISTS idx_type_tilt_speed ON " + tableName + " (tilt_only, tilt_speed);");
+
+            Log.d("DB_INDEX", "Indexes created successfully for " + tableName);
+        } catch (SQLException e) {
+            Log.e("DB_INDEX", "Failed to create indexes for " + tableName + ": " + e.getMessage());
+        }
+    }
+
 
     @Override
     public String[] getColumnNames() {
@@ -208,18 +240,22 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
 
         if (type == PAN_ONLY) {
             type_col = "pan_only";
-        }
-
-        if (type == TILT_ONLY) {
+        } else if (type == TILT_ONLY) {
             type_col = "tilt_only";
         }
+
+        String selection = "dir = ? AND " + type_col + " = 1 AND " + axis + "_speed BETWEEN ? AND ?";
+        String[] selectionArgs = new String[]{
+                String.valueOf(dir),
+                String.valueOf(-Math.abs(max_speed)),
+                String.valueOf(Math.abs(max_speed))
+        };
 
         try (Cursor c = dbHandler.query(
                 getDatabaseTableName(),
                 getColumnNames(),
-                "dir=" + dir + " and " + type_col + "=1 and ABS(" + axis + "_speed) <= " + Math.abs(max_speed),
-                null, // Selection Args DONT WORK WITH FUCKING NUMBERS!
-                null,
+                selection,
+                selectionArgs,
                 null,
                 null,
                 null
