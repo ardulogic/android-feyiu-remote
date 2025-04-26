@@ -21,6 +21,16 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <com.feyiuremote.libs.LiveStream.LiveView.OverlayView
+        android:id="@+id/overlayView"
+        android:layout_width="0dp"
+        android:layout_height="300dp"
+        android:background="@android:color/transparent"
+        app:layout_constraintStart_toStartOf="@id/liveView"
+        app:layout_constraintEnd_toEndOf="@id/liveView"
+        app:layout_constraintTop_toTopOf="@id/liveView"
+        app:layout_constraintBottom_toBottomOf="@id/liveView" />
+
     <HorizontalScrollView
         android:id="@+id/horizontalScrollViewCamera"
         android:layout_width="0dp"

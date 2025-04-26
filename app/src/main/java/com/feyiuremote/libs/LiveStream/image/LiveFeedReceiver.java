@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.util.Log;
 
+import com.feyiuremote.libs.Cameras.abstracts.CameraFrame;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedProcessor;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedReceiver;
 import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedUpdateListener;
@@ -24,19 +25,18 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
 
     private final Context context;
 
-    private Bitmap frameBitmap;
+    private CameraFrame frame;
 
     private Long frames = 0L;
 
-    private Long lastImageTimestamp = null;
-    private ILiveFeedProcessor mImageProcessor;
+    private ILiveFeedProcessor mFrameProcessor;
 
     public LiveFeedReceiver(Context context) {
         this.context = context;
     }
 
-    public void setImageProcessor(ILiveFeedProcessor processor) {
-        this.mImageProcessor = processor;
+    public void setFrameProcessor(ILiveFeedProcessor processor) {
+        this.mFrameProcessor = processor;
     }
 
     public void setUpdateListener(ILiveFeedUpdateListener statusListener) {
@@ -44,47 +44,39 @@ public class LiveFeedReceiver implements ILiveFeedReceiver {
     }
 
     @Override
-    public void onNewFrame(Bitmap bitmap) {
+    public void onNewFrame(CameraFrame frame) {
         frames++;
-        this.lastImageTimestamp = System.currentTimeMillis();
-        this.frameBitmap = bitmap;
+
+        this.frame = frame;
+
+        if (mFrameProcessor != null) {
+            mStatusListener.onNewFrame(
+                    mFrameProcessor.processFrame(frame.toBitmap())
+            );
+        } else {
+            mStatusListener.onNewFrame(frame.toBitmap());
+        }
 
         executor.execute(() -> {
-            if (mImageProcessor != null) {
-                mStatusListener.onNewFrame(
-                        mImageProcessor.onNewFrame(frameBitmap)
-                );
-            } else {
-                mStatusListener.onNewFrame(frameBitmap);
-            }
-        });
-
-        executor.execute(() -> {
-            mStatusListener.onMessage("New frame received: " + frames);
+            this.onInfo("New frame received: " + frames);
         });
     }
 
     @Override
-    public Bitmap getImage() {
-        if (frameBitmap != null) {
-            if (this.mImageProcessor != null) {
+    public Bitmap getFrameBitmap() {
+        if (frame != null) {
+            if (this.mFrameProcessor != null) {
                 // This is used to draw on the image (reactangles and shit)
-                return mImageProcessor.onNewFrame(frameBitmap);
+                return mFrameProcessor.processFrame(frame.toBitmap());
             } else {
                 // Don't apply any effects if mImageProcessor is not available
-                return frameBitmap;
+                return frame.toBitmap();
             }
         } else {
             Log.e(TAG, "Image is null, not received yet!");
             return null;
         }
     }
-
-    @Override
-    public Long getImageTimestamp() {
-        return lastImageTimestamp;
-    }
-
 
     @Override
     public void onError(String message) {

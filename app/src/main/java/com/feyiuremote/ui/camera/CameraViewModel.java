@@ -9,7 +9,7 @@ import androidx.lifecycle.ViewModel;
 import com.feyiuremote.R;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
-import com.feyiuremote.libs.LiveStream.processors.UnifiedTrackingProcessor;
+import com.feyiuremote.libs.LiveStream.processors.ManualTrackingFrameProcessor;
 import com.feyiuremote.libs.Utils.BitmapHelper;
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
 
@@ -29,7 +29,7 @@ public class CameraViewModel extends ViewModel {
     // Waypoints (This helps to retain data when switching  fragments
     public MutableLiveData<ArrayList<Waypoint>> waypointList = new MutableLiveData<>();
     public MutableLiveData<Boolean> waypointsLoaded = new MutableLiveData<>();
-    public MutableLiveData<UnifiedTrackingProcessor> unifiedTrackingProcessor = new MutableLiveData<>();
+    public MutableLiveData<ManualTrackingFrameProcessor> unifiedTrackingProcessor = new MutableLiveData<>();
 
     //    public MutableLiveData<ObjectTrackingProcessor> objectTrackingProcessor = new MutableLiveData<>();
     public CameraViewModel() {
@@ -54,7 +54,7 @@ public class CameraViewModel extends ViewModel {
 
     public Bitmap getLastImage(Context context) {
         if (liveFeedReceiver.getValue() != null) {
-            return liveFeedReceiver.getValue().getImage();
+            return liveFeedReceiver.getValue().getFrameBitmap();
         }
 
         return BitmapHelper.getBitmapFromResource(context, R.drawable.video_unavailable);

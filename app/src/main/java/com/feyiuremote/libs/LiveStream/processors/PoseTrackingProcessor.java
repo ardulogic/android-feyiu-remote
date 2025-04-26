@@ -32,7 +32,7 @@ public class PoseTrackingProcessor implements ILiveFeedProcessor {
     }
 
     @Override
-    public Bitmap onNewFrame(Bitmap bitmap) {
+    public Bitmap processFrame(Bitmap bitmap) {
         return this.mPoseTracker.onNewFrame(bitmap);
     }
 

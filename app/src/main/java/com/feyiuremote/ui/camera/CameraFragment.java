@@ -25,12 +25,12 @@ import com.feyiuremote.libs.Feiyu.FeyiuControls;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
 import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
-import com.feyiuremote.libs.LiveStream.processors.UnifiedTrackingProcessor;
+import com.feyiuremote.libs.LiveStream.processors.ManualTrackingFrameProcessor;
 import com.feyiuremote.ui.camera.listeners.CameraControlClickListener;
 import com.feyiuremote.ui.camera.listeners.CameraDiscoveryListener;
 import com.feyiuremote.ui.camera.listeners.CameraFocusClickListener;
-import com.feyiuremote.ui.camera.listeners.CameraLiveStreamUpdateListener;
 import com.feyiuremote.ui.camera.listeners.CameraStartStreamListener;
+import com.feyiuremote.ui.camera.listeners.CameraStreamFramesListener;
 import com.feyiuremote.ui.camera.listeners.WaypointAddClickListener;
 import com.feyiuremote.ui.camera.observers.BluetoothConnectivityObserver;
 import com.feyiuremote.ui.camera.observers.BluetoothEnabledObserver;
@@ -52,7 +52,7 @@ public class CameraFragment extends Fragment {
     private CameraViewModel cameraViewModel;
     private BluetoothViewModel mBluetoothViewModel;
 
-    private UnifiedTrackingProcessor unifiedTrackingProcessor;
+    private ManualTrackingFrameProcessor manualTrackingFrameProcessor;
 
 
     @SuppressLint("SetTextI18n")
@@ -68,13 +68,13 @@ public class CameraFragment extends Fragment {
         cameraViewModel.camera.observe(getViewLifecycleOwner(), new CameraObserver(getContext(), binding));
         cameraViewModel.focus.observe(getViewLifecycleOwner(), new CameraFocusObserver(binding));
 
-        unifiedTrackingProcessor = new UnifiedTrackingProcessor(mainActivity, binding, cameraViewModel);
+        manualTrackingFrameProcessor = new ManualTrackingFrameProcessor(mainActivity, binding, cameraViewModel);
 
         mBluetoothViewModel = new ViewModelProvider(requireActivity()).get(BluetoothViewModel.class);
         mBluetoothViewModel.connected.observe(getViewLifecycleOwner(), new BluetoothConnectivityObserver(binding));
         mBluetoothViewModel.enabled.observe(getViewLifecycleOwner(), new BluetoothEnabledObserver(mainActivity));
         mBluetoothViewModel.characteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)
-                .observe(getViewLifecycleOwner(), new BluetoothGimbalPositionObserver(binding, unifiedTrackingProcessor.mWaypointsProcessor));
+                .observe(getViewLifecycleOwner(), new BluetoothGimbalPositionObserver(binding, manualTrackingFrameProcessor.mWaypointsProcessor));
 
         binding.buttonCameraConnect.setOnClickListener(view -> {
             if (cameraViewModel.streamIsStarted()) {
@@ -84,9 +84,9 @@ public class CameraFragment extends Fragment {
             }
         });
 
-        WaypointListAdapter wpListAdapter = new WaypointListAdapter(mainActivity.getBaseContext(), getViewLifecycleOwner(), cameraViewModel, unifiedTrackingProcessor.mWaypointsProcessor);
+        WaypointListAdapter wpListAdapter = new WaypointListAdapter(mainActivity.getBaseContext(), getViewLifecycleOwner(), cameraViewModel, manualTrackingFrameProcessor.mWaypointsProcessor);
         binding.listWaypoints.setAdapter(wpListAdapter);
-        unifiedTrackingProcessor.mWaypointsProcessor.setStateListener((mode, isActive) -> {
+        manualTrackingFrameProcessor.mWaypointsProcessor.setStateListener((mode, isActive) -> {
             boolean endlessActive = isActive && Objects.equals(mode, GimbalWaypointsProcessor.MODE_ENDLESS);
             boolean allOnceActive = isActive && Objects.equals(mode, GimbalWaypointsProcessor.MODE_ALL);
 
@@ -118,10 +118,10 @@ public class CameraFragment extends Fragment {
         binding.buttonCameraFocus.setOnClickListener(new CameraFocusClickListener(cameraViewModel));
 
         binding.buttonPlayWaypointsOnce.setOnClickListener(view -> {
-            if (!unifiedTrackingProcessor.mWaypointsProcessor.isActive) {
-                unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_ALL);
+            if (!manualTrackingFrameProcessor.mWaypointsProcessor.isActive) {
+                manualTrackingFrameProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_ALL);
             } else {
-                unifiedTrackingProcessor.mWaypointsProcessor.stop();
+                manualTrackingFrameProcessor.mWaypointsProcessor.stop();
             }
         });
 
@@ -130,12 +130,12 @@ public class CameraFragment extends Fragment {
 //        });
 
         binding.buttonPlayWaypointsEndless.setOnClickListener(view -> {
-            boolean isActive = unifiedTrackingProcessor.mWaypointsProcessor.isActive;
+            boolean isActive = manualTrackingFrameProcessor.mWaypointsProcessor.isActive;
 
             if (isActive) {
-                unifiedTrackingProcessor.mWaypointsProcessor.stop();
+                manualTrackingFrameProcessor.mWaypointsProcessor.stop();
             } else {
-                unifiedTrackingProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_ENDLESS);
+                manualTrackingFrameProcessor.mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_ENDLESS);
             }
         });
 
@@ -168,7 +168,7 @@ public class CameraFragment extends Fragment {
                     setLiveImageProcessors(cameraViewModel.liveFeedReceiver.getValue());
                 }));
 
-                unifiedTrackingProcessor.mWaypointsProcessor.setCamera(cameraViewModel.camera);
+                manualTrackingFrameProcessor.mWaypointsProcessor.setCamera(cameraViewModel.camera);
             }
 
             @Override
@@ -180,7 +180,7 @@ public class CameraFragment extends Fragment {
 
     private void setLiveImageProcessors(LiveFeedReceiver r) {
         if (r != null) {
-            r.setImageProcessor(unifiedTrackingProcessor);
+            r.setFrameProcessor(manualTrackingFrameProcessor);
             Log.d(TAG, "Binding trackers to live view");
         }
     }
@@ -196,7 +196,7 @@ public class CameraFragment extends Fragment {
         setLiveImageProcessors(r);
 
         // This refreshes frames on update within receiver
-        r.setUpdateListener(new CameraLiveStreamUpdateListener(cameraViewModel, binding));
+        r.setUpdateListener(new CameraStreamFramesListener(cameraViewModel, binding));
     }
 
     public void stopLiveView() {
@@ -216,7 +216,7 @@ public class CameraFragment extends Fragment {
     }
 
     private void cancelAll() {
-        UnifiedTrackingProcessor objTracker = cameraViewModel.unifiedTrackingProcessor.getValue();
+        ManualTrackingFrameProcessor objTracker = cameraViewModel.unifiedTrackingProcessor.getValue();
         if (objTracker != null) {
             objTracker.stop();
         }

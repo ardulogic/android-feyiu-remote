@@ -2,42 +2,49 @@ package com.feyiuremote.libs.LiveStream.LiveView.Listeners;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
 import androidx.annotation.NonNull;
 
-
 public class OnTouchRectangleDraw implements View.OnTouchListener {
-    private final String TAG = "RectangleDrawTouchListener";
-    private final int MIN_RECT_SIZE = 30;
+    private static final String TAG = "RectangleDrawTouchListener";
+    private static final int MIN_RECT_SIZE = 30;
+    private static final int FIXED_RECT_SIZE = 100;
+    private static final int TAP_MOVE_THRESHOLD = 5; // px
+
     private int drawAreaW;
     private int drawAreaH;
 
-    private int rect_x1;
-    private int rect_y1;
-    private int rect_x2;
-    private int rect_y2;
+    private int startX;
+    private int startY;
+    private int endX;
+    private int endY;
+    private boolean moved;
 
-    private final GestureDetector gestureDetector;
+    private GestureDetector gestureDetector;
     private ILiveViewTouchListener mListener;
 
     public OnTouchRectangleDraw(Context context, View liveView) {
+        initGestureDetector(context);
+    }
 
+    private void initGestureDetector(Context context) {
         gestureDetector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
             @Override
             public void onLongPress(MotionEvent e) {
                 super.onLongPress(e);
-
-                mListener.onLongPress();
+                if (mListener != null) {
+                    mListener.onLongPress();
+                }
             }
 
             @Override
             public boolean onDoubleTap(@NonNull MotionEvent e) {
-                mListener.onDoubleTap();
-
+                if (mListener != null) {
+                    mListener.onDoubleTap();
+                }
                 return true;
             }
         });
@@ -50,44 +57,97 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouch(View v, MotionEvent event) {
-        final int X = (int) event.getX();
-        final int Y = (int) event.getY();
         gestureDetector.onTouchEvent(event);
 
         drawAreaW = v.getWidth();
         drawAreaH = v.getHeight();
 
-        switch (event.getAction() & MotionEvent.ACTION_MASK) {
-            case MotionEvent.ACTION_UP:
-                Log.d(TAG, "MotionEvent.ACTION_UP");
-                if (Math.abs(rect_y2 - rect_y1) > MIN_RECT_SIZE && Math.abs(rect_x2 - rect_x1) > MIN_RECT_SIZE) {
-                    if (mListener != null) {
-                        mListener.onNewRectangle(rect_x1, rect_y1, rect_x2, rect_y2, drawAreaW, drawAreaH);
-                    }
-                }
+        int x = (int) event.getX();
+        int y = (int) event.getY();
 
-                this.mListener.onDrawingRectangleFail();
-                break;
+        switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
-                Log.d(TAG, "MotionEvent.ACTION_DOWN");
-                rect_x1 = X;
-                rect_y1 = Y;
-                rect_x2 = X;
-                rect_y2 = Y;
-
-                this.mListener.onDrawingRectangle(rect_x1, rect_y1, rect_x2, rect_y2, drawAreaW, drawAreaH);
+                handleActionDown(x, y);
                 break;
             case MotionEvent.ACTION_MOVE:
-                Log.d(TAG, "MotionEvent.ACTION_MOVE");
-                rect_x2 = X;
-                rect_y2 = Y;
-
-                this.mListener.onDrawingRectangle(rect_x1, rect_y1, rect_x2, rect_y2, drawAreaW, drawAreaH);
+                handleActionMove(x, y);
+                break;
+            case MotionEvent.ACTION_UP:
+                handleActionUp(x, y);
+                break;
+            case MotionEvent.ACTION_CANCEL:
+                notifyFail();
                 break;
         }
 
         return true;
     }
 
+    private void handleActionDown(int x, int y) {
+        resetState(x, y);
+        notifyDrawing(startX, startY, endX, endY);
+    }
 
+    private void handleActionMove(int x, int y) {
+        updateDrag(x, y);
+        notifyDrawing(startX, startY, endX, endY);
+    }
+
+    private void handleActionUp(int x, int y) {
+        updateDrag(x, y);
+        if (!moved) {
+            drawTapRectangle(x, y);
+        } else if (isValidDrag()) {
+            notifyNewRectangle(startX, startY, endX, endY);
+        } else {
+            notifyFail();
+        }
+    }
+
+    private void resetState(int x, int y) {
+        moved = false;
+        startX = x;
+        startY = y;
+        endX = x;
+        endY = y;
+    }
+
+    private void updateDrag(int x, int y) {
+        if (!moved && (Math.abs(x - startX) > TAP_MOVE_THRESHOLD || Math.abs(y - startY) > TAP_MOVE_THRESHOLD)) {
+            moved = true;
+        }
+        endX = x;
+        endY = y;
+    }
+
+    private boolean isValidDrag() {
+        return Math.abs(endX - startX) > MIN_RECT_SIZE && Math.abs(endY - startY) > MIN_RECT_SIZE;
+    }
+
+    private void drawTapRectangle(int x, int y) {
+        int half = FIXED_RECT_SIZE / 2;
+        int x1 = x - half;
+        int y1 = y - half;
+        int x2 = x + half;
+        int y2 = y + half;
+        notifyNewRectangle(x1, y1, x2, y2);
+    }
+
+    private void notifyDrawing(int x1, int y1, int x2, int y2) {
+        if (mListener != null) {
+            mListener.onDrawingRectangle(x1, y1, x2, y2, drawAreaW, drawAreaH);
+        }
+    }
+
+    private void notifyNewRectangle(int x1, int y1, int x2, int y2) {
+        if (mListener != null) {
+            mListener.onNewRectangle(x1, y1, x2, y2, drawAreaW, drawAreaH);
+        }
+    }
+
+    private void notifyFail() {
+        if (mListener != null) {
+            mListener.onDrawingRectangleFail();
+        }
+    }
 }

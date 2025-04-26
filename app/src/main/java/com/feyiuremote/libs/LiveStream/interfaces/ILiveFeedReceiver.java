@@ -2,14 +2,14 @@ package com.feyiuremote.libs.LiveStream.interfaces;
 
 import android.graphics.Bitmap;
 
+import com.feyiuremote.libs.Cameras.abstracts.CameraFrame;
+
 public interface ILiveFeedReceiver {
-    void onNewFrame(Bitmap bitmap);
+    void onNewFrame(CameraFrame frame);
 
-    public void setUpdateListener(ILiveFeedUpdateListener statusListener);
+    Bitmap getFrameBitmap();
 
-    Bitmap getImage();
-
-    Long getImageTimestamp();
+    void setUpdateListener(ILiveFeedUpdateListener statusListener);
 
     void onError(String message);
 

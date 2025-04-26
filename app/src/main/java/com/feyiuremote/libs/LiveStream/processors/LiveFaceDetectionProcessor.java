@@ -9,7 +9,7 @@ import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedProcessor;
 public class LiveFaceDetectionProcessor implements ILiveFeedProcessor {
 
     @Override
-    public Bitmap onNewFrame(Bitmap toBitmap) {
+    public Bitmap processFrame(Bitmap toBitmap) {
         return FaceDetector.detect(toBitmap);
     }
 

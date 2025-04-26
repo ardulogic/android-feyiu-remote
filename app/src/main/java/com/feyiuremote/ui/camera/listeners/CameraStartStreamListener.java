@@ -30,7 +30,7 @@ public class CameraStartStreamListener implements ICameraControlListener {
         LiveFeedReceiver receiver = cameraModel.liveFeedReceiver.getValue();
         if (receiver == null) {
             receiver = new LiveFeedReceiver(this.context);
-            receiver.setUpdateListener(new CameraLiveStreamUpdateListener(cameraModel, binding)); // Sets messages, updates frame
+            receiver.setUpdateListener(new CameraStreamFramesListener(cameraModel, binding)); // Sets messages, updates frame
             cameraModel.liveFeedReceiver.postValue(receiver);
 
             Log.d(TAG, "Creating live feed receiver");
