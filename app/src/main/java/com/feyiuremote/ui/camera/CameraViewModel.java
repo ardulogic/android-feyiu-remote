@@ -8,9 +8,8 @@ import androidx.lifecycle.ViewModel;
 
 import com.feyiuremote.R;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
-import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
-import com.feyiuremote.libs.LiveStream.processors.ManualTrackingFrameProcessor;
 import com.feyiuremote.libs.Utils.BitmapHelper;
+import com.feyiuremote.ui.camera.listeners.CameraLiveFeedReceiver;
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
 
 import java.util.ArrayList;
@@ -24,12 +23,12 @@ public class CameraViewModel extends ViewModel {
     public MutableLiveData<Double> focus = new MutableLiveData<>();
     public final MutableLiveData<Boolean> streamStarted = new MutableLiveData<>();
 
-    public final MutableLiveData<LiveFeedReceiver> liveFeedReceiver = new MutableLiveData<>();
+    public final MutableLiveData<CameraLiveFeedReceiver> liveFeedReceiver = new MutableLiveData<>();
 
     // Waypoints (This helps to retain data when switching  fragments
     public MutableLiveData<ArrayList<Waypoint>> waypointList = new MutableLiveData<>();
     public MutableLiveData<Boolean> waypointsLoaded = new MutableLiveData<>();
-    public MutableLiveData<ManualTrackingFrameProcessor> unifiedTrackingProcessor = new MutableLiveData<>();
+//    public MutableLiveData<MediapipeBoxTrackingFrameProcessor> unifiedTrackingProcessor = new MutableLiveData<>();
 
     //    public MutableLiveData<ObjectTrackingProcessor> objectTrackingProcessor = new MutableLiveData<>();
     public CameraViewModel() {
@@ -54,7 +53,8 @@ public class CameraViewModel extends ViewModel {
 
     public Bitmap getLastImage(Context context) {
         if (liveFeedReceiver.getValue() != null) {
-            return liveFeedReceiver.getValue().getFrameBitmap();
+            // TODO: Might cause concurrent access
+            return liveFeedReceiver.getValue().getFrame().bitmap();
         }
 
         return BitmapHelper.getBitmapFromResource(context, R.drawable.video_unavailable);

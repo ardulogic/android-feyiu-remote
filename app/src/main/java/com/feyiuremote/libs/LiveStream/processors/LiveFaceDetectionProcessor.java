@@ -1,26 +1,36 @@
 package com.feyiuremote.libs.LiveStream.processors;
 
-import android.graphics.Bitmap;
-
 import com.feyiuremote.libs.AI.detectors.FaceDetector;
-import com.feyiuremote.libs.AI.trackers.POI;
-import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedProcessor;
+import com.feyiuremote.libs.Cameras.abstracts.CameraFrame;
+import com.feyiuremote.libs.LiveStream.LiveView.OverlayView;
+import com.feyiuremote.libs.LiveStream.abstracts.FrameProcessor;
 
-public class LiveFaceDetectionProcessor implements ILiveFeedProcessor {
+public class LiveFaceDetectionProcessor extends FrameProcessor {
 
-    @Override
-    public Bitmap processFrame(Bitmap toBitmap) {
-        return FaceDetector.detect(toBitmap);
+    public LiveFaceDetectionProcessor(OverlayView v) {
+        super(v);
     }
 
     @Override
-    public POI getPOI() {
-        return null;
+    public void processFrame(CameraFrame frame) {
+        FaceDetector.detect(frame.bitmap());
+    }
+
+    @Override
+    public boolean providesPOI() {
+        return false;
+    }
+
+
+    @Override
+    public void terminate() {
+
     }
 
     @Override
     public void stop() {
 
     }
+
 
 }

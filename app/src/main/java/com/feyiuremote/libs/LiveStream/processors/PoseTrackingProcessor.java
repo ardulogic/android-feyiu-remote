@@ -1,19 +1,21 @@
 package com.feyiuremote.libs.LiveStream.processors;
 
 import android.content.Context;
-import android.graphics.Bitmap;
 
 import com.feyiuremote.libs.AI.detectors.GooglePoseDetector;
-import com.feyiuremote.libs.AI.trackers.POI;
-import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedProcessor;
+import com.feyiuremote.libs.Cameras.abstracts.CameraFrame;
+import com.feyiuremote.libs.LiveStream.LiveView.OverlayView;
+import com.feyiuremote.libs.LiveStream.abstracts.FrameProcessor;
 
 import java.util.concurrent.ExecutorService;
 
-public class PoseTrackingProcessor implements ILiveFeedProcessor {
+public class PoseTrackingProcessor extends FrameProcessor {
 
     private final GooglePoseDetector mPoseTracker;
 
-    public PoseTrackingProcessor(Context context, ExecutorService executor) {
+    public PoseTrackingProcessor(OverlayView v, Context context, ExecutorService executor) {
+        super(v);
+
         this.mPoseTracker = new GooglePoseDetector(context, executor);
     }
 
@@ -22,8 +24,13 @@ public class PoseTrackingProcessor implements ILiveFeedProcessor {
 //    }
 
     @Override
-    public POI getPOI() {
-        return null;
+    public void processFrame(CameraFrame frame) {
+        this.mPoseTracker.onNewFrame(frame.bitmap());
+    }
+
+    @Override
+    public void terminate() {
+
     }
 
     @Override
@@ -32,8 +39,9 @@ public class PoseTrackingProcessor implements ILiveFeedProcessor {
     }
 
     @Override
-    public Bitmap processFrame(Bitmap bitmap) {
-        return this.mPoseTracker.onNewFrame(bitmap);
+    public boolean providesPOI() {
+        return false;
     }
+
 
 }

@@ -30,7 +30,7 @@ public abstract class CameraFrame {
         // Alternatively: return timestampNs / 1_000_000L;
     }
 
-    public Bitmap toBitmap() {
+    public Bitmap bitmap() {
         return bitmap;
     }
 }

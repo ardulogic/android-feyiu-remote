@@ -1,55 +1,48 @@
 package com.feyiuremote.libs.LiveStream.processors;
 
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 
 import com.feyiuremote.MainActivity;
-import com.feyiuremote.databinding.FragmentCameraBinding;
 import com.feyiuremote.libs.AI.trackers.IObjectTracker;
 import com.feyiuremote.libs.AI.trackers.MediaPipeObjectTrackerCPU;
 import com.feyiuremote.libs.AI.trackers.POI;
+import com.feyiuremote.libs.Cameras.abstracts.CameraFrame;
 import com.feyiuremote.libs.Feiyu.processors.GimbalFollowProcessor;
-import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
 import com.feyiuremote.libs.LiveStream.LiveView.Listeners.ILiveViewTouchListener;
-import com.feyiuremote.libs.LiveStream.interfaces.ILiveFeedProcessor;
+import com.feyiuremote.libs.LiveStream.LiveView.OverlayView;
+import com.feyiuremote.libs.LiveStream.abstracts.FrameProcessor;
 import com.feyiuremote.libs.Utils.Rectangle;
 import com.feyiuremote.ui.camera.CameraViewModel;
 
-import java.util.concurrent.ExecutorService;
+import java.util.ArrayList;
+import java.util.List;
 
-public class ManualTrackingFrameProcessor implements ILiveFeedProcessor {
+public class BoxTrackingMediapipeProcessor extends FrameProcessor {
 
-    public final static String TAG = ManualTrackingFrameProcessor.class.getSimpleName();
+    public final static String TAG = BoxTrackingMediapipeProcessor.class.getSimpleName();
     //    private final FastObjectTracker tracker;
     private final IObjectTracker tracker;
     private final GimbalFollowProcessor gimbalFollowProcessor;
-    private final ExecutorService executor;
-    private final FragmentCameraBinding binding;
-
-    public final GimbalWaypointsProcessor mWaypointsProcessor;
-
-    private POI mPOI;
 
     private Rectangle drawingRectangle;
 
 
-    public ManualTrackingFrameProcessor(MainActivity mainActivity, FragmentCameraBinding binding, CameraViewModel cameraViewModel) {
-        this.executor = mainActivity.executor;
-        this.binding = binding;
+    public BoxTrackingMediapipeProcessor(OverlayView v, MainActivity mainActivity, CameraViewModel cameraViewModel) {
+        super(v);
 
         gimbalFollowProcessor = new GimbalFollowProcessor(mainActivity.mBluetoothLeService);
 
-        tracker = new MediaPipeObjectTrackerCPU(mainActivity.executor, mainActivity);
-        tracker.setListener(rectangle -> { // onUpdate
+        tracker = new MediaPipeObjectTrackerCPU(mainActivity);
+        tracker.setListener(poi -> { // onUpdate
             if (mPOI != null) {
-                mPOI.update(rectangle);
+                mPOI.updateFrom(poi);
             }
         });
 
         // Prevent two trackers from fighting each other
-        mWaypointsProcessor = new GimbalWaypointsProcessor(mainActivity.getBaseContext(), cameraViewModel.waypointList);
-        mWaypointsProcessor.setOnStartListener(tracker::stop);
+//        mWaypointsProcessor = new GimbalWaypointsProcessor(mainActivity.getBaseContext(), cameraViewModel.waypointList);
+//        mWaypointsProcessor.setOnStartListener(tracker::stop);
 
         attachDrawableSurface();
     }
@@ -59,7 +52,7 @@ public class ManualTrackingFrameProcessor implements ILiveFeedProcessor {
      * test methods using "synchronized". It's a multi-threaded mess
      */
     public void attachDrawableSurface() {
-        binding.liveView.setOnTouchListener(new ILiveViewTouchListener() {
+        overlayView.setOnTouchListener(new ILiveViewTouchListener() {
             @Override
             public void onLongPress() {
 
@@ -92,33 +85,39 @@ public class ManualTrackingFrameProcessor implements ILiveFeedProcessor {
     }
 
     @Override
-    public Bitmap processFrame(Bitmap bitmap) {
-        Bitmap mutableBitmap = bitmap.isMutable() ? bitmap : bitmap.copy(Bitmap.Config.ARGB_8888, true);
-        Canvas canvas = new Canvas(mutableBitmap);
+    public void processFrame(CameraFrame frame) {
+        //TODO: Frame might be lost due to concurrency
+        tracker.onNewFrame(frame);
 
-        tracker.onNewFrame(bitmap);
+        // -- Build a list of all overlay shapes we want right now --
+        List<Drawable> overlays = new ArrayList<>();
 
         if (mPOI != null) {
-            mPOI.rect.drawOnCanvas(canvas, Color.GREEN);
-            executor.execute(() -> gimbalFollowProcessor.onPoiUpdate(mPOI));
+            overlays.add(mPOI.rect.asDrawable(Color.GREEN, 5f));
         }
 
         if (drawingRectangle != null) {
-            drawingRectangle.drawOnCanvas(canvas, Color.LTGRAY);
+            overlays.add(drawingRectangle.asDrawable(Color.GREEN, 5f));
         }
 
-        return mutableBitmap;
+        // -- Tell the OverlayView to show them --
+        overlayView.updateOverlay(overlays);
     }
 
     @Override
-    public POI getPOI() {
-        return mPOI;
+    public void terminate() {
+        stop();
     }
 
     @Override
     public void stop() {
         this.tracker.stop();
-        this.mWaypointsProcessor.cancel();
+        this.gimbalFollowProcessor.stop();
+    }
+
+    @Override
+    public boolean providesPOI() {
+        return true;
     }
 
 }

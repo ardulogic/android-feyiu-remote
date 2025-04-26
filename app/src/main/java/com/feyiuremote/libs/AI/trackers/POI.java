@@ -6,13 +6,16 @@ public class POI {
 
     public Rectangle rect;
 
-//    private final Mat imageMat = new Mat();
-
-    public double health = 100;
+    public double confidence = 1;
 
 
     public POI(Rectangle r) {
         this.rect = r;
+    }
+
+    public POI(Rectangle rect, float confidence) {
+        this.rect = rect;
+        this.confidence = confidence;
     }
 
 
@@ -71,8 +74,12 @@ public class POI {
 //        health = Math.max(0, health);
 //    }
 
-    public void resetHealth() {
-        health = 100;
+    public void setAsConfident() {
+        confidence = 1;
+    }
+
+    public void setConfidence(double c) {
+        confidence = c;
     }
 
 
@@ -98,8 +105,13 @@ public class POI {
 //        if (mTargetPOI.y2 > y2) y2 += 1;
 //    }
 
-    public void update(Rectangle rectangle) {
+    public void updateFrom(Rectangle rectangle) {
         this.rect = rectangle;
+    }
+
+    public void updateFrom(POI poi) {
+        this.confidence = poi.confidence;
+        this.rect = poi.rect;
     }
 }
 

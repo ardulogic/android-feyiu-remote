@@ -1,10 +1,9 @@
 package com.feyiuremote.libs.AI.trackers;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.os.SystemClock;
 import android.util.Log;
 
+import com.feyiuremote.libs.Cameras.abstracts.CameraFrame;
 import com.feyiuremote.libs.Utils.Rectangle;
 import com.google.mediapipe.components.FrameProcessor;
 import com.google.mediapipe.framework.AndroidAssetUtil;
@@ -13,8 +12,6 @@ import com.google.mediapipe.framework.PacketGetter;
 import com.google.mediapipe.framework.ProtoUtil;
 import com.google.mediapipe.tracking.BoxTrackerProto;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -36,11 +33,10 @@ public class MediaPipeObjectTrackerCPU implements IObjectTracker {
     private static final String CANCEL_STREAM = "cancel_object_id";
     private static final String BOXES_STREAM = "boxes";
 
-    private long lastFrameTimestampUs = 0;
+    private long lastFrameTimestampNs = 0;
     private final FrameProcessor processor;
 
     private IObjectTrackerListener listener;
-    private final AtomicReference<Rectangle> lastRect = new AtomicReference<>();
 
     private int frameW, frameH;
 
@@ -57,7 +53,7 @@ public class MediaPipeObjectTrackerCPU implements IObjectTracker {
         }
     }
 
-    public MediaPipeObjectTrackerCPU(ExecutorService executor, Context ctx) {
+    public MediaPipeObjectTrackerCPU(Context ctx) {
         AndroidAssetUtil.initializeNativeAssetManager(ctx);
 
         // Register your proto type as before
@@ -87,11 +83,12 @@ public class MediaPipeObjectTrackerCPU implements IObjectTracker {
     private void cancelTracking() {
         Packet cancelPkt =
                 processor.getPacketCreator().createInt32(boxId);
+
         processor.getGraph()
                 .addConsumablePacketToInputStream(
                         CANCEL_STREAM,
                         cancelPkt,
-                        lastFrameTimestampUs);
+                        ++lastFrameTimestampNs);
 
         boxId++;
     }
@@ -100,28 +97,23 @@ public class MediaPipeObjectTrackerCPU implements IObjectTracker {
      * Called on every new camera frame. Converts Bitmap → ByteBuffer → ImageFrame
      * and feeds it into the CPU graph.
      */
-    public Bitmap onNewFrame(Bitmap bmp) {
-        long nowUs = SystemClock.elapsedRealtimeNanos() / 1_000;
-        if (nowUs <= lastFrameTimestampUs) {
-            // already too old
-            return bmp;
-        }
+    public void onNewFrame(CameraFrame frame) {
         // try to grab the lock; if we can't, it means the last frame
         // is still being processed → drop this one immediately
         if (!frameLock.tryLock()) {
             Log.w(TAG, "Skipping frame (processor busy)");
-            return bmp;
+            return;
         }
 
         try {
-            lastFrameTimestampUs = nowUs;
-            frameW = bmp.getWidth();
-            frameH = bmp.getHeight();
-            processor.onNewFrame(bmp, nowUs);
+            lastFrameTimestampNs = frame.getTimestampNs();
+            frameW = frame.bitmap().getWidth();
+            frameH = frame.bitmap().getHeight();
+
+            processor.onNewFrame(frame.bitmap(), frame.getTimestampNs());
         } finally {
             frameLock.unlock();
         }
-        return bmp;
     }
 
     @Override
@@ -129,7 +121,8 @@ public class MediaPipeObjectTrackerCPU implements IObjectTracker {
         cancelTracking();
 
         // 5) Build your TimedBoxProto and push into "start_pos"
-        long timeMs = lastFrameTimestampUs / 1_000;  // to ms
+        long timeMs = (lastFrameTimestampNs + 999) / 1_000; // ceiling op
+
         BoxTrackerProto.TimedBoxProto timedBox =
                 BoxTrackerProto.TimedBoxProto.newBuilder()
                         .setLeft(rect.getRelativeLeft())
@@ -151,7 +144,7 @@ public class MediaPipeObjectTrackerCPU implements IObjectTracker {
                 .addConsumablePacketToInputStream(
                         START_POS_STREAM,
                         packet,
-                        lastFrameTimestampUs
+                        lastFrameTimestampNs
                 );
     }
 
@@ -166,24 +159,22 @@ public class MediaPipeObjectTrackerCPU implements IObjectTracker {
     }
 
     private void handleTrackedBoxes(Packet packet) {
-        try {
-            BoxTrackerProto.TimedBoxProtoList list =
-                    PacketGetter.getProto(
-                            packet,
-                            BoxTrackerProto.TimedBoxProtoList.parser()
-                    );
-            for (BoxTrackerProto.TimedBoxProto box : list.getBoxList()) {
-                float l = box.getLeft(), t = box.getTop();
-                float r = box.getRight(), b = box.getBottom();
-                int x1 = (int) (l * frameW), y1 = (int) (t * frameH);
-                int x2 = (int) (r * frameW), y2 = (int) (b * frameH);
+        BoxTrackerProto.TimedBoxProtoList list =
+                PacketGetter.getProto(
+                        packet,
+                        BoxTrackerProto.TimedBoxProtoList.parser()
+                );
+        for (BoxTrackerProto.TimedBoxProto box : list.getBoxList()) {
+            float l = box.getLeft(), t = box.getTop();
+            float r = box.getRight(), b = box.getBottom();
+            int x1 = (int) (l * frameW), y1 = (int) (t * frameH);
+            int x2 = (int) (r * frameW), y2 = (int) (b * frameH);
 
-                Log.d(TAG, "Confidence:" + box.getConfidence());
 
-                listener.onUpdate(new Rectangle(x1, y1, x2, y2, frameW, frameH));
-            }
-        } finally {
-            packet.release();
+            Rectangle rect = new Rectangle(x1, y1, x2, y2, frameW, frameH);
+
+            listener.onPOIUpdate(new POI(rect, box.getConfidence()));
         }
     }
+
 }

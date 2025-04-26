@@ -3,7 +3,7 @@ package com.feyiuremote.libs.Cameras.Panasonic;
 import android.content.Context;
 
 import com.feyiuremote.libs.Cameras.abstracts.State.Camera;
-import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
+import com.feyiuremote.libs.LiveStream.abstracts.LiveFeedReceiver;
 
 
 public class PanasonicCamera extends Camera {
@@ -33,6 +33,11 @@ public class PanasonicCamera extends Camera {
 
     public boolean focusIsAvailable() {
         return this.focus != null && this.focus.isHealthy();
+    }
+
+
+    public boolean liveViewAlreadyExists() {
+        return this.live != null;
     }
 
     public void createLiveView(LiveFeedReceiver feedReceiver) {

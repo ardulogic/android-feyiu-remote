@@ -11,6 +11,7 @@ import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
 import com.feyiuremote.libs.Utils.HttpClient;
 import com.feyiuremote.libs.Utils.NamedThreadFactory;
 import com.feyiuremote.libs.Utils.XmlParser;
+import com.feyiuremote.libs.Utils.XmlSafeParser;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -121,31 +122,37 @@ public class PanasonicCameraControls extends CameraControls {
 
     public void updateModeState(ICameraControlListener listener) {
         queueCommand(() -> {
-            String xml_string = httpClient.get(camera.state.getBaseUrl() + "cam.cgi?mode=getstate", -1);
+            String xml = httpClient.get(
+                    camera.state.getBaseUrl() + "cam.cgi?mode=getstate", -1
+            );
 
-            if (xml_string != null && !xml_string.isEmpty()) {
-                ArrayList<String> fields = new ArrayList<String>(Arrays.asList(
-                        "batt", "cammode", "remaincapacity", "videoremaincapacity", "rec", "temperature"
-                ));
+            if (xml == null || xml.trim().isEmpty()) {
+                Log.e(TAG, "Empty response from getstate");
+                camera.state.available = false;
+                listener.onFailure();
+                return;
+            }
 
-                Map<String, String> data = XmlParser.parse(xml_string, fields);
-                camera.state.battery = data.get("batt");
-                camera.state.isRecording = data.get("rec") == "off" ? false : true;
-                camera.state.remainingCapacity = Integer.parseInt(data.get("remaincapacity"));
-//                camera.state.remainingCapacity = Integer.parseInt(data.get("remaincapacity"));
-//                    state.mode = data.get("cammode");
+            ArrayList<String> fields = new ArrayList<String>(Arrays.asList(
+                    "batt", "cammode", "remaincapacity", "videoremaincapacity", "rec", "temperature"
+            ));
 
+            // Parse only the fields we care about
+            Map<String, String> data = XmlParser.parse(xml, fields);
 
-//                    state.photoCapacity = Integer.parseInt(Objects.requireNonNull(data.get("remaincapacity")));
-//                    state.videoCapacity = Integer.parseInt(Objects.requireNonNull(data.get("videoremaincapacity")));
-//                    state.isRecording = !Objects.requireNonNull(data.get("rec")).contains("off");
-//                    state.temperature = data.get("temperature");
+            // Apply each field safely, track if any succeeded
+            boolean ok = false;
+            ok |= XmlSafeParser.safeApply(data, "batt", v -> camera.state.battery = v);
+//            ok |= XmlSafeParser.safeApply(data, "cammode", v -> camera.state.mode = v);
+            ok |= XmlSafeParser.safeParseInt(data, "remaincapacity", v -> camera.state.remainingCapacity = v);
+//            ok |= XmlSafeParser.safeParseInt(data, "videoremaincapacity", v -> camera.state.videoCapacity = v);
+            ok |= XmlSafeParser.safeParseBool(data, "rec", (b, raw) -> camera.state.isRecording = b);
+//            ok |= XmlSafeParser.safeApply(data, "temperature", v -> camera.state.temperature = v);
 
-                camera.state.available = true;
-
+            camera.state.available = ok;
+            if (ok) {
                 listener.onSuccess();
             } else {
-                camera.state.available = false;
                 listener.onFailure();
             }
         });
@@ -156,7 +163,7 @@ public class PanasonicCameraControls extends CameraControls {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=recmode";
             String reply = httpClient.get(url, 2000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 listener.onSuccess();
             } else {
                 listener.onFailure();
@@ -172,7 +179,7 @@ public class PanasonicCameraControls extends CameraControls {
                     String url = camera.state.getBaseUrl() + "cam.cgi?mode=startstream&value=" + PanasonicCameraLiveView.PORT;
                     String reply = httpClient.get(url, 2000);
 
-                    if (reply.contains("<result>ok</result>")) {
+                    if (reply != null && reply.contains("<result>ok</result>")) {
                         listener.onSuccess();
                     } else {
                         listener.onFailure();
@@ -192,7 +199,7 @@ public class PanasonicCameraControls extends CameraControls {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=stopstream";
             String reply = httpClient.get(url, 1000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 listener.onSuccess();
             } else {
                 listener.onFailure();
@@ -205,7 +212,7 @@ public class PanasonicCameraControls extends CameraControls {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=capture";
             String reply = httpClient.get(url, 1000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 listener.onSuccess();
             } else {
                 listener.onFailure();
@@ -255,7 +262,7 @@ public class PanasonicCameraControls extends CameraControls {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=playmode";
             String reply = httpClient.get(url, 1000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 listener.onSuccess();
             } else {
                 listener.onFailure();
@@ -273,7 +280,7 @@ public class PanasonicCameraControls extends CameraControls {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=getinfo&type=capability";
             String reply = httpClient.get(url, 1000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 listener.onSuccess();
             } else {
                 listener.onFailure();
@@ -286,7 +293,7 @@ public class PanasonicCameraControls extends CameraControls {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=getinfo&type=allmenu";
             String reply = httpClient.get(url, 1000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 listener.onSuccess();
             } else {
                 listener.onFailure();
@@ -299,7 +306,7 @@ public class PanasonicCameraControls extends CameraControls {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=getinfo&type=curmenu";
             String reply = httpClient.get(url, 1000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 listener.onSuccess();
             } else {
                 listener.onFailure();
@@ -315,7 +322,7 @@ public class PanasonicCameraControls extends CameraControls {
                 String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=shtrspeed&shutter=" + shutterSpeedValue;
                 String reply = httpClient.get(url, 1000);
 
-                if (reply.contains("<result>ok</result>")) {
+                if (reply != null && reply.contains("<result>ok</result>")) {
                     listener.onSuccess();
                 } else {
                     listener.onFailure();
@@ -334,7 +341,7 @@ public class PanasonicCameraControls extends CameraControls {
                 String url = camera.state.getBaseUrl() + "cam.cgi?mode=setsetting&type=focal&value=" + value;
                 String reply = httpClient.get(url, 1000);
 
-                if (reply.contains("<result>ok</result>")) {
+                if (reply != null && reply.contains("<result>ok</result>")) {
                     listener.onSuccess();
                 } else {
                     listener.onFailure();
@@ -367,7 +374,7 @@ public class PanasonicCameraControls extends CameraControls {
             String url = camera.state.getBaseUrl() + "cam.cgi?mode=getinfo&type=lens";
             String reply = httpClient.get(url, 1000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 listener.onSuccess();
             } else {
                 listener.onFailure();
@@ -380,7 +387,7 @@ public class PanasonicCameraControls extends CameraControls {
             String url = camera.state.getBaseUrl() + "/cam.cgi?mode=camctrl&type=focus&value=wide-normal";
             String reply = httpClient.get(url, 1000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 listener.onSuccess();
             } else {
                 listener.onFailure();
@@ -393,7 +400,7 @@ public class PanasonicCameraControls extends CameraControls {
             String url = camera.state.getBaseUrl() + "/cam.cgi?mode=getsetting&type=focusmode";
             String reply = httpClient.get(url, 1000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 listener.onSuccess();
             } else {
                 listener.onFailure();
@@ -438,7 +445,7 @@ public class PanasonicCameraControls extends CameraControls {
                 String url = camera.state.getBaseUrl() + "/cam.cgi?mode=camctrl&type=focus&value=on";
                 String reply = httpClient.get(url, 1000);
 
-                if (reply.contains("<result>ok</result>")) {
+                if (reply != null && reply.contains("<result>ok</result>")) {
                     listener.onSuccess();
                 } else {
                     listener.onFailure();
@@ -455,7 +462,7 @@ public class PanasonicCameraControls extends CameraControls {
                 String url = camera.state.getBaseUrl() + "/cam.cgi?mode=camcmd&value=oneshot_af";
                 String reply = httpClient.get(url, 1000);
 
-                if (reply.contains("<result>ok</result>")) {
+                if (reply != null && reply.contains("<result>ok</result>")) {
                     listener.onSuccess();
                 } else {
                     listener.onFailure();
@@ -559,7 +566,7 @@ public class PanasonicCameraControls extends CameraControls {
             String url = camera.state.getBaseUrl() + "/cam.cgi?mode=camctrl&type=af_ae_lock&value=on";
             String reply = httpClient.get(url, 1000);
 
-            if (reply.contains("<result>ok</result>")) {
+            if (reply != null && reply.contains("<result>ok</result>")) {
                 listener.onSuccess();
             } else {
                 listener.onFailure();

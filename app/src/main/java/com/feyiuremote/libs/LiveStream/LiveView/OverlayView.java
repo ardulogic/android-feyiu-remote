@@ -6,6 +6,9 @@ import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.view.View;
 
+import com.feyiuremote.libs.LiveStream.LiveView.Listeners.ILiveViewTouchListener;
+import com.feyiuremote.libs.LiveStream.LiveView.Listeners.OnTouchRectangleDraw;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -15,9 +18,17 @@ import java.util.List;
  */
 public class OverlayView extends View {
     private final List<Drawable> drawables = Collections.synchronizedList(new ArrayList<>());
+    public OnTouchRectangleDraw touchProcessor;
 
     public OverlayView(Context ctx, AttributeSet attrs) {
         super(ctx, attrs);
+
+        attachOnTouchListeners(ctx);
+    }
+
+    protected void attachOnTouchListeners(Context context) {
+        this.touchProcessor = new OnTouchRectangleDraw(context, this);
+        setOnTouchListener(touchProcessor);
     }
 
     /**
@@ -37,6 +48,13 @@ public class OverlayView extends View {
         }
         postInvalidate();
     }
+
+    public void setOnTouchListener(ILiveViewTouchListener l) {
+        this.touchProcessor.setListener(l);
+
+        setOnTouchListener(this.touchProcessor);
+    }
+
 
     @Override
     protected void onDraw(Canvas canvas) {

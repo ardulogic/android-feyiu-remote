@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.util.Log;
 
 import com.feyiuremote.MainActivity;
+import com.feyiuremote.libs.Cameras.abstracts.CameraFrame;
 import com.feyiuremote.libs.Utils.Rectangle;
 
 import java.util.concurrent.ExecutorService;
@@ -84,6 +85,11 @@ public class FastObjectTracker implements IObjectTracker {
         return bitmap;
     }
 
+    @Override
+    public void onNewFrame(CameraFrame frame) {
+        return;
+    }
+
     public synchronized void lock(Rectangle rectangle) {
         if (mFrame != null) {
             trackPolygon = rectangle.getRescaled(mFrame.width, mFrame.height).toPolygon();
@@ -107,7 +113,7 @@ public class FastObjectTracker implements IObjectTracker {
                     trackRectangle.update(trackPolygon, mFrame.width, mFrame.height);
 
                     if (this.mListener != null) {
-                        this.executor.execute(() -> mListener.onUpdate(trackRectangle));
+                        this.executor.execute(() -> mListener.onPOIUpdate(new POI(trackRectangle)));
                     }
                 } catch (IllegalArgumentException e) {
                     Log.e(TAG, "Tracking image size has changed!");

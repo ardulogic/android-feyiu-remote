@@ -1,12 +1,14 @@
 package com.feyiuremote.ui.camera.listeners;
 
-import android.content.Context;
 import android.util.Log;
 
+import androidx.lifecycle.LifecycleOwner;
+
+import com.feyiuremote.MainActivity;
 import com.feyiuremote.databinding.FragmentCameraBinding;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
-import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
+import com.feyiuremote.libs.LiveStream.abstracts.LiveFeedReceiver;
 import com.feyiuremote.ui.camera.CameraViewModel;
 
 public class CameraStartStreamListener implements ICameraControlListener {
@@ -14,31 +16,26 @@ public class CameraStartStreamListener implements ICameraControlListener {
     private final String TAG = CameraStartStreamListener.class.getSimpleName();
 
     private final CameraViewModel cameraModel;
-    private final Context context;
+    private final LifecycleOwner lfOwner;
 
     private final FragmentCameraBinding binding;
     private final Runnable onStartedRunnable;
+    private final MainActivity mainActivity;
 
-    public CameraStartStreamListener(Context context, CameraViewModel cameraModel, FragmentCameraBinding binding, Runnable onStarted) {
+    public CameraStartStreamListener(LifecycleOwner lfOwner, MainActivity mainActivity, CameraViewModel cameraModel, FragmentCameraBinding binding, Runnable onStarted) {
         this.cameraModel = cameraModel;
-        this.context = context;
+        this.lfOwner = lfOwner;
         this.binding = binding;
+        this.mainActivity = mainActivity;
         this.onStartedRunnable = onStarted;
     }
 
-    private LiveFeedReceiver getLiveFeedReceiver() {
-        LiveFeedReceiver receiver = cameraModel.liveFeedReceiver.getValue();
-        if (receiver == null) {
-            receiver = new LiveFeedReceiver(this.context);
-            receiver.setUpdateListener(new CameraStreamFramesListener(cameraModel, binding)); // Sets messages, updates frame
-            cameraModel.liveFeedReceiver.postValue(receiver);
+    private LiveFeedReceiver createLiveFeedReceiver() {
+        CameraLiveFeedReceiver receiver = new CameraLiveFeedReceiver(lfOwner, mainActivity, cameraModel, binding);
+        cameraModel.liveFeedReceiver.postValue(receiver);
+        Log.d(TAG, "Creating live feed receiver");
 
-            Log.d(TAG, "Creating live feed receiver");
-            return receiver;
-        } else {
-            Log.d(TAG, "Reinitalizing existing live feed receiver");
-            return receiver;
-        }
+        return receiver;
     }
 
     @Override
@@ -52,9 +49,10 @@ public class CameraStartStreamListener implements ICameraControlListener {
 
             // Its neccessary to have feed receiver a part of camera model
             // so it retains its value while switching between tabs
-            LiveFeedReceiver liveFeedReceiver = getLiveFeedReceiver();
-            camera.createLiveView(liveFeedReceiver);
-            camera.getLiveView().start();
+            if (!camera.liveViewAlreadyExists()) {
+                camera.createLiveView(createLiveFeedReceiver());
+                camera.getLiveView().start();
+            }
 
             cameraModel.camera.postValue(camera);
             cameraModel.streamStarted.postValue(true);

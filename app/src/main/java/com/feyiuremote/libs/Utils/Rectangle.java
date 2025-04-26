@@ -2,8 +2,13 @@ package com.feyiuremote.libs.Utils;
 
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorFilter;
 import android.graphics.Paint;
+import android.graphics.PixelFormat;
 import android.graphics.RectF;
+import android.graphics.drawable.Drawable;
+
+import androidx.annotation.Nullable;
 
 import org.opencv.core.Rect;
 
@@ -250,5 +255,55 @@ public class Rectangle {
 
     public double centerYPercInFrame() {
         return centerX() / max_h;
+    }
+
+    /**
+     * Wrap this Rectangle in a Drawable, so it can be handed
+     * to OverlayView.updateOverlay().
+     *
+     * @param color       the stroke color
+     * @param strokeWidth the stroke width in pixels
+     * @return a Drawable that will draw this rectangle (rescaled to the canvas size)
+     */
+    public Drawable asDrawable(final int color, final float strokeWidth) {
+        // capture a copy of this Rectangle in case it mutates
+        final Rectangle rectCopy = new Rectangle(x1, y1, x2, y2, max_w, max_h);
+
+        return new Drawable() {
+            private final Paint paint = new Paint();
+
+            {
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setColor(color);
+                paint.setStrokeWidth(strokeWidth);
+            }
+
+            @Override
+            public void draw(Canvas canvas) {
+                // rescale to the canvas dimensions
+                Rectangle r = rectCopy.getRescaled(canvas.getWidth(), canvas.getHeight());
+                // draw using an Android RectF
+                RectF rf = new RectF(
+                        r.getXmin(), r.getYmin(),
+                        r.getXmax(), r.getYmax()
+                );
+                canvas.drawRect(rf, paint);
+            }
+
+            @Override
+            public void setAlpha(int alpha) {
+                paint.setAlpha(alpha);
+            }
+
+            @Override
+            public void setColorFilter(@Nullable ColorFilter colorFilter) {
+                paint.setColorFilter(colorFilter);
+            }
+
+            @Override
+            public int getOpacity() {
+                return PixelFormat.TRANSLUCENT;
+            }
+        };
     }
 }

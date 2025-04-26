@@ -1,17 +1,16 @@
 package com.feyiuremote.libs.AI.trackers;
 
-import android.graphics.Bitmap;
-
+import com.feyiuremote.libs.Cameras.abstracts.CameraFrame;
 import com.feyiuremote.libs.Utils.Rectangle;
 
 public interface IObjectTracker {
     /**
      * This should track the drawn box
      *
-     * @param bitmap
+     * @param frame
      * @return
      */
-    Bitmap onNewFrame(Bitmap bitmap);
+    void onNewFrame(CameraFrame frame);
 
     /**
      * This is called when user draws the box

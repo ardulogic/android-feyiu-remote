@@ -6,8 +6,8 @@ import android.os.Looper;
 import android.util.Log;
 
 import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
+import com.feyiuremote.libs.LiveStream.abstracts.LiveFeedReceiver;
 import com.feyiuremote.libs.LiveStream.image.JpegPacket;
-import com.feyiuremote.libs.LiveStream.image.LiveFeedReceiver;
 import com.feyiuremote.libs.Utils.NamedThreadFactory;
 
 import java.io.IOException;
@@ -28,17 +28,14 @@ public class PanasonicCameraLiveView {
     private static final int TIMEOUT_MS = 500;
     private static final int PACKET_QUEUE_CAP = 128;
     private static final int FRAME_QUEUE_CAP = 4;
-    private static final int MAX_EXCEPTIONS_RESTART = 15;
-    private static final int MAX_EXCEPTIONS_HALT = 30;
+    private static final int MAX_SOCKET_EXCEPTIONS_UNTIL_PROLONG_STREAM = 4;
+    private static final int MAX_SOCKET_EXCEPTIONS_UNTIL_STOP = 6;
 
     // Executors for 4-stage pipeline
     private final ExecutorService networkExecutor = Executors.newSingleThreadExecutor(
             new NamedThreadFactory("Net-I/O"));
     private final ExecutorService decodeExecutor = Executors.newSingleThreadExecutor(
             new NamedThreadFactory("Decoder"));
-    private final ExecutorService trackExecutor = Executors.newFixedThreadPool(
-            Runtime.getRuntime().availableProcessors(),
-            new NamedThreadFactory("Tracker"));
     private final ExecutorService displayExecutor = Executors.newSingleThreadExecutor(
             new NamedThreadFactory("Display-Loop"));
 
@@ -56,12 +53,12 @@ public class PanasonicCameraLiveView {
     private volatile boolean streamActive = false;
 
     // Stream-restart & error-counting fields
-    private int exceptionsRestart = 0;
-    private int exceptionsHalt = 0;
-    private int frames = 0;
     private int frameSinceStreamRequest = 0;
-    private boolean requestingStream = false;
-    private int requestRetries = 0;
+    private boolean prolongingStream = false;
+    private int prolongingStreamRetries = 0;
+    private int restartingStreamRetries = 0;
+
+    private boolean autoRestartStream = true;
 
     public PanasonicCameraLiveView(PanasonicCamera camera,
                                    LiveFeedReceiver receiver) {
@@ -87,6 +84,11 @@ public class PanasonicCameraLiveView {
 
     public void stop() {
         streamActive = false;
+
+        if (mLiveViewReceiver != null) {
+            mLiveViewReceiver.onStop("Complete stop.");
+        }
+
         networkExecutor.shutdownNow();
         decodeExecutor.shutdownNow();
         displayExecutor.shutdownNow();
@@ -102,6 +104,9 @@ public class PanasonicCameraLiveView {
     private void startNetworkLoop() {
         networkExecutor.execute(() -> {
             Log.d(TAG, "Network loop starting");
+
+            int socketLoopExceptions = 0;
+
             DatagramSocket socket = null;
             try {
                 socket = new DatagramSocket(PORT);
@@ -110,20 +115,18 @@ public class PanasonicCameraLiveView {
                 byte[] buf = new byte[RECEIVE_BUFFER_SZ];
                 DatagramPacket pkt = new DatagramPacket(buf, buf.length);
 
-                while (streamActive && exceptionsHalt < MAX_EXCEPTIONS_HALT) {
+                while (streamActive && socketLoopExceptions < MAX_SOCKET_EXCEPTIONS_UNTIL_STOP) {
                     try {
                         // Prolong the camera stream periodically
-                        if (frameSinceStreamRequest > 200 || exceptionsRestart > MAX_EXCEPTIONS_RESTART) {
-                            Log.d(TAG, "frame:" + frameSinceStreamRequest + " exceptions restart:" + exceptionsRestart);
-                            frameSinceStreamRequest = 0;
-                            exceptionsRestart = 0;
-                            requestStream();
+                        if (frameSinceStreamRequest > 200 && !prolongingStream) {
+                            Log.w(TAG, "Trying to prolong stream because of socket exceptions");
+                            prolongStream();
                         }
 
                         long refTime = System.currentTimeMillis();
                         socket.receive(pkt);
                         long refEndTime = System.currentTimeMillis() - refTime;
-                        if (refEndTime > 20) {
+                        if (refEndTime > 60) {
                             Log.w(TAG, "Long frame packet time:" + refEndTime);
                         }
 
@@ -134,20 +137,17 @@ public class PanasonicCameraLiveView {
                             packetQueue.offer(copy);
                         }
 
-                        frames++;
                         frameSinceStreamRequest++;
-                        exceptionsHalt = 0;
-                        exceptionsRestart = 0;
-
+                        socketLoopExceptions = 0;
                     } catch (SocketTimeoutException e) {
-                        exceptionsHalt++;
-                        mLiveViewReceiver.onWarning("Stream Socket Timed Out:" + exceptionsHalt);
+                        socketLoopExceptions++;
+                        mLiveViewReceiver.onWarning("Stream Socket Timed Out:" + socketLoopExceptions);
                     } catch (IOException e) {
-                        exceptionsHalt++;
+                        socketLoopExceptions++;
                         mLiveViewReceiver.onError("Network I/O error: " + e.getMessage());
                         streamActive = false;
                     } catch (Exception e) {
-                        exceptionsHalt++;
+                        socketLoopExceptions++;
                         mLiveViewReceiver.onError("Unknown stream error: " + e.getMessage());
                         streamActive = false;
                     }
@@ -159,8 +159,14 @@ public class PanasonicCameraLiveView {
                     socket.close();
                     mLiveViewReceiver.onInfo("Socket closed due to endless timeouts!");
                 }
-                mLiveViewReceiver.onError("Stream has finished.");
+
+                mLiveViewReceiver.onStop("Stream closed - too many socket errors.");
+
+                if (autoRestartStream) {
+                    restartStream();
+                }
             }
+
             Log.d(TAG, "Network loop exiting");
         });
     }
@@ -196,15 +202,14 @@ public class PanasonicCameraLiveView {
     private void startDisplayLoop() {
         displayExecutor.execute(() -> {
             Log.d(TAG, "Display loop starting");
-            int displayFrames = 0;
             while (streamActive) {
                 try {
                     PanasonicCameraFrame f = frameForDisplayQueue.take();
                     uiHandler.post(() -> mLiveViewReceiver.onNewFrame(f));
                     Log.d(TAG, "New frame received");
+
                     // Throttle display to balance latency vs. frame-rate
-                    displayFrames++;
-                    Thread.sleep(displayFrames % 4 == 0 ? 25L : 33L);
+                    Thread.sleep(10L);
                 } catch (InterruptedException e) {
                     break;
                 }
@@ -213,16 +218,39 @@ public class PanasonicCameraLiveView {
         });
     }
 
+    private void restartStream() {
+        mCamera.controls.startStream(new ICameraControlListener() {
+            @Override
+            public void onSuccess() {
+                startNetworkLoop();
+            }
+
+            @Override
+            public void onFailure() {
+                restartingStreamRetries++;
+
+                Log.e(TAG, "Stream restart failed, retries: " + restartingStreamRetries);
+                if (restartingStreamRetries < 60) {
+                    mLiveViewReceiver.onInfo("Trying to restart stream (" + restartingStreamRetries + "/60)");
+                    restartStream();
+                } else {
+                    mLiveViewReceiver.onError("Stream restart attempt failed!");
+                    stop();
+                }
+            }
+        });
+    }
+
     /**
      * After ~200 frames or repeated errors, re-request the live stream.
      */
-    private void requestStream() {
-        if (!requestingStream) {
-            requestingStream = true;
+    private void prolongStream() {
+        if (!prolongingStream) {
+            prolongingStream = true;
             mCamera.controls.updateModeState(new ICameraControlListener() {
                 @Override
                 public void onSuccess() {
-                    requestingStream = false;
+                    prolongingStream = false;
                     frameSinceStreamRequest = 0;
                     Log.d(TAG, "Stream request prolonged");
                     mLiveViewReceiver.onInfo("Stream has been prolonged.");
@@ -230,12 +258,12 @@ public class PanasonicCameraLiveView {
 
                 @Override
                 public void onFailure() {
-                    requestingStream = false;
-                    requestRetries++;
-                    Log.e(TAG, "Stream request failed, retry " + requestRetries);
-                    if (requestRetries < 3) {
-                        mLiveViewReceiver.onInfo("Stream request failed, retrying: " + requestRetries);
-                        requestStream();
+                    prolongingStream = false;
+                    prolongingStreamRetries++;
+                    Log.e(TAG, "Stream request failed, retry " + prolongingStreamRetries);
+                    if (prolongingStreamRetries < 3) {
+                        mLiveViewReceiver.onInfo("Stream request failed, retrying: " + prolongingStreamRetries);
+                        prolongStream();
                     } else {
                         mLiveViewReceiver.onError("Stream request failed!");
                         stop();

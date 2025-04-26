@@ -1,4 +1,4 @@
-package com.feyiuremote.libs.LiveStream.interfaces;
+package com.feyiuremote.libs.LiveStream.abstracts;
 
 import android.graphics.Bitmap;
 
