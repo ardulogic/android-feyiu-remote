@@ -22,7 +22,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.feyiuremote.R;
 import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
-import com.feyiuremote.ui.camera.CameraViewModel;
+import com.feyiuremote.ui.camera.models.CameraViewModel;
+import com.feyiuremote.ui.camera.models.CameraWaypointsViewModel;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -45,12 +46,12 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
 
     private final Context context;
     private final GimbalWaypointsProcessor waypointsProcessor;
-    private final LifecycleOwner lifecycleOwner;
     private final MutableLiveData<ArrayList<Waypoint>> waypointList;
 
     private final MutableLiveData<Boolean> waypointsLoaded;
 
     private final ArrayList<Waypoint> localWaypointList = new ArrayList<>();
+    private final LifecycleOwner lifecycleOwner;
 
     private boolean loading = false;
 
@@ -59,15 +60,15 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
     private ScheduledFuture<?> autosaveScheduledFuture;
 
     @SuppressLint("NotifyDataSetChanged")
-    public WaypointListAdapter(Context context, LifecycleOwner lifecycleOwner, CameraViewModel cameraModel, GimbalWaypointsProcessor mWaypointProcessor) {
+    public WaypointListAdapter(Context context, LifecycleOwner lifecycleOwner, CameraWaypointsViewModel viewModel) {
         this.context = context;
         this.lifecycleOwner = lifecycleOwner;
-        this.waypointList = cameraModel.waypointList;
-        this.waypointsLoaded = cameraModel.waypointsLoaded;
-        this.waypointsProcessor = mWaypointProcessor;
+        this.waypointList = viewModel.waypointList;
+        this.waypointsLoaded = viewModel.waypointsLoaded;
+        this.waypointsProcessor = viewModel.processor.getValue();
 
-        cameraModel.waypointList.observe(lifecycleOwner, updatedWaypoints -> {
-            if (Boolean.TRUE.equals(cameraModel.waypointsLoaded.getValue())) {
+        waypointList.observe(lifecycleOwner, updatedWaypoints -> {
+            if (Boolean.TRUE.equals(waypointsLoaded.getValue())) {
                 saveWaypointsInBackground();
             }
 

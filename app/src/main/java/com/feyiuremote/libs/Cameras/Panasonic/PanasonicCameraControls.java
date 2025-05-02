@@ -69,8 +69,12 @@ public class PanasonicCameraControls extends CameraControls {
     }
 
     private synchronized void queueCommand(CameraCommand command) {
-        commandQueue.add(command);
-        executeQueuedCommands();
+        if (commandQueue.size() < 5) {
+            commandQueue.add(command);
+            executeQueuedCommands();
+        } else {
+            Log.e(TAG, "Too many queued commands for Panasonic Camera!");
+        }
     }
 
     // Command interface
@@ -425,7 +429,14 @@ public class PanasonicCameraControls extends CameraControls {
                         int currentState = Integer.parseInt(parts[1]);
                         int maxState = Integer.parseInt(parts[2]);
                         double percentage = (double) currentState / maxState * 100;
-                        listener.onSuccess(percentage);
+
+                        Log.d(TAG, "Received : " + currentState + " / " + maxState);
+                        if (currentState < maxState) {
+                            listener.onSuccess(percentage);
+                        } else {
+                            listener.onFailure();
+                        }
+
                         return;
                     }
                 } catch (NumberFormatException e) {

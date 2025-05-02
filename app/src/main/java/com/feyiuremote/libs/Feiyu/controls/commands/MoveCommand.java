@@ -1,0 +1,56 @@
+package com.feyiuremote.libs.Feiyu.controls.commands;
+
+import android.util.Log;
+
+import androidx.annotation.NonNull;
+
+import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
+import com.feyiuremote.libs.Feiyu.FeyiuState;
+import com.feyiuremote.libs.Feiyu.FeyiuUtils;
+import com.feyiuremote.ui.gimbal.GimbalEmulator;
+
+public class MoveCommand extends GimbalCommand {
+
+    private static final String TAG = MoveCommand.class.getSimpleName();
+    public int tiltJoy;
+    public int panJoy;
+
+    public MoveCommand(BluetoothLeService mBt, int panJoy, int tiltJoy) {
+        super(mBt);
+
+        this.panJoy = panJoy;
+        this.tiltJoy = tiltJoy;
+    }
+
+    @Override
+    void execute() {
+        mBt.send(FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
+                FeyiuUtils.move(panJoy, tiltJoy)
+        );
+
+        FeyiuState.joy_val_pan = panJoy;
+        FeyiuState.joy_val_tilt = tiltJoy;
+    }
+
+    @Override
+    public void executeEmulated() {
+        super.executeEmulated();
+
+        GimbalEmulator.setPanJoy(panJoy);
+        GimbalEmulator.setTiltJoy(tiltJoy);
+
+        FeyiuState.joy_val_pan = panJoy;
+        FeyiuState.joy_val_tilt = tiltJoy;
+    }
+
+    public void log() {
+        Log.d(TAG, "Moving: Pan: " + panJoy + " Tilt: " + tiltJoy + " Comment: " + comment);
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        return "MoveCommand: Pan: " + panJoy + " Tilt: " + tiltJoy + " Comment: " + comment;
+    }
+
+}

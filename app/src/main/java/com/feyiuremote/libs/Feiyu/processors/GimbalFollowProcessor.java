@@ -7,18 +7,18 @@ import com.feyiuremote.libs.AI.trackers.POI;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Feiyu.FeyiuControls;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
-import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
+import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
 
 public class GimbalFollowProcessor implements IGimbalProcessor {
 
     private final String TAG = GimbalFollowProcessor.class.getSimpleName();
-    private final CalibrationDbHelper mDbCal;
+    private final CalibrationDB mDbCal;
 
     private final int joy_sens = 25;
 
 
     public GimbalFollowProcessor(BluetoothLeService mBluetoothLeService) {
-        this.mDbCal = new CalibrationDbHelper(mBluetoothLeService.getApplicationContext());
+        this.mDbCal = new CalibrationDB(mBluetoothLeService.getApplicationContext());
     }
 
     public static double evaluatePolynomial(double x) {
@@ -44,8 +44,8 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
         double spd_x = evaluatePolynomial(Math.abs(dev_x)) * (dev_x > 0 ? 1 : -1);
         double spd_y = evaluatePolynomial(Math.abs(dev_y)) * (dev_y > 0 ? 1 : -1);
 
-        ContentValues panSettings = mDbCal.getByClosestSpeed(mDbCal.AXIS_PAN, joy_sens, spd_x, CalibrationDbHelper.LOCKED);
-        ContentValues tiltSettings = mDbCal.getByClosestSpeed(mDbCal.AXIS_TILT, joy_sens, spd_y, CalibrationDbHelper.LOCKED);
+        ContentValues panSettings = mDbCal.getClosestToSpeed(CalibrationDB.AXIS_PAN, spd_x);
+        ContentValues tiltSettings = mDbCal.getClosestToSpeed(CalibrationDB.AXIS_TILT, spd_y);
 
         if (panSettings == null || tiltSettings == null) {
             Log.e(TAG, "Please calibrate first!");

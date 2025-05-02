@@ -22,9 +22,9 @@ public class CameraObserver implements Observer<PanasonicCamera> {
     @Override
     public void onChanged(PanasonicCamera c) {
         if (c.state.isRecording) {
-            binding.buttonCameraTakeVideo.setBackgroundTintList(ContextCompat.getColorStateList(context, R.color.button_recording));
+            binding.buttonCameraRecordVideo.setBackgroundTintList(ContextCompat.getColorStateList(context, R.color.button_recording));
         } else {
-            binding.buttonCameraTakeVideo.setBackgroundTintList(null);
+            binding.buttonCameraRecordVideo.setBackgroundTintList(null);
 
         }
     }

@@ -13,6 +13,8 @@ public class FeyiuState {
     public Long last_update = 0L;
     public Long update_interval = 0L;
 
+    public long last_command = 0L;
+
     private static final FeyiuState mInstance = new FeyiuState();
 
     public static int joy_sens_pan = 0;
@@ -66,12 +68,16 @@ public class FeyiuState {
 
             return this.update_interval - getTimeSinceLastUpdateMs();
         } else {
-            return getAverageUpdateInterval();
+            return getAverageUpdateIntervalMs();
         }
     }
 
-    public Long getAverageUpdateInterval() {
+    public Long getAverageUpdateIntervalMs() {
         return 243L;
+    }
+
+    public Long getMaxContinuousCommandTime() {
+        return 150L;
     }
 
     public Long getTimeSinceLastUpdateMs() {
@@ -82,5 +88,8 @@ public class FeyiuState {
         return 0L;
     }
 
+    public long getTimeSinceLastCommandMs() {
+        return System.currentTimeMillis() - last_command;
+    }
 }
 

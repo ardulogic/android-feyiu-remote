@@ -10,11 +10,16 @@ public abstract class FrameProcessor {
     public OverlayView overlayView;
 
     public FrameProcessor(OverlayView overlayView) {
-        this.overlayView = overlayView;
+        this.setOverlayView(overlayView);
     }
 
     public void setOverlayView(OverlayView overlayView) {
         this.overlayView = overlayView;
+        this.onOverlayViewAttached();
+    }
+
+    public void onOverlayViewAttached() {
+        this.overlayView.attachOnTouchListeners();
     }
 
     public abstract void processFrame(CameraFrame frame);

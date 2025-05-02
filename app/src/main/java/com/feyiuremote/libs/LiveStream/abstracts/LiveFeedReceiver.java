@@ -23,6 +23,7 @@ public abstract class LiveFeedReceiver {
         return frame;
     }
 
+    public abstract void onIsStreamingChanged(boolean value);
 
     public abstract void onError(String message);
 

@@ -6,7 +6,7 @@ import com.feyiuremote.libs.Cameras.Panasonic.IPanasonicCameraDiscoveryListener;
 import com.feyiuremote.libs.Cameras.Panasonic.IPanasonicCameraFocusListener;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
-import com.feyiuremote.ui.camera.CameraViewModel;
+import com.feyiuremote.ui.camera.models.CameraViewModel;
 
 import java.util.ArrayList;
 
@@ -60,7 +60,7 @@ public class CameraDiscoveryListener implements IPanasonicCameraDiscoveryListene
             @Override
             public void onFailure() {
                 cameraModel.status.postValue("Could not update base info!");
-                cameraModel.streamStarted.postValue(false);
+                cameraModel.isStreaming.postValue(false);
             }
         });
     }
@@ -82,7 +82,7 @@ public class CameraDiscoveryListener implements IPanasonicCameraDiscoveryListene
         // No cameras were found when searching
         if (foundCamUrls.isEmpty()) {
             cameraModel.status.postValue("No cameras found!");
-            cameraModel.streamStarted.postValue(false);
+            cameraModel.isStreaming.postValue(false);
             onCameraNotFound.run();
         }
     }

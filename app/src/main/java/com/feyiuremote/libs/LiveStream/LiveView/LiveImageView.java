@@ -8,14 +8,11 @@ import android.graphics.SurfaceTexture;
 import android.util.AttributeSet;
 import android.view.TextureView;
 
-import com.feyiuremote.libs.LiveStream.LiveView.Listeners.ILiveViewTouchListener;
-import com.feyiuremote.libs.LiveStream.LiveView.Listeners.OnTouchRectangleDraw;
 
 public class LiveImageView extends TextureView implements TextureView.SurfaceTextureListener {
 
     protected Bitmap bitmap;
     protected Context context;
-    public OnTouchRectangleDraw touchProcessor;
 
     public LiveImageView(Context context) {
         super(context);
@@ -34,15 +31,8 @@ public class LiveImageView extends TextureView implements TextureView.SurfaceTex
 
     protected void init(Context context) {
         this.context = context;
-        this.touchProcessor = new OnTouchRectangleDraw(this.context, this);
 
         setSurfaceTextureListener(this);
-    }
-
-    public void setOnTouchListener(ILiveViewTouchListener l) {
-        this.touchProcessor.setListener(l);
-
-        setOnTouchListener(this.touchProcessor);
     }
 
     public Bitmap getFrame() {

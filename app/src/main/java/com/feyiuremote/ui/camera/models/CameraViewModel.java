@@ -1,4 +1,4 @@
-package com.feyiuremote.ui.camera;
+package com.feyiuremote.ui.camera.models;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -21,34 +21,18 @@ public class CameraViewModel extends ViewModel {
     public final MutableLiveData<String> status = new MutableLiveData<>();
     public final MutableLiveData<PanasonicCamera> camera = new MutableLiveData<>();
     public MutableLiveData<Double> focus = new MutableLiveData<>();
-    public final MutableLiveData<Boolean> streamStarted = new MutableLiveData<>();
-
     public final MutableLiveData<CameraLiveFeedReceiver> liveFeedReceiver = new MutableLiveData<>();
+    public MutableLiveData<Boolean> isStreaming = new MutableLiveData<>();
+    public MutableLiveData<String> debugMessage = new MutableLiveData<>();
 
-    // Waypoints (This helps to retain data when switching  fragments
-    public MutableLiveData<ArrayList<Waypoint>> waypointList = new MutableLiveData<>();
-    public MutableLiveData<Boolean> waypointsLoaded = new MutableLiveData<>();
-//    public MutableLiveData<MediapipeBoxTrackingFrameProcessor> unifiedTrackingProcessor = new MutableLiveData<>();
-
-    //    public MutableLiveData<ObjectTrackingProcessor> objectTrackingProcessor = new MutableLiveData<>();
     public CameraViewModel() {
         status.setValue("Waiting for camera...");
-        streamStarted.setValue(false);
 
-        // This prevents from saving waypoints twice
-        // since loading triggers observer
-        waypointsLoaded.setValue(false);
-        waypointList.setValue(new ArrayList<Waypoint>());
+        isStreaming.setValue(false);
     }
 
     public boolean streamIsStarted() {
-        PanasonicCamera c = camera.getValue();
-
-        if (c != null && c.getLiveView() != null) {
-            return c.getLiveView().isActive();
-        }
-
-        return false;
+        return (Boolean.TRUE.equals(isStreaming.getValue()));
     }
 
     public Bitmap getLastImage(Context context) {
@@ -58,17 +42,6 @@ public class CameraViewModel extends ViewModel {
         }
 
         return BitmapHelper.getBitmapFromResource(context, R.drawable.video_unavailable);
-    }
-
-    public void addWaypoint(Waypoint wp, boolean main_thread) {
-        ArrayList<Waypoint> list = waypointList.getValue();
-        list.add(wp);
-
-        if (main_thread) {
-            waypointList.setValue(list);
-        } else {
-            waypointList.postValue(list);
-        }
     }
 
 }

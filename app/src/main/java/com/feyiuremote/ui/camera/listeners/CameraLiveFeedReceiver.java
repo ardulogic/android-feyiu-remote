@@ -11,7 +11,7 @@ import com.feyiuremote.libs.Cameras.abstracts.CameraFrame;
 import com.feyiuremote.libs.LiveStream.abstracts.LiveFeedReceiver;
 import com.feyiuremote.libs.LiveStream.processors.BoxTrackingMediapipeProcessor;
 import com.feyiuremote.libs.LiveStream.processors.FrameProcessorDispatcher;
-import com.feyiuremote.ui.camera.CameraViewModel;
+import com.feyiuremote.ui.camera.models.CameraViewModel;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -58,6 +58,11 @@ public class CameraLiveFeedReceiver extends LiveFeedReceiver {
         }
     }
 
+    @Override
+    public void onIsStreamingChanged(boolean value) {
+        cameraModel.isStreaming.postValue(value);
+    }
+
 
     private boolean feedIsVisibleToUser() {
         return lifecycleOwner.getLifecycle()
@@ -83,6 +88,7 @@ public class CameraLiveFeedReceiver extends LiveFeedReceiver {
     @Override
     public void onStop(String message) {
         frameProcessorDispatcher.stopProcessor();
+        showMessage(message);
     }
 
     @Override

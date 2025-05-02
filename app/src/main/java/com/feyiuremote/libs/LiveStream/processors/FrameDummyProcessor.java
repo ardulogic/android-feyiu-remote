@@ -67,6 +67,7 @@ public class FrameDummyProcessor extends FrameProcessor {
         return false;
     }
 
+
     /**
      * When deactivated, make the circle almost invisible.
      */

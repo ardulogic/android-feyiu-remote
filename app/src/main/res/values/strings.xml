@@ -3,4 +3,8 @@
     <string name="title_gimbal">Gimbal</string>
     <string name="title_camera">Camera</string>
     <string name="title_calibration">Calibration</string>
+
+    <string name="title_cam_waypoints">Waypoints</string>
+    <string name="title_cam_tracking">Tracking</string>
+    <string name="title_cam_joystick">Joystick</string>
 </resources>

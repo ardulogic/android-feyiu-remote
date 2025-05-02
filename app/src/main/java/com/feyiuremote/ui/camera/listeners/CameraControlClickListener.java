@@ -3,7 +3,7 @@ package com.feyiuremote.ui.camera.listeners;
 import android.view.View;
 
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
-import com.feyiuremote.ui.camera.CameraViewModel;
+import com.feyiuremote.ui.camera.models.CameraViewModel;
 
 public class CameraControlClickListener implements View.OnClickListener {
     private final String TAG = CameraControlClickListener.class.getSimpleName();

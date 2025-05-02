@@ -1,13 +1,23 @@
 package com.feyiuremote.libs.AI.trackers;
 
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.ColorFilter;
+import android.graphics.Paint;
+import android.graphics.PixelFormat;
+import android.graphics.drawable.Drawable;
+
+import androidx.annotation.Nullable;
+
 import com.feyiuremote.libs.Utils.Rectangle;
+
+import java.util.Locale;
 
 public class POI {
 
     public Rectangle rect;
 
     public double confidence = 1;
-
 
     public POI(Rectangle r) {
         this.rect = r;
@@ -113,5 +123,52 @@ public class POI {
         this.confidence = poi.confidence;
         this.rect = poi.rect;
     }
+
+    public Drawable asTextDrawable(final int textColor, final float textSizePx) {
+        // make a snapshot of the rect in case it changes later
+        final Rectangle rectCopy = new Rectangle(
+                rect.x1, rect.y1, rect.x2, rect.y2, rect.max_w, rect.max_h
+        );
+
+        // configure a Paint just for text
+        final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        textPaint.setStyle(Paint.Style.FILL);
+        textPaint.setColor(textColor);
+        textPaint.setTextSize(textSizePx);
+        textPaint.setTextAlign(Paint.Align.CENTER);
+
+        return new Drawable() {
+            @Override
+            public void draw(Canvas canvas) {
+                // 1) rescale your rect to the actual canvas size
+                Rectangle r = rectCopy.getRescaled(canvas.getWidth(), canvas.getHeight());
+
+                // 2) compute exact center coords
+                float cx = (r.getXmin() + r.getXmax()) / 2f;
+                // vertical center: shift by half text height
+                float cy = (r.getYmin() + r.getYmax()) / 2f
+                        - ((textPaint.descent() + textPaint.ascent()) / 2f);
+
+                // 3) draw your string
+                canvas.drawText(String.format(Locale.US, "%.2f", confidence), cx, cy, textPaint);
+            }
+
+            @Override
+            public void setAlpha(int alpha) {
+                textPaint.setAlpha(alpha);
+            }
+
+            @Override
+            public void setColorFilter(@Nullable ColorFilter cf) {
+                textPaint.setColorFilter(cf);
+            }
+
+            @Override
+            public int getOpacity() {
+                return PixelFormat.TRANSLUCENT;
+            }
+        };
+    }
+
 }
 

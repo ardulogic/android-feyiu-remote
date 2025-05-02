@@ -10,6 +10,10 @@ public class Networks {
     private static final String TAG = "Networks";
 
     public static Network getWifiNetwork(Context context) {
+        if (context == null) {
+            Log.e(TAG, "The context provided was null.");
+            return null;
+        }
 
         // Get the ConnectivityManager
         ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);

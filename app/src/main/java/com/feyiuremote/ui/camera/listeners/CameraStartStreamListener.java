@@ -9,7 +9,7 @@ import com.feyiuremote.databinding.FragmentCameraBinding;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
 import com.feyiuremote.libs.LiveStream.abstracts.LiveFeedReceiver;
-import com.feyiuremote.ui.camera.CameraViewModel;
+import com.feyiuremote.ui.camera.models.CameraViewModel;
 
 public class CameraStartStreamListener implements ICameraControlListener {
 
@@ -49,23 +49,20 @@ public class CameraStartStreamListener implements ICameraControlListener {
 
             // Its neccessary to have feed receiver a part of camera model
             // so it retains its value while switching between tabs
-            if (!camera.liveViewAlreadyExists()) {
+            if (camera != null && !camera.liveViewAlreadyExists()) {
                 camera.createLiveView(createLiveFeedReceiver());
                 camera.getLiveView().start();
             }
 
             cameraModel.camera.postValue(camera);
-            cameraModel.streamStarted.postValue(true);
             onStartedRunnable.run();
         } catch (InterruptedException e) {
             e.printStackTrace();
-            cameraModel.streamStarted.postValue(false);
         }
     }
 
     @Override
     public void onFailure() {
-        cameraModel.streamStarted.postValue(false);
         cameraModel.status.postValue("Failed to start stream");
     }
 

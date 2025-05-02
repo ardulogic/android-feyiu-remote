@@ -1,5 +1,7 @@
 package com.feyiuremote.libs.Feiyu;
 
+import android.util.Log;
+
 import java.util.ArrayList;
 import java.util.Optional;
 
@@ -25,6 +27,7 @@ public class FeyiuAngle {
 
     public void update(int new_angle) {
         float fl_angle = (float) new_angle / 100;
+
         // Calculate the change in angle
         float angle_change = fl_angle - last_angle;
 
@@ -68,6 +71,10 @@ public class FeyiuAngle {
 
     public Float speed() {
         return speed(HISTORY_LEN);
+    }
+
+    public Float instantSpeed() {
+        return history.get(history.size() - 1).value;
     }
 
     @NonNull

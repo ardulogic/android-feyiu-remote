@@ -1,17 +1,14 @@
 package com.feyiuremote.libs.Feiyu.processors.position;
 
-import android.content.ContentValues;
 import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 
-import com.feyiuremote.libs.Feiyu.FeyiuControls;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
-import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
+import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
 
 import java.text.DecimalFormat;
-import java.util.ArrayList;
 import java.util.Objects;
 
 public class GimbalPositionTarget {
@@ -19,177 +16,55 @@ public class GimbalPositionTarget {
 
     private final double pan_angle;
     private final double tilt_angle;
-    private final CalibrationDbHelper mDb;
+    private final CalibrationDB calDB;
     private final Double focus;
     private final double pan_diff_at_start;
     private final double tilt_diff_at_start;
 
     public final int dwell_time_ms;
-    private ContentValues pan_speed_cal;
-    private ContentValues tilt_speed_cal;
+    public final AxesCalibration axes;
 
     private boolean pan_stopping = false;
     private boolean tilt_stopping = false;
 
-    private boolean pan_reached = false;
-    private boolean tilt_reached = false;
+    private boolean panHasReached = false;
+    private boolean tilthasReached = false;
 
 
     public GimbalPositionTarget(Context context, double pan_angle, double tilt_angle, double max_pan_speed, double max_tilt_speed, int dwell_time_ms, Double focus) {
-        this.mDb = new CalibrationDbHelper(context);
+        this.calDB = new CalibrationDB(context);
 
-        // Note that without pan_angle panDiff is wrong!
         this.pan_angle = pan_angle;
-        this.pan_diff_at_start = angleDiffInDeg(mDb.AXIS_PAN);
+        this.pan_diff_at_start = angleDiffInDeg(calDB.AXIS_PAN);
 
-        // Note that without tilt_angle tiltDiff is wrong!
         this.tilt_angle = tilt_angle;
-        this.tilt_diff_at_start = angleDiffInDeg(mDb.AXIS_TILT);
+        this.tilt_diff_at_start = angleDiffInDeg(calDB.AXIS_TILT);
 
-        this.pan_speed_cal = findFastestCalibration(mDb.AXIS_PAN, max_pan_speed, CalibrationDbHelper.LOCKED);
-        this.tilt_speed_cal = findFastestCalibration(mDb.AXIS_TILT, max_tilt_speed, CalibrationDbHelper.LOCKED);
-
-        if (tiltShouldStop()) {
-            this.pan_speed_cal = findFastestCalibration(mDb.AXIS_PAN, max_pan_speed, CalibrationDbHelper.PAN_ONLY);
-        }
-
-        if (panShouldStop()) {
-            this.tilt_speed_cal = findFastestCalibration(mDb.AXIS_TILT, max_tilt_speed, CalibrationDbHelper.TILT_ONLY);
-        }
+        this.axes = new AxesCalibration(context, pan_angle, tilt_angle, max_pan_speed, max_tilt_speed);
+        this.axes.calculate();
 
         this.focus = focus;
         this.dwell_time_ms = dwell_time_ms;
 
-        // Slow down faster axis
-        if (!tiltShouldStop() && !panShouldStop()) {
-            String faster_axis = getFasterAxis();
-            setCal(faster_axis, findMatchingCalibration(faster_axis, CalibrationDbHelper.LOCKED));
-        }
-
         Log.d(TAG, "Ready");
     }
 
-    private void setCal(String axis, ContentValues calibration) {
-        if (Objects.equals(axis, mDb.AXIS_PAN)) {
-            this.pan_speed_cal = calibration;
-        } else {
-            this.tilt_speed_cal = calibration;
-        }
-    }
-
-//    private void adjustToInertia() {
-//        Float panSpeed = FeyiuState.getInstance().angle_pan.speed();
-//        Float tiltSpeed = FeyiuState.getInstance().angle_tilt.speed();
-//        ContentValues panCal = mDb.getByClosestPanSpeed(panSpeed);
-//        ContentValues tiltCal = mDb.getByClosestTiltSpeed(tiltSpeed);
-//
-//        float pan_overshoot = panCal.getAsFloat("pan_angle_overshoot") / 2;
-//        float tilt_overshoot = tiltCal.getAsFloat("tilt_angle_overshoot") / 2;
-//
-//        Log.d(TAG, String.format("Initial true speed, Pan: %.2f deg/s (overshoot: %.2f), Tilt: %.2f deg/s (overshoot: %.2f)", panSpeed, pan_overshoot, tiltSpeed, tilt_overshoot));
-//
-//        this.pan_speed = Math.min(pan_speed, Math.abs(panDiffInDeg()) - Math.abs(pan_overshoot));
-//        this.tilt_speed = Math.min(tilt_speed, Math.abs(tiltDiffInDeg()) - Math.abs(tilt_overshoot));
-//    }
-
-    private String getFasterAxis() {
-        if (Math.abs(getMovementTimeInMs(mDb.AXIS_PAN)) < Math.abs(getMovementTimeInMs(mDb.AXIS_TILT))) {
-            return mDb.AXIS_PAN;
-        } else {
-            return mDb.AXIS_TILT;
-        }
-    }
-
-    private String otherAxis(String axis) {
-        if (axis.equals(mDb.AXIS_PAN)) {
-            return mDb.AXIS_TILT;
-        } else {
-            return mDb.AXIS_PAN;
-        }
-    }
-
-    private ContentValues findMatchingCalibration(String axis, int type) {
-
-        ArrayList<ContentValues> cals = mDb.getSlowerThan(axis, getDir(angleDiffInDeg(axis)), speed(axis), type);
-        if (cals.size() == 0) {
-            Log.e(TAG, "No calibrations slower than " + speed(axis) + " found for " + axis);
-        }
-
-        double min_time_diff = 9999999;
-        ContentValues bestCal = null;
-
-        for (ContentValues cal : cals) {
-            double time_diff = getMovementTimeDiffMsAbs(axis, cal, otherAxis(axis), getCal(otherAxis(axis)));
-
-            if (time_diff < min_time_diff) {
-                min_time_diff = time_diff;
-                bestCal = cal;
-//                Log.d(TAG, String.format("Finding matching calibration for %s. Original:  %.1f deg/s in %.1fms, ideal: %.1fms, Better: %.1f deg/s in  %.1fms, diff: %.1fms",
-//                        axis,
-//                        speed(axis),
-//                        getMovementTimeInMs(axis), // original
-//                        getMovementTimeInMs(otherAxis(axis)), // ideal other axis
-//                        speed(axis, bestCal), // better deg/s
-//                        getMovementTimeInMs(axis, bestCal), // better ms
-//                        time_diff //diff
-//                ));
-            }
-        }
-
-        if (min_time_diff > 100) {
-            Log.w(TAG, "Matching calibration difference high: " + min_time_diff);
-        }
-
-        if (bestCal == null) {
-            Log.e(TAG, "Could not find a better matching calibration for " + axis);
-            return getCal(axis); // Returning same cal
-        }
-
-        return bestCal;
-    }
-
-    private ContentValues findFastestCalibration(String axis, double max_speed, int type) {
-        double angle_diff = angleDiffInDeg(axis);
-        max_speed = Math.max(1.5, Math.min(max_speed, Math.abs(angle_diff) * 1.5));
-        ArrayList<ContentValues> cals = mDb.getSlowerThan(axis, getDir(angle_diff), max_speed, type);
-
-        double min_time = (double) FeyiuState.getInstance().getAverageUpdateInterval();
-        double max_time = 99999999;
-        ContentValues bestCal = null;
-
-        for (ContentValues cal : cals) {
-            double time = Math.abs(getMovementTimeInMs(axis, cal));
-
-            if (time > min_time && time < max_time) {
-                max_time = time;
-                bestCal = cal;
-//                Log.d(TAG, String.format("Finding fastest cal for %s (%.1f deg diff): %.1f %.1fms",
-//                        axis, angle_diff, speed(axis, bestCal), time
-//                ));
-            }
-        }
-
-        if (bestCal == null) {
-            Log.e(TAG, "Could not find " + axis + " calibration for deg diff:" + angleDiffInDeg(mDb.AXIS_PAN));
-            bestCal = mDb.getByClosestSpeed(axis, max_speed, type);
-        }
-
-        return bestCal;
-    }
-
-
     public Double getFocus() {
+        if (focus != null) {
+            Log.d(TAG, "Focus value:" + focus);
+        }
+
         return this.focus;
     }
 
     public double angleDiffInDeg(String axis) {
         double target, current;
 
-        if (Objects.equals(axis, mDb.AXIS_PAN)) {
-            target = panTarget();
+        if (Objects.equals(axis, CalibrationDB.AXIS_PAN)) {
+            target = getPanTargetAngle();
             current = FeyiuState.getInstance().angle_pan.value();
         } else {
-            target = tiltTarget();
+            target = getTiltTargetAngle();
             current = FeyiuState.getInstance().angle_tilt.value();
         }
 
@@ -212,103 +87,34 @@ public class GimbalPositionTarget {
         }
     }
 
-
-    public double speed(String axis, ContentValues cal) {
-        return cal.getAsDouble(axis + "_speed");
-    }
-
-    public double speed(String axis) {
-        if (Objects.equals(axis, mDb.AXIS_PAN)) {
-            return speed(axis, this.pan_speed_cal);
-        } else {
-            return speed(axis, this.tilt_speed_cal);
-        }
-    }
-
-    public int getDir(double diff) {
-        if (diff < 0) {
-            return -1;
-        }
-
-        return 1;
-    }
-
-    public double panTarget() {
+    public double getPanTargetAngle() {
         return this.pan_angle;
     }
 
-    public double tiltTarget() {
+    public double getTiltTargetAngle() {
         return this.tilt_angle;
     }
 
-
-    public ContentValues panCal() {
-        return pan_speed_cal;
-    }
-
-    public ContentValues tiltCal() {
-        return tilt_speed_cal;
-    }
-
-    private double getMovementTimeDiffMsAbs(String axis1, ContentValues cal1, String axis2, ContentValues cal2) {
-        return Math.abs(Math.abs(getMovementTimeInMs(axis1, cal1)) - Math.abs(getMovementTimeInMs(axis2, cal2)));
-    }
-
-    public int getPanSensitivity() {
-        return panCal().getAsInteger("joy_sens");
-    }
-
-    public int getTiltSensitivity() {
-        return tiltCal().getAsInteger("joy_sens");
-    }
-
-    public float getPanOvershoot() {
-        return panCal().getAsFloat("pan_angle_overshoot");
-    }
-
-    public float getTiltOvershoot() {
-        return tiltCal().getAsFloat("tilt_angle_overshoot");
-    }
-
-    public int getPanJoyValue() {
-        return panCal().getAsInteger("joy_val");
-    }
-
-    public float getPanSpeedDegPerSec() {
-        return panCal().getAsFloat("pan_speed");
-    }
-
-    public float getTiltSpeedDegPerSec() {
-        return tiltCal().getAsFloat("tilt_speed");
-    }
-
-    public int getTiltJoyValue() {
-        return tiltCal().getAsInteger("joy_val");
-    }
-
     public boolean isReached() {
-        return pan_reached && tilt_reached;
+        return panHasReached && tilthasReached;
     }
 
     public boolean isPositionReached() {
-        return Math.abs(angleDiffInDeg(mDb.AXIS_PAN)) < 2 && Math.abs(angleDiffInDeg(mDb.AXIS_TILT)) < 2;
+        return Math.abs(angleDiffInDeg(CalibrationDB.AXIS_PAN)) < 2
+                && Math.abs(angleDiffInDeg(CalibrationDB.AXIS_TILT)) < 2;
     }
 
-    /**
-     * TODO: Might be a good idea to multiply the avg update interval here x1.2
-     * It should be more reliable
-     *
-     * @param movement_time
-     * @return
-     */
-    public boolean stoppingPointReached(double movement_time) {
-        return movement_time < 0 ||
-                Math.abs(movement_time) < FeyiuControls.BLUETOOTH_COMMAND_DEFAULT_DELAY * 3;
-    }
+    public boolean shouldAnticipateStop(double movement_time) {
+        double longestUpdateInterval = FeyiuState.getInstance().getAverageUpdateIntervalMs() * 2;
+        boolean isShorterThanLongestUpdateInterval = Math.abs(movement_time) < longestUpdateInterval;
 
-    public boolean nearPointReached(double movement_time) {
-        return movement_time < 0 ||
-                Math.abs(movement_time) < FeyiuState.getInstance().getAverageUpdateInterval() * 1.5;
+        boolean answer = movement_time < 0 || isShorterThanLongestUpdateInterval;
+
+        if (answer) {
+            Log.d(TAG, "shouldAnticipateStop: Should stop in: " + movement_time);
+        }
+
+        return answer;
     }
 
     public boolean panIsStopping() {
@@ -319,15 +125,6 @@ public class GimbalPositionTarget {
         return this.tilt_stopping;
     }
 
-
-    public boolean tiltShouldMove() {
-        return !tiltIsStopping();
-    }
-
-    public boolean panShouldMove() {
-        return !panIsStopping();
-    }
-
     public void setPanIsStopping() {
         this.pan_stopping = true;
     }
@@ -336,123 +133,35 @@ public class GimbalPositionTarget {
         this.tilt_stopping = true;
     }
 
-    public double getMovementTimeInMs(double angle_difference, double angular_velocity, double overshoot) {
-        return Math.abs((angle_difference - overshoot) / angular_velocity) * 1000;
-    }
-
-    public double getMovementTimeInMs(String axis, ContentValues calibration) {
-        double angle_difference = angleDiffInDeg(axis);
-        double overshoot = calibration.getAsDouble(axis + "_angle_overshoot");
-        double angular_speed = calibration.getAsDouble(axis + "_speed");
-
-        return getMovementTimeInMs(angle_difference, angular_speed, overshoot);
-    }
-
-    public double getMovementTimeInMs(String axis) {
-        if (axis.equals(mDb.AXIS_PAN)) {
-            return getMovementTimeInMs(axis, this.pan_speed_cal);
-        } else {
-            return getMovementTimeInMs(axis, this.tilt_speed_cal);
-        }
-    }
-
-    public double getInterpolatedMovementTimeMs(double angleDiff, double angularVelocity, double overshoot) {
-//        overshoot *= 1.1;
-        double extraAngle = ((double) FeyiuState.getInstance().getTimeSinceLastUpdateMs() * (angularVelocity / 1000));
-
-//        Log.d(TAG, "Extra angle:" + extraAngle + " Angle diff:" + angleDiff + " Overshoot:" + overshoot);
-
-        // Accounts for time passed since last update
-        angleDiff -= extraAngle;
-
-        if (Math.abs(angleDiff) > Math.abs(overshoot)) {
-            angleDiff -= overshoot;
-        } else {
-            angleDiff = 0;
-        }
-
-        double timeToStop = angleDiff / angularVelocity; // deg / deg/sec
-
-//        return (double) (timeToStop) * 1000 - FeyiuState.getInstance().getTimeSinceLastUpdate(); // Convert to milliseconds
-        return timeToStop * 1000; // Convert to milliseconds
-    }
-
-
-    public ContentValues getCal(String axis) {
-        if (axis.equals(mDb.AXIS_PAN)) {
-            return this.pan_speed_cal;
-        } else {
-            return this.tilt_speed_cal;
-        }
-    }
-
-    public double getPanMovementTime() {
-        return getInterpolatedMovementTimeMs(
-                angleDiffInDeg(mDb.AXIS_PAN),
-                getPanSpeedDegPerSec(),
-                getPanOvershoot()
-        );
-    }
-
-    public double getTiltMovementTime() {
-        return getInterpolatedMovementTimeMs(
-                angleDiffInDeg(mDb.AXIS_TILT),
-                getTiltSpeedDegPerSec(),
-                getTiltOvershoot()
-        );
-    }
 
     public boolean isPanReached() {
-        // This if is just for debug purpoises
-        return stoppingPointReached(getPanMovementTime()) && panIsStopping();
+        return panHasReached;
     }
 
     public boolean isTiltReached() {
-        // This if is just for debug purpoises
-        return stoppingPointReached(getTiltMovementTime()) && tiltIsStopping();
-    }
-
-    public void logDiffs() {
-        Log.d(TAG, String.format("Pan-df: %.2f %.2f | Tilt-df: %.2f %.2f | Pan-reached: %b Tilt-reached: %b",
-                angleDiffInDeg(mDb.AXIS_PAN), getPanMovementTime(), angleDiffInDeg(mDb.AXIS_TILT), getTiltMovementTime(), isPanReached(), isTiltReached()));
-    }
-
-    public boolean axisIsOvershooting(double currentAngleDiff, double staringAngleDiff) {
-        if (Math.signum(currentAngleDiff) != Math.signum(staringAngleDiff)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    public boolean panIsOvershooting() {
-        return axisIsOvershooting(angleDiffInDeg(mDb.AXIS_PAN), pan_diff_at_start);
-    }
-
-    public boolean tiltIsOvershooting() {
-        return axisIsOvershooting(angleDiffInDeg(mDb.AXIS_TILT), tilt_diff_at_start);
+        return tilthasReached;
     }
 
     public boolean panShouldStop() {
-        boolean stoppingPointReached = stoppingPointReached(getPanMovementTime());
-        boolean accurateEnough = Math.abs(angleDiffInDeg(mDb.AXIS_PAN)) < 1;
+        boolean stoppingPointReached = shouldAnticipateStop(axes.pan.getInterpMovementTimeMs());
+//        boolean accurateEnough = Math.abs(axes.pan.getCurrentAngleDiff()) < 1;
 
-        return stoppingPointReached || accurateEnough || panIsOvershooting();
+        return !panIsStopping() && (stoppingPointReached);
     }
 
     public boolean tiltShouldStop() {
-        boolean stoppingPointReached = stoppingPointReached(getTiltMovementTime());
-        boolean accurateEnough = Math.abs(angleDiffInDeg(mDb.AXIS_TILT)) < 1;
-        boolean tiltIsOvershooting = tiltIsOvershooting();
+        boolean stoppingPointReached = shouldAnticipateStop(axes.tilt.getInterpMovementTimeMs());
+//        boolean accurateEnough = Math.abs(axes.tilt.getCurrentAngleDiff()) < 1;
 
-        return stoppingPointReached || accurateEnough || tiltIsOvershooting;
+        return !tiltIsStopping() && (stoppingPointReached);
     }
 
-    public boolean isNearby() {
-        boolean nearbyPanPoint = nearPointReached(getPanMovementTime());
-        boolean nearbyTiltPoint = nearPointReached(getTiltMovementTime());
+    public void setPanHasReached() {
+        this.panHasReached = true;
+    }
 
-        return nearbyPanPoint && nearbyTiltPoint;
+    public void setTiltHasReached() {
+        this.tilthasReached = true;
     }
 
     @NonNull
@@ -463,25 +172,55 @@ public class GimbalPositionTarget {
                 FeyiuState.getInstance().angle_tilt.speedToString(),
                 FeyiuState.getInstance().angle_yaw.speedToString());
 
-        d += "\nTime: P:" + Math.round(getPanMovementTime()) + " T:" + Math.round(getTiltMovementTime());
+
+        d += "\nTime: P:" + Math.round(axes.pan.getMovementTimeInMs()) + " T:" + Math.round(axes.pan.getMovementTimeInMs());
         d += "\n Stopping: P:" + panIsStopping() + " T:" + tiltIsStopping();
         d += "\n Stopping: P:" + panIsStopping() + " T:" + tiltIsStopping();
-        d += "\n Angle Df: P:" + decimalFormat.format(angleDiffInDeg(mDb.AXIS_PAN)) + " T:" + decimalFormat.format(angleDiffInDeg(mDb.AXIS_TILT));
-        d += "\n Angle To: P:" + decimalFormat.format(panTarget()) + " T:" + decimalFormat.format(tiltTarget());
-        d += "\n Speed: P:" + decimalFormat.format(getPanSpeedDegPerSec()) + " T:" + decimalFormat.format(getTiltSpeedDegPerSec());
-        d += "\n Target Joy: P:" + getPanJoyValue() + " T:" + getTiltJoyValue();
+        d += "\n Angle Df: P:" + decimalFormat.format(angleDiffInDeg(calDB.AXIS_PAN)) + " T:" + decimalFormat.format(angleDiffInDeg(calDB.AXIS_TILT));
+        d += "\n Angle To: P:" + decimalFormat.format(getPanTargetAngle()) + " T:" + decimalFormat.format(getTiltTargetAngle());
+        d += "\n Speed: P:" + decimalFormat.format(axes.pan.getSpeedDegPerSec()) + " T:" + decimalFormat.format(axes.tilt.getSpeedDegPerSec());
+        d += "\n Target Joy: P:" + axes.pan.getJoyVal() + " T:" + axes.tilt.getJoyVal();
         d += "\n Actual Joy: P:" + FeyiuState.joy_val_pan + " T:" + FeyiuState.joy_val_tilt;
-        d += "\n Target Sens: P:" + getPanSensitivity() + " T:" + getTiltSensitivity();
+        d += "\n Target Sens: P:" + axes.pan.getJoySens() + " T:" + axes.tilt.getJoySens();
         d += "\n Actual Sens: P:" + FeyiuState.joy_sens_pan + " T:" + FeyiuState.joy_sens_tilt;
 
         return d;
     }
 
-    public void setPanHasReached() {
-        this.pan_reached = true;
+    public void logDiffs() {
+//        Log.d(TAG, String.format("Pan-df: %.2f %.2f | Tilt-df: %.2f %.2f | Pan-reached: %b Tilt-reached: %b",
+//                angleDiffInDeg(mDb.AXIS_PAN), getPanMovementTime(), angleDiffInDeg(mDb.AXIS_TILT), getTiltMovementTime(), isPanReached(), isTiltReached()));
     }
 
-    public void setTiltHasReached() {
-        this.tilt_reached = true;
+    public double getPanMovementTime() {
+        return axes.pan.getInterpMovementTimeMs();
+    }
+
+    public double getTiltMovementTime() {
+        return axes.tilt.getInterpMovementTimeMs();
+    }
+
+    public double getPanSpeedDegPerSec() {
+        return axes.pan.getSpeedDegPerSec();
+    }
+
+    public double getTiltSpeedDegPerSec() {
+        return axes.tilt.getSpeedDegPerSec();
+    }
+
+    public int getPanJoyValue() {
+        return axes.pan.getJoyVal();
+    }
+
+    public int getTiltJoyValue() {
+        return axes.tilt.getJoyVal();
+    }
+
+    public int getPanSensitivity() {
+        return axes.pan.getJoySens();
+    }
+
+    public int getTiltSensitivity() {
+        return axes.tilt.getJoySens();
     }
 }

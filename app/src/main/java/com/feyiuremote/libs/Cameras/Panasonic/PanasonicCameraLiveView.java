@@ -28,16 +28,12 @@ public class PanasonicCameraLiveView {
     private static final int TIMEOUT_MS = 500;
     private static final int PACKET_QUEUE_CAP = 128;
     private static final int FRAME_QUEUE_CAP = 4;
-    private static final int MAX_SOCKET_EXCEPTIONS_UNTIL_PROLONG_STREAM = 4;
     private static final int MAX_SOCKET_EXCEPTIONS_UNTIL_STOP = 6;
 
     // Executors for 4-stage pipeline
-    private final ExecutorService networkExecutor = Executors.newSingleThreadExecutor(
-            new NamedThreadFactory("Net-I/O"));
-    private final ExecutorService decodeExecutor = Executors.newSingleThreadExecutor(
-            new NamedThreadFactory("Decoder"));
-    private final ExecutorService displayExecutor = Executors.newSingleThreadExecutor(
-            new NamedThreadFactory("Display-Loop"));
+    private ExecutorService networkExecutor;
+    private ExecutorService decodeExecutor;
+    private ExecutorService displayExecutor;
 
     // Bounded queues for back-pressure
     private final BlockingQueue<DatagramPacket> packetQueue =
@@ -58,12 +54,19 @@ public class PanasonicCameraLiveView {
     private int prolongingStreamRetries = 0;
     private int restartingStreamRetries = 0;
 
-    private boolean autoRestartStream = true;
+    private final boolean autoRestartStream = true;
 
     public PanasonicCameraLiveView(PanasonicCamera camera,
                                    LiveFeedReceiver receiver) {
         this.mCamera = camera;
         this.mLiveViewReceiver = receiver;
+    }
+
+    protected void setStreamActive(boolean value) {
+        if (this.streamActive != value) {
+            this.streamActive = value;
+            this.mLiveViewReceiver.onIsStreamingChanged(value);
+        }
     }
 
     @Override
@@ -76,14 +79,32 @@ public class PanasonicCameraLiveView {
     }
 
     public void start() {
-        streamActive = true;
+        if (streamActive) return;
+        setStreamActive(true);
+
+        // (re)create executors
+        networkExecutor = Executors.newSingleThreadExecutor(
+                new NamedThreadFactory("Net-I/O"));
+        decodeExecutor = Executors.newSingleThreadExecutor(
+                new NamedThreadFactory("Camera Frame Decode"));
+        displayExecutor = Executors.newSingleThreadExecutor(
+                new NamedThreadFactory("Camera Frame Display"));
+
+        // reset queues & flags
+        packetQueue.clear();
+        frameForDisplayQueue.clear();
+        frameSinceStreamRequest = 0;
+        prolongingStream = false;
+        prolongingStreamRetries = restartingStreamRetries = 0;
+
         startNetworkLoop();
         startDecoderLoop();
         startDisplayLoop();
     }
 
     public void stop() {
-        streamActive = false;
+        if (!streamActive) return;
+        setStreamActive(false);
 
         if (mLiveViewReceiver != null) {
             mLiveViewReceiver.onStop("Complete stop.");
@@ -119,7 +140,7 @@ public class PanasonicCameraLiveView {
                     try {
                         // Prolong the camera stream periodically
                         if (frameSinceStreamRequest > 200 && !prolongingStream) {
-                            Log.w(TAG, "Trying to prolong stream because of socket exceptions");
+                            Log.w(TAG, "Prolonging stream...");
                             prolongStream();
                         }
 
@@ -145,11 +166,9 @@ public class PanasonicCameraLiveView {
                     } catch (IOException e) {
                         socketLoopExceptions++;
                         mLiveViewReceiver.onError("Network I/O error: " + e.getMessage());
-                        streamActive = false;
                     } catch (Exception e) {
                         socketLoopExceptions++;
                         mLiveViewReceiver.onError("Unknown stream error: " + e.getMessage());
-                        streamActive = false;
                     }
                 }
             } catch (SocketException e) {
@@ -157,13 +176,14 @@ public class PanasonicCameraLiveView {
             } finally {
                 if (socket != null && !socket.isClosed()) {
                     socket.close();
-                    mLiveViewReceiver.onInfo("Socket closed due to endless timeouts!");
                 }
 
-                mLiveViewReceiver.onStop("Stream closed - too many socket errors.");
+                mLiveViewReceiver.onStop("Stream has finished.");
 
-                if (autoRestartStream) {
+                if (autoRestartStream && isActive()) {
                     restartStream();
+                } else {
+                    stop();
                 }
             }
 
@@ -206,10 +226,10 @@ public class PanasonicCameraLiveView {
                 try {
                     PanasonicCameraFrame f = frameForDisplayQueue.take();
                     uiHandler.post(() -> mLiveViewReceiver.onNewFrame(f));
-                    Log.d(TAG, "New frame received");
+//                    Log.d(TAG, "New frame received");
 
                     // Throttle display to balance latency vs. frame-rate
-                    Thread.sleep(10L);
+                    Thread.sleep(5L);
                 } catch (InterruptedException e) {
                     break;
                 }

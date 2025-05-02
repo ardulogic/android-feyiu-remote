@@ -3,6 +3,7 @@ package com.feyiuremote.libs.Database;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.DatabaseUtils;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
@@ -129,6 +130,12 @@ abstract public class SQLiteTableWrapper {
     public void close() {
         dbHandler.close();
         dbHandler = null;
+    }
+
+    protected ContentValues buildResult(Cursor c) {
+        ContentValues cv = new ContentValues();
+        DatabaseUtils.cursorRowToContentValues(c, cv);
+        return cv;
     }
 
     protected ArrayList<ContentValues> buildResults(Cursor c) {

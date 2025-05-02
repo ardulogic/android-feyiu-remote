@@ -92,23 +92,23 @@ public class CalibrationRunnable {
         int move_commands = 0;
         for (GimbalCommand command : commandQueue) {
             if (command instanceof StartCommand) {
-                pan_angle[START] = command.pan_angle;
-                tilt_angle[START] = command.tilt_angle;
+                pan_angle[START] = command.current_pan_angle;
+                tilt_angle[START] = command.current_tilt_angle;
                 time[START] = command.actual_execution_time;
             } else if ((command instanceof MoveCalibrationLockedCommand) || (command instanceof MoveCalibrationCommand)) {
                 move_commands++;
                 if (move_commands == 6) {
-                    pan_angle[ACCELERATED] = command.pan_angle;
-                    tilt_angle[ACCELERATED] = command.tilt_angle;
+                    pan_angle[ACCELERATED] = command.current_pan_angle;
+                    tilt_angle[ACCELERATED] = command.current_tilt_angle;
                     time[ACCELERATED] = command.actual_execution_time;
                 }
             } else if (command instanceof StopCommand) {
-                pan_angle[STOPPING] = command.pan_angle;
-                tilt_angle[STOPPING] = command.tilt_angle;
+                pan_angle[STOPPING] = command.current_pan_angle;
+                tilt_angle[STOPPING] = command.current_tilt_angle;
                 time[STOPPING] = command.actual_execution_time;
             } else if (command instanceof FinaliseCommand) {
-                pan_angle[STOPPED] = command.pan_angle;
-                tilt_angle[STOPPED] = command.tilt_angle;
+                pan_angle[STOPPED] = command.current_pan_angle;
+                tilt_angle[STOPPED] = command.current_tilt_angle;
                 time[STOPPED] = command.actual_execution_time;
             }
         }

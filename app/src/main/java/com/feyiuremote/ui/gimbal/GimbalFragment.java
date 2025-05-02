@@ -26,8 +26,11 @@ import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
-import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
+import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
+import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueueTesting;
 import com.feyiuremote.ui.gimbal.adapters.BluetoothScanResultsAdapter;
+
+import org.checkerframework.checker.units.qual.C;
 
 import java.util.ArrayList;
 
@@ -43,7 +46,7 @@ public class GimbalFragment extends Fragment {
     private BluetoothViewModel mBluetoothViewModel;
 
     private MainActivity mainActivity;
-    private CalibrationDbHelper mDb;
+    private CalibrationDB mDb;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -63,6 +66,12 @@ public class GimbalFragment extends Fragment {
             connectToGimbal();
         });
 
+        binding.buttonEmulate.setOnClickListener(v -> {
+            GimbalEmulator.init(mDb, mBluetoothViewModel);
+            GimbalEmulator.enable();
+
+        });
+
         final ListView mListView = binding.listScanResults;
         mScanResultListAdapter = new BluetoothScanResultsAdapter(getContext());
         mListView.setAdapter(mScanResultListAdapter);
@@ -71,7 +80,7 @@ public class GimbalFragment extends Fragment {
         mBluetoothViewModel.characteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)
                 .observe(getViewLifecycleOwner(), btCharacteristicPositionObserver);
 
-        this.mDb = new CalibrationDbHelper(getContext());
+        this.mDb = new CalibrationDB(getContext());
         if (mDb.rowCount() < 50) {
             binding.textGimbalImageStatus.setText("Not Calibrated!");
             binding.imageGimbalStatus.setImageResource(R.drawable.warning);
@@ -79,6 +88,9 @@ public class GimbalFragment extends Fragment {
             binding.textGimbalImageStatus.setText("Calibration OK.");
             binding.imageGimbalStatus.setImageResource(R.drawable.thumbs_up);
         }
+
+        FeyiuCommandQueueTesting testing = new FeyiuCommandQueueTesting();
+        testing.doTests();
 
         return root;
     }

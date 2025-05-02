@@ -276,6 +276,7 @@ public class Rectangle {
                 paint.setStyle(Paint.Style.STROKE);
                 paint.setColor(color);
                 paint.setStrokeWidth(strokeWidth);
+
             }
 
             @Override

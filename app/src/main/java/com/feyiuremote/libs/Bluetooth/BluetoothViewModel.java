@@ -1,9 +1,15 @@
 package com.feyiuremote.libs.Bluetooth;
 
 import android.bluetooth.le.ScanResult;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
+
+import com.feyiuremote.libs.Feiyu.FeyiuState;
+import com.feyiuremote.libs.Feiyu.FeyiuUtils;
+import com.feyiuremote.ui.gimbal.GimbalEmulator;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,7 +24,10 @@ public class BluetoothViewModel extends ViewModel {
     public final MutableLiveData<Boolean> connected;
     public final MutableLiveData<Boolean> enabled;
     public final MutableLiveData<Boolean> services_discovered;
+
     public final HashMap<String, MutableLiveData<byte[]>> characteristics;
+
+    public final MutableLiveData<Boolean> isEmulated = new MutableLiveData<>();
 
 //    public final List<String> CHARACTERISTIC_IDS = new List<String>(){"0000ff02-0000-1000-8000-00805f9b34fb"};
 
@@ -36,6 +45,7 @@ public class BluetoothViewModel extends ViewModel {
         this.connected.setValue(false);
         this.enabled.setValue(true);
         this.services_discovered.setValue(false);
+        this.isEmulated.setValue(false);
     }
 
     /**

@@ -4,6 +4,7 @@ import android.util.Log;
 
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
+import com.feyiuremote.ui.gimbal.GimbalEmulator;
 
 abstract public class GimbalCommand {
 
@@ -11,11 +12,8 @@ abstract public class GimbalCommand {
     ;
     protected final BluetoothLeService mBt;
     public Long actual_execution_time;
-
-    public float pan_angle;
-    public float tilt_angle;
-
-    private Long delayed_execution_time;
+    public float current_pan_angle;
+    public float current_tilt_angle;
     public String comment = "";
 
     public GimbalCommand(BluetoothLeService bt) {
@@ -24,11 +22,19 @@ abstract public class GimbalCommand {
 
     public void run() {
         actual_execution_time = System.currentTimeMillis();
-        pan_angle = getCurrentPanAngle();
-        tilt_angle = getCurrentTiltAngle();
-        execute();
-        log();
+        current_pan_angle = getCurrentPanAngle();
+        current_tilt_angle = getCurrentTiltAngle();
+
+        if (GimbalEmulator.isEnabled) {
+            executeEmulated();
+        } else {
+            execute();
+        }
+
+        FeyiuState.getInstance().last_command = System.currentTimeMillis();
+
     }
+
 
     public float getCurrentPanAngle() {
         return FeyiuState.getInstance().angle_pan.value();
@@ -42,18 +48,9 @@ abstract public class GimbalCommand {
         Log.d(TAG, "Execution Time: " + actual_execution_time + " ms, Pan Angle/Value: " + getCurrentPanAngle() + ", Tilt Angle: " + getCurrentTiltAngle());
     }
 
-
-    public void executeAfter(Long time) {
-        this.delayed_execution_time = time + System.currentTimeMillis();
-    }
-
     abstract void execute();
 
-    public boolean delayedExecutionTimeIsSet() {
-        return this.delayed_execution_time != null;
-    }
-
-    public long timeAfterActualExecution() {
+    public long getTimeSinceExcecution() {
         return System.currentTimeMillis() - actual_execution_time;
     }
 
@@ -61,27 +58,8 @@ abstract public class GimbalCommand {
         return this.actual_execution_time != null;
     }
 
-    public Long delayedExecutionTime() {
-        return this.delayed_execution_time;
-    }
-
-    public Long timeLeftToDelayedExecution() {
-        long diff = this.delayed_execution_time - System.currentTimeMillis();
-
-        if (diff < 0) {
-            Log.e(TAG, "Not in time for delayed execution:" + diff + "ms lag");
-            return 0L;
-        }
-
-        return diff;
-    }
-
-    public boolean canBeImmediatelyExecuted() {
-        return !hasExecuted() && !delayedExecutionTimeIsSet();
-    }
-
-    public boolean canBeExecutedAfterDelay() {
-        return !hasExecuted() && delayedExecutionTimeIsSet();
+    public void executeEmulated() {
+        this.actual_execution_time = System.currentTimeMillis();
     }
 
     public void setComment(String comment) {

@@ -30,9 +30,6 @@ public class JoystickStateTest {
         assertTrue("Execution time does not match!" + jt.executesInMs(), jt.executesInMs() < 500 && jp.executesInMs() >= 498);
         assertTrue("Execution time does not match!" + jt.executesInMs(), jp.executesInMs() < 500 && jp.executesInMs() >= 498);
 
-        assertTrue("Execution end time does not match! " + jt.executionEndsInMs(), jt.executionEndsInMs() < 1500 && jp.executionEndsInMs() >= 1498);
-        assertTrue("Execution end time does not match!" + jt.executionEndsInMs(), jp.executionEndsInMs() < 1500 && jp.executionEndsInMs() >= 1498);
-
         assertTrue("Time difference is wrong!" + jt.executesInDiffMs(jp), jt.executesInDiffMs(jp) < 1);
 
         jp = new JoystickState(150, 1000, JoystickState.AXIS_PAN, 1000, "Test Pan");

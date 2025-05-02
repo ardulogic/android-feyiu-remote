@@ -26,7 +26,7 @@ import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
-import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
+import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationPresetDbHelper;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationRunnable;
 import com.feyiuremote.libs.Feiyu.calibration.ICalibrationListener;
@@ -48,7 +48,7 @@ public class CalibrationFragment extends Fragment {
     private FragmentCalibrationBinding binding;
     private MainActivity mainActivity;
     private BluetoothViewModel bluetoothViewModel;
-    private CalibrationDbHelper calibrationDb;
+    private CalibrationDB calibrationDb;
     private CalibrationPresetDbHelper presetDb;
     private CalibrationRunnable calibrationRunnable;
     private CalibrationViewModel calibrationModel;
@@ -158,7 +158,7 @@ public class CalibrationFragment extends Fragment {
     }
 
     private void initializeDatabaseHelpers() {
-        calibrationDb = new CalibrationDbHelper(mainActivity);
+        calibrationDb = new CalibrationDB(mainActivity);
         presetDb = new CalibrationPresetDbHelper(mainActivity);
     }
 

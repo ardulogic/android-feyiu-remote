@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/camera_navigation"
+    app:startDestination="@+id/navigation_waypoints">
+
+    <fragment
+        android:id="@+id/navigation_joystick"
+        android:name="com.feyiuremote.ui.camera.CameraJoystickFragment"
+        android:label="@string/title_cam_joystick"
+        tools:layout="@layout/fragment_camera_joystick" />
+
+    <fragment
+        android:id="@+id/navigation_waypoints"
+        android:name="com.feyiuremote.ui.camera.CameraWaypointsFragment"
+        android:label="@string/title_cam_waypoints"
+        tools:layout="@layout/fragment_camera_waypoints" />
+
+    <fragment
+        android:id="@+id/navigation_tracking"
+        android:name="com.feyiuremote.ui.camera.CameraTrackingFragment"
+        android:label="@string/title_cam_tracking"
+        tools:layout="@layout/fragment_camera_tracking" />
+</navigation>

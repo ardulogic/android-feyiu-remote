@@ -20,14 +20,16 @@ public class OverlayView extends View {
     private final List<Drawable> drawables = Collections.synchronizedList(new ArrayList<>());
     public OnTouchRectangleDraw touchProcessor;
 
+    protected Context context;
+
     public OverlayView(Context ctx, AttributeSet attrs) {
         super(ctx, attrs);
 
-        attachOnTouchListeners(ctx);
+        this.context = ctx;
     }
 
-    protected void attachOnTouchListeners(Context context) {
-        this.touchProcessor = new OnTouchRectangleDraw(context, this);
+    public void attachOnTouchListeners() {
+        this.touchProcessor = new OnTouchRectangleDraw(this.getContext());
         setOnTouchListener(touchProcessor);
     }
 
@@ -49,7 +51,7 @@ public class OverlayView extends View {
         postInvalidate();
     }
 
-    public void setOnTouchListener(ILiveViewTouchListener l) {
+    public void setTouchProcessorListener(ILiveViewTouchListener l) {
         this.touchProcessor.setListener(l);
 
         setOnTouchListener(this.touchProcessor);

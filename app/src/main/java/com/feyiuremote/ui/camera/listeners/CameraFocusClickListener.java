@@ -6,7 +6,7 @@ import android.view.View;
 import com.feyiuremote.libs.AI.trackers.POI;
 import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
 import com.feyiuremote.libs.LiveStream.abstracts.FrameProcessor;
-import com.feyiuremote.ui.camera.CameraViewModel;
+import com.feyiuremote.ui.camera.models.CameraViewModel;
 
 public class CameraFocusClickListener implements View.OnClickListener {
     private final String TAG = CameraFocusClickListener.class.getSimpleName();

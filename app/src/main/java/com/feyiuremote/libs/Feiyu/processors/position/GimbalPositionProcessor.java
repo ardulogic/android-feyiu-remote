@@ -7,9 +7,11 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.MutableLiveData;
 
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
-import com.feyiuremote.libs.Feiyu.FeyiuControls;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
-import com.feyiuremote.libs.Feiyu.calibration.CalibrationDbHelper;
+import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
+import com.feyiuremote.libs.Feiyu.queue.FeyiuCommands;
+import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueue;
+import com.feyiuremote.libs.Feiyu.queue.debug.QueueStopDebugger;
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
 
 import java.text.DecimalFormat;
@@ -17,7 +19,7 @@ import java.util.concurrent.Executors;
 
 public class GimbalPositionProcessor {
 
-    private final CalibrationDbHelper mDb;
+    private final CalibrationDB mDb;
     private final String TAG = GimbalPositionProcessor.class.getSimpleName();
     private final Context context;
     private MutableLiveData<PanasonicCamera> camera;
@@ -44,7 +46,11 @@ public class GimbalPositionProcessor {
 
     public GimbalPositionProcessor(Context context) {
         this.context = context;
-        this.mDb = new CalibrationDbHelper(context);
+        this.mDb = new CalibrationDB(context);
+    }
+
+    protected void setActive(boolean value) {
+        this.isActive = value;
     }
 
     public void setCamera(MutableLiveData<PanasonicCamera> camera) {
@@ -60,7 +66,7 @@ public class GimbalPositionProcessor {
     }
 
     public void setTarget(Waypoint waypoint) {
-        FeyiuControls.cancelQueuedCommands();
+        FeyiuCommandQueue.cancelQueuedCommands();
         target = new GimbalPositionTarget(context, waypoint.getPanAngle(), waypoint.getTiltAngle(), waypoint.getPanSpeed(), waypoint.getTiltSpeed(), waypoint.getDwellTimeMs(), waypoint.getFocusPoint());
     }
 
@@ -71,15 +77,15 @@ public class GimbalPositionProcessor {
     public void start() {
         Log.d(TAG, "Starting...");
 
-        FeyiuControls.cancelQueuedCommands();
+        FeyiuCommandQueue.cancelQueuedCommands();
 
         if (target != null) {
             if (startListener != null) {
                 startListener.onStarted();
             }
-
-            FeyiuControls.setPanSensitivity(target.getPanSensitivity());
-            FeyiuControls.setTiltSensitivity(target.getTiltSensitivity());
+            FeyiuCommands.setTiltSensitivity(target.getTiltSensitivity());
+            FeyiuCommands.setPanSensitivity(target.getPanSensitivity());
+//            FeyiuControls.setTiltSensitivity(target.getTiltSensitivity());
 
             PanasonicCamera cam = camera != null ? camera.getValue() : null;
 
@@ -95,27 +101,29 @@ public class GimbalPositionProcessor {
             }
 
             Log.d(TAG, "Gimbal position target is active.");
-            this.isActive = true;
+            setActive(true);
         } else {
             Log.e(TAG, "Waypoint target not specified.");
         }
     }
 
     public void cancel() {
-        this.isActive = false;
+        setActive(false);
 
-        FeyiuControls.cancelQueuedCommands();
+//        FeyiuControls.cancelQueuedCommands();
+        FeyiuCommands.clearAll();
         this.target = null;
 
         Log.i(TAG, "Target cleared.");
     }
 
     public void stop() {
-        this.isActive = false;
+        setActive(false);
 
-        FeyiuControls.cancelQueuedCommands();
-        FeyiuControls.setPanJoy(0, "Stopping Gimbal Position Processor (Pan)");
-        FeyiuControls.setTiltJoy(0, "Stopping Gimbal Position Processor (Tilt)");
+        FeyiuCommands.clearAll();
+        FeyiuCommands.setPanJoy(0);
+        FeyiuCommands.setTiltJoy(0);
+//        FeyiuControls.cancelQueuedCommands();
     }
 
     public GimbalPositionTarget getTarget() {
@@ -133,39 +141,58 @@ public class GimbalPositionProcessor {
             Log.d(TAG, "Queuing gimbal commands...");
 
             // Wait for other commands to finish
-            if (!target.panIsOvershooting()) {
+            if (!target.panIsStopping()) {
                 if (target.panShouldStop()) {
-                    Log.d(TAG, "Moving/Stopping in :" + target.getPanMovementTime());
-                    FeyiuControls.setPanJoyAfter(0, (int) target.getPanMovementTime(), "Stopping pan in: " + target.getPanMovementTime() + "ms since its close.");
-                    target.setPanHasReached();
+                    Log.d(TAG, "Pan should stop in " + target.getPanMovementTime());
+                    QueueStopDebugger.onPanStartStopping(target);
+
+                    if (target.getPanMovementTime() < 0) {
+                        Log.e(TAG, "Pan movement time became negative: " + target.getPanMovementTime());
+                        FeyiuCommands.setPanJoyAfter(0, 100, FeyiuCommands.SHORT);
+                    } else {
+                        FeyiuCommands.setPanJoyAfter(0, (int) target.getPanMovementTime(), FeyiuCommands.SHORT);
+                    }
+
+                    target.setPanIsStopping();
                 } else {
-                    FeyiuControls.setPanJoy(target.getPanJoyValue(), "Rotating pan to target");
+                    Log.d(TAG, "Pan is moving regularly to target....");
+                    FeyiuCommands.setPanJoyFor(target.getPanJoyValue(), FeyiuCommands.REGULAR);
                 }
-            } else {
-                Log.d(TAG, "Pan is overshooting!");
-                FeyiuControls.setPanJoy(0, "Pan is overshooting");
-                target.setPanHasReached();
+            } else if (!target.isPanReached()) {
+                if (FeyiuState.joy_val_pan == 0) {
+                    target.setPanHasReached();
+                }
             }
 
-            if (!target.tiltIsOvershooting()) {
+            if (!target.tiltIsStopping()) {
                 if (target.tiltShouldStop()) {
-                    FeyiuControls.setTiltJoyAfter(0, (int) target.getTiltMovementTime(), "Stopping tilt in: " + target.getTiltMovementTime() + "ms since its close.");
-                    target.setTiltHasReached();
+                    Log.d(TAG, "Tilt should stop in " + target.getTiltMovementTime());
+                    QueueStopDebugger.onTiltStartStopping(target);
+
+                    if (target.getTiltMovementTime() < 0) {
+                        Log.e(TAG, "Tilt movement time became negative:" + target.getTiltMovementTime());
+                        FeyiuCommands.setTiltJoyAfter(0, 100, FeyiuCommands.SHORT);
+                    } else {
+                        FeyiuCommands.setTiltJoyAfter(0, (int) target.getTiltMovementTime(), FeyiuCommands.SHORT);
+                    }
+
+                    target.setTiltIsStopping();
                 } else {
-                    FeyiuControls.setTiltJoy(target.getTiltJoyValue(), "Rotating tilt to target");
+                    Log.d(TAG, "Tilt is moving regularly to target....");
+                    FeyiuCommands.setTiltJoyFor(target.getTiltJoyValue(), FeyiuCommands.REGULAR);
                 }
-            } else {
-                Log.d(TAG, "Tilt is overshooting!");
-                FeyiuControls.setTiltJoy(0, "Tilt is overshooting");
-                target.setTiltHasReached();
+            } else if (!target.isTiltReached()) {
+                if (FeyiuState.joy_val_tilt == 0) {
+                    target.setTiltHasReached();
+                }
             }
+
 
             if (listener != null) {
-                boolean systemHasStopped = FeyiuState.joy_val_pan == 0 && FeyiuState.joy_val_tilt == 0;
-
-                if (target.isReached() && systemHasStopped) {
+                if (target.isReached()) {
 
                     Log.i(TAG, "Target is reached");
+                    QueueStopDebugger.onTargetReached(target);
                     listener.onTargetReached(target);
 
                     // Note that target dissapears on blend when is nearby
@@ -178,7 +205,7 @@ public class GimbalPositionProcessor {
                 }
             }
 
-            log();
+//            log();
         });
     }
 
@@ -207,6 +234,13 @@ public class GimbalPositionProcessor {
         }
     }
 
+    /**
+     * Used by waypoint algo to determine where the system is at
+     *
+     * @param angle_pan
+     * @param angle_tilt
+     * @return
+     */
     public boolean isAt(double angle_pan, double angle_tilt) {
         GimbalPositionTarget t = new GimbalPositionTarget(context, angle_pan, angle_tilt, 1, 1, 0, null);
         return t.isPositionReached();
@@ -217,11 +251,8 @@ public class GimbalPositionProcessor {
             String d = "Gimbal Position Processor (Target Available):";
             d += "\n Is Stopping: P: " + target.panIsStopping() + " T:" + target.tiltIsStopping();
             d += "\n Should Stop: P: " + target.panShouldStop() + " T:" + target.tiltShouldStop();
-            d += "\n Oversh-ting: P: " + target.panIsOvershooting() + " T:" + target.tiltIsOvershooting();
-            d += "\n Should Move: P: " + target.panShouldMove() + " T:" + target.tiltShouldMove();
             d += "\n Target Axis Reached: P: " + target.isPanReached() + " T:" + target.isTiltReached();
             d += "\n Target Is Reached: " + target.isReached();
-            d += "\n Target Is Nearby: " + target.isNearby();
 
             Log.d(TAG, d);
         });
@@ -230,18 +261,19 @@ public class GimbalPositionProcessor {
     @NonNull
     public String toString() {
         DecimalFormat decimalFormat = new DecimalFormat(" #.#; -#.#");
-        String d = String.format("%s, %s, %s",
-                FeyiuState.getInstance().angle_pan.speedToString(),
-                FeyiuState.getInstance().angle_tilt.speedToString(),
-                FeyiuState.getInstance().angle_yaw.speedToString());
+//        String d = String.format("%s, %s, %s",
+//                FeyiuState.getInstance().angle_pan.speedToString(),
+//                FeyiuState.getInstance().angle_tilt.speedToString(),
+//                FeyiuState.getInstance().angle_yaw.speedToString());
+
+        String d = "";
 
         if (target != null) {
             d += "\nTime: P:" + Math.round(target.getPanMovementTime()) + " T:" + Math.round(target.getTiltMovementTime());
-            d += "\n Overshooting: P:" + target.panIsOvershooting() + " T:" + target.tiltIsOvershooting();
             d += "\n Angle Df: P:" + decimalFormat.format(target.angleDiffInDeg(mDb.AXIS_PAN)) + " T:" + decimalFormat.format(target.angleDiffInDeg(mDb.AXIS_TILT));
         }
 
-        d += FeyiuControls.commandsToString();
+        d += FeyiuCommandQueue.asString();
 
         return d;
     }

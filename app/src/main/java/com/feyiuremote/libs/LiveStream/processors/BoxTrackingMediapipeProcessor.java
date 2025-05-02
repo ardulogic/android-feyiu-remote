@@ -2,6 +2,7 @@ package com.feyiuremote.libs.LiveStream.processors;
 
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.util.Log;
 
 import com.feyiuremote.MainActivity;
 import com.feyiuremote.libs.AI.trackers.IObjectTracker;
@@ -13,7 +14,7 @@ import com.feyiuremote.libs.LiveStream.LiveView.Listeners.ILiveViewTouchListener
 import com.feyiuremote.libs.LiveStream.LiveView.OverlayView;
 import com.feyiuremote.libs.LiveStream.abstracts.FrameProcessor;
 import com.feyiuremote.libs.Utils.Rectangle;
-import com.feyiuremote.ui.camera.CameraViewModel;
+import com.feyiuremote.ui.camera.models.CameraViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +22,7 @@ import java.util.List;
 public class BoxTrackingMediapipeProcessor extends FrameProcessor {
 
     public final static String TAG = BoxTrackingMediapipeProcessor.class.getSimpleName();
-    //    private final FastObjectTracker tracker;
+    private static final int TAP_RECT_SIZE = 100;
     private final IObjectTracker tracker;
     private final GimbalFollowProcessor gimbalFollowProcessor;
 
@@ -43,46 +44,8 @@ public class BoxTrackingMediapipeProcessor extends FrameProcessor {
         // Prevent two trackers from fighting each other
 //        mWaypointsProcessor = new GimbalWaypointsProcessor(mainActivity.getBaseContext(), cameraViewModel.waypointList);
 //        mWaypointsProcessor.setOnStartListener(tracker::stop);
-
-        attachDrawableSurface();
     }
 
-    /**
-     * If you experience random memory leaks or unexpected crashes
-     * test methods using "synchronized". It's a multi-threaded mess
-     */
-    public void attachDrawableSurface() {
-        overlayView.setOnTouchListener(new ILiveViewTouchListener() {
-            @Override
-            public void onLongPress() {
-
-            }
-
-            @Override
-            public void onDoubleTap() {
-                mPOI = null;
-                tracker.stop();
-                gimbalFollowProcessor.stop();
-            }
-
-            @Override
-            public void onDrawingRectangleFail() {
-                drawingRectangle = null;
-            }
-
-            @Override
-            public void onDrawingRectangle(int x1, int y1, int x2, int y2, int drawAreaW, int drawAreaH) {
-                drawingRectangle = new Rectangle(x1, y1, x2, y2, drawAreaW, drawAreaH);
-            }
-
-            @Override
-            public void onNewRectangle(int rectX1, int rectY1, int rectX2, int rectY2, int drawAreaW, int drawAreaH) {
-                drawingRectangle = null;
-                mPOI = new POI(new Rectangle(rectX1, rectY1, rectX2, rectY2, drawAreaW, drawAreaH));
-                tracker.lock(mPOI.rect);
-            }
-        });
-    }
 
     @Override
     public void processFrame(CameraFrame frame) {
@@ -94,6 +57,7 @@ public class BoxTrackingMediapipeProcessor extends FrameProcessor {
 
         if (mPOI != null) {
             overlays.add(mPOI.rect.asDrawable(Color.GREEN, 5f));
+            overlays.add(mPOI.asTextDrawable(Color.WHITE, 24));
         }
 
         if (drawingRectangle != null) {
@@ -118,6 +82,63 @@ public class BoxTrackingMediapipeProcessor extends FrameProcessor {
     @Override
     public boolean providesPOI() {
         return true;
+    }
+
+    @Override
+    public void onOverlayViewAttached() {
+        overlayView.post(() -> {
+            overlayView.attachOnTouchListeners();
+
+            Log.d(TAG, "Setting TouchProcessorListener");
+            overlayView.setTouchProcessorListener(new ILiveViewTouchListener() {
+                @Override
+                public void onLongPress() {
+                    mPOI = null;
+                    tracker.stop();
+                    gimbalFollowProcessor.stop();
+                }
+
+                @Override
+                public void onDoubleTap() {
+                    mPOI = null;
+                    tracker.stop();
+                    gimbalFollowProcessor.stop();
+                }
+
+                @Override
+                public void onSingleTap(int x, int y, int drawAreaW, int drawAreaH) {
+                    Log.d(TAG, "SingleTapInBoxTrackingCalled");
+                    drawingRectangle = null;
+
+                    int half = TAP_RECT_SIZE / 2;
+                    int x1 = x - half;
+                    int y1 = y - half;
+                    int x2 = x + half;
+                    int y2 = y + half;
+
+                    mPOI = new POI(new Rectangle(x1, y1, x2, y2, drawAreaW, drawAreaH));
+                    tracker.lock(mPOI.rect);
+                }
+
+                @Override
+                public void onDrawingRectangleFail() {
+                    drawingRectangle = null;
+                }
+
+                @Override
+                public void onDrawingRectangle(int x1, int y1, int x2, int y2, int drawAreaW, int drawAreaH) {
+                    drawingRectangle = new Rectangle(x1, y1, x2, y2, drawAreaW, drawAreaH);
+                }
+
+                @Override
+                public void onNewRectangle(int rectX1, int rectY1, int rectX2, int rectY2, int drawAreaW, int drawAreaH) {
+                    drawingRectangle = null;
+                    mPOI = new POI(new Rectangle(rectX1, rectY1, rectX2, rectY2, drawAreaW, drawAreaH));
+                    tracker.lock(mPOI.rect);
+                }
+
+            });
+        });
     }
 
 }

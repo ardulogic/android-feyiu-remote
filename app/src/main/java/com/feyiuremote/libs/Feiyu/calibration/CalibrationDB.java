@@ -3,23 +3,29 @@ package com.feyiuremote.libs.Feiyu.calibration;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.DatabaseUtils;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
 import com.feyiuremote.libs.Database.SQLiteTableWrapper;
+import com.feyiuremote.libs.Feiyu.FeyiuState;
+import com.feyiuremote.libs.Utils.Debugger;
 
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-public class CalibrationDbHelper extends SQLiteTableWrapper {
-
+public class CalibrationDB extends SQLiteTableWrapper {
+    private final String TAG = CalibrationDB.class.getSimpleName();
     public static final int PAN_ONLY = 1;
     public static final int TILT_ONLY = 2;
     public static final int LOCKED = 0;
-    public final String AXIS_PAN = "pan";
-    public final String AXIS_TILT = "tilt";
+    public static final String AXIS_PAN = "pan";
+    public static final String AXIS_TILT = "tilt";
 
-    public CalibrationDbHelper(Context context) {
+    public CalibrationDB(Context context) {
         super(context);
     }
 
@@ -141,131 +147,121 @@ public class CalibrationDbHelper extends SQLiteTableWrapper {
         dbHandler.update(getDatabaseTableName(), values, "_id=" + rowId, null);
     }
 
-    public ArrayList<ContentValues> getByJoyState(int joy_sen, int joy_val, int type) {
-        String type_col = "locked";
+    public ContentValues getByJoyState(
+            String axis,
+            int joy_sen,
+            int joy_val
+    ) {
+        // build the SQL via your f() helper and a double-brace inline map
+        String sql = f(
+                "SELECT * FROM {table} \n" +
+                        "WHERE {axis}_only = 1 \n" +
+                        "  AND (joy_val = {joyVal}) \n" +
+                        "  AND joy_sens = {joySen} \n" +
+                        "LIMIT 1",
+                new HashMap<String, Object>() {{
+                    put("table", getDatabaseTableName());
+                    put("axis", axis);
+                    put("joyVal", joy_val);
+                    put("joySen", joy_sen);
+                }}
+        );
 
-        if (type == PAN_ONLY) {
-            type_col = "pan_only";
-        }
-
-        if (type == TILT_ONLY) {
-            type_col = "tilt_only";
-        }
-
-        try (Cursor c = dbHandler.query(
-                getDatabaseTableName(),
-                getColumnNames(),
-                "(joy_val=? OR joy_val=?) AND joy_sens=? AND " + type_col + "=?",
-                new String[]{
-                        String.valueOf(joy_val),
-                        String.valueOf(-joy_val),
-                        String.valueOf(joy_sen),
-                        String.valueOf(1)
-                },
-                null,
-                null,
-                null,
-                null
-        )) {
-            return buildResults(c);
+        try (Cursor c = dbHandler.rawQuery(sql, null)) {
+            return buildOneRow(c);
         } catch (SQLException e) {
-            Log.e("Exception on query", e.toString());
-        }
-
-        return new ArrayList<>();
-    }
-
-    public ContentValues getByClosestSpeed(String axis, Double speed, int type) {
-        String type_col = "locked";
-
-        if (type == PAN_ONLY) {
-            type_col = "pan_only";
-        }
-
-        if (type == TILT_ONLY) {
-            type_col = "tilt_only";
-        }
-
-        try (Cursor c = dbHandler.rawQuery(
-                "SELECT * FROM " + getDatabaseTableName() + " WHERE " + type_col + "=1 ORDER BY ABS(? - " + axis + "_speed) " +
-                        "LIMIT 1;",
-                new String[]{
-                        String.valueOf(speed)
-                }
-        )) {
-
-            if (c.getCount() > 0) {
-                c.moveToFirst();
-                return parseRow(c);
-            }
-        } catch (SQLException e) {
-            Log.e("Exception on query", e.toString());
+            Log.e("DB_QUERY_ERROR", "getByJoyState failed", e);
         }
 
         return null;
     }
 
-    public ContentValues getByClosestSpeed(String axis, int sens, Double speed, int type) {
-        String type_col = "locked";
+    public ContentValues getFastest(String axis, double angleDiff, double reqMaxSpeed) {
+        double minTime = FeyiuState.getInstance().getAverageUpdateIntervalMs() / 1000.0;
+        double maxSpeed = Math.min(
+                reqMaxSpeed,
+                Math.abs(angleDiff) * 1000 / FeyiuState.getInstance().getAverageUpdateIntervalMs()
+        );
 
-        if (type == PAN_ONLY) {
-            type_col = "pan_only";
-        }
+        // single SQL literal
+        String sql = f(
+                "SELECT * FROM {table} \n" +
+                        "WHERE {axis}_only = 1 \n" +
+                        "  AND {axis}_speed {angleSign} 0 \n" +
+                        "  AND ABS({axis}_speed) <= {maxSpeed} \n" +
+                        "  AND {absAngleDiff}/ABS({axis}_speed) >= {minTime} \n" +
+                        "ORDER BY {absAngleDiff}/ABS({axis}_speed) ASC \n" +
+                        "LIMIT 1",
+                new HashMap<String, Object>() {{
+                    put("table", getDatabaseTableName());
+                    put("axis", axis);
+                    put("angleSign", angleDiff > 0 ? ">" : "<");
+                    put("maxSpeed", maxSpeed);
+                    put("absAngleDiff", Math.abs(angleDiff));
+                    put("minTime", minTime);
+                }}
+        );
 
-        if (type == TILT_ONLY) {
-            type_col = "tilt_only";
-        }
-
-        try (Cursor c = dbHandler.rawQuery(
-                "SELECT * FROM " + getDatabaseTableName() + " WHERE joy_sens=" + sens + " AND " + type_col + "=1 ORDER BY ABS(? - " + axis + "_speed) " +
-                        "LIMIT 1;",
-                new String[]{
-                        String.valueOf(speed)
-                }
-        )) {
-
-            if (c.getCount() > 0) {
-                c.moveToFirst();
-                return parseRow(c);
-            }
+        try (Cursor c = dbHandler.rawQuery(sql, null)) {
+            return buildOneRow(c);
         } catch (SQLException e) {
-            Log.e("Exception on query", e.toString());
+            Log.e("DB_QUERY_ERROR", "findFastestCalibration failed", e);
+        }
+
+        Log.e("DB_QUERY_ERROR", "No suitable calibration found for " + axis);
+        return null;
+    }
+
+
+    public ContentValues getClosestToSpeed(
+            String axis,
+            Double signedTargetSpeed
+    ) {
+
+        String sql = f("SELECT * FROM {table} " +
+                        "WHERE {axis}_speed {moreLess} 0 " +
+                        "AND {axis}_only = 1 " +
+                        "ORDER BY ABS(ABS({axis}_speed) - {absTargetSpeed}) ASC " +
+                        "LIMIT 1",
+                new HashMap<String, Object>() {{
+                    put("table", getDatabaseTableName());
+                    put("axis", axis);
+                    put("moreLess", signedTargetSpeed >= 0 ? ">" : "<");
+                    put("absTargetSpeed", Math.abs(signedTargetSpeed));
+                }}
+        );
+
+        try (Cursor c = dbHandler.rawQuery(sql, null)) {
+            return buildOneRow(c);
+        } catch (SQLException e) {
+            Log.e("DB_QUERY_ERROR", "getClosestToSpeed failed", e);
         }
 
         return null;
     }
 
-    public ArrayList<ContentValues> getSlowerThan(String axis, int dir, Double max_speed, int type) {
-        String type_col = "locked";
-
-        if (type == PAN_ONLY) {
-            type_col = "pan_only";
-        } else if (type == TILT_ONLY) {
-            type_col = "tilt_only";
-        }
-
-        String selection = "dir = ? AND " + type_col + " = 1 AND " + axis + "_speed BETWEEN ? AND ?";
-        String[] selectionArgs = new String[]{
-                String.valueOf(dir),
-                String.valueOf(-Math.abs(max_speed)),
-                String.valueOf(Math.abs(max_speed))
-        };
-
-        try (Cursor c = dbHandler.query(
-                getDatabaseTableName(),
-                getColumnNames(),
-                selection,
-                selectionArgs,
-                null,
-                null,
-                null
-        )) {
-            return buildResults(c);
-        } catch (SQLException e) {
-            Log.e("Exception on query", e.toString());
+    protected ContentValues buildOneRow(Cursor c) {
+        if (c != null && c.moveToFirst()) {
+            ContentValues cv = new ContentValues();
+            DatabaseUtils.cursorRowToContentValues(c, cv);
+            return cv;
         }
 
         return null;
+    }
+
+    /**
+     * Replaces all occurrences of ${key} in the template with vars.get(key).toString().
+     * Any placeholder without a corresponding key in vars is left untouched.
+     */
+    static String f(String template, Map<String, ?> vars) {
+        for (Map.Entry<String, ?> entry : vars.entrySet()) {
+            // match literal {key}
+            String pattern = "\\{" + Pattern.quote(entry.getKey()) + "\\}";
+            String replacement = Matcher.quoteReplacement(entry.getValue().toString());
+            template = template.replaceAll(pattern, replacement);
+        }
+        return template;
     }
 
 }

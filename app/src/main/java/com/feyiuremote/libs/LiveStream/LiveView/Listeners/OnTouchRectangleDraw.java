@@ -2,6 +2,7 @@ package com.feyiuremote.libs.LiveStream.LiveView.Listeners;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -11,7 +12,6 @@ import androidx.annotation.NonNull;
 public class OnTouchRectangleDraw implements View.OnTouchListener {
     private static final String TAG = "RectangleDrawTouchListener";
     private static final int MIN_RECT_SIZE = 30;
-    private static final int FIXED_RECT_SIZE = 100;
     private static final int TAP_MOVE_THRESHOLD = 5; // px
 
     private int drawAreaW;
@@ -26,7 +26,7 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
     private GestureDetector gestureDetector;
     private ILiveViewTouchListener mListener;
 
-    public OnTouchRectangleDraw(Context context, View liveView) {
+    public OnTouchRectangleDraw(Context context) {
         initGestureDetector(context);
     }
 
@@ -57,6 +57,7 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouch(View v, MotionEvent event) {
+        Log.d(TAG, "RectangleDrawWorks");
         gestureDetector.onTouchEvent(event);
 
         drawAreaW = v.getWidth();
@@ -96,7 +97,7 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
     private void handleActionUp(int x, int y) {
         updateDrag(x, y);
         if (!moved) {
-            drawTapRectangle(x, y);
+            notifySingleTap(x, y);
         } else if (isValidDrag()) {
             notifyNewRectangle(startX, startY, endX, endY);
         } else {
@@ -124,13 +125,10 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
         return Math.abs(endX - startX) > MIN_RECT_SIZE && Math.abs(endY - startY) > MIN_RECT_SIZE;
     }
 
-    private void drawTapRectangle(int x, int y) {
-        int half = FIXED_RECT_SIZE / 2;
-        int x1 = x - half;
-        int y1 = y - half;
-        int x2 = x + half;
-        int y2 = y + half;
-        notifyNewRectangle(x1, y1, x2, y2);
+    private void notifySingleTap(int x, int y) {
+        if (mListener != null) {
+            mListener.onSingleTap(x, y, drawAreaW, drawAreaH);
+        }
     }
 
     private void notifyDrawing(int x1, int y1, int x2, int y2) {

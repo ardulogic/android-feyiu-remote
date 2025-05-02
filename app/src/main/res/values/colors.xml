@@ -16,4 +16,6 @@
     <color name="lock_overlay">#0A000000</color>
     <color name="button_active">#2EBF52</color>
     <color name="button_recording">#BF2D39</color>
+    <color name="icon_light_green">#90EE90</color>
+    <color name="icon_default">#8D8D8D</color>
 </resources>

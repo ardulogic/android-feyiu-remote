@@ -5,6 +5,7 @@ import static org.junit.Assert.assertNotNull;
 
 import com.feyiuremote.libs.Feiyu.FeyiuControls;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
+import com.feyiuremote.libs.Feiyu.controls.ConsolidatedJoystickState;
 import com.feyiuremote.libs.Feiyu.controls.SensitivityState;
 
 import org.junit.Before;
@@ -26,10 +27,10 @@ public class FeyiuControlsTest {
         FeyiuControls.setPanJoy(50, "Initial pan");
         FeyiuControls.setTiltJoy(75, "Initial tilt");
 
-        int[] states = FeyiuControls.getCurrentJoyValues();
+        ConsolidatedJoystickState consolidated = FeyiuControls.getConsolidatedJoystickState();
 
-        assertEquals(50, states[0]);
-        assertEquals(75, states[1]);
+        assertEquals(50, consolidated.joyPan);
+        assertEquals(75, consolidated.joyTilt);
     }
 
     @Test
@@ -93,32 +94,32 @@ public class FeyiuControlsTest {
         FeyiuControls.setPanJoyAfter(10, 300, "Initial pan");
         FeyiuControls.setTiltJoyAfter(15, 300, "Initial tilt");
 
-        int[] states = FeyiuControls.getCurrentJoyValues();
+        ConsolidatedJoystickState states = FeyiuControls.getConsolidatedJoystickState();
 
-        assertEquals(50, states[0]);
-        assertEquals(75, states[1]);
+        assertEquals(50, states.joyPan);
+        assertEquals(75, states.joyTilt);
 
         Thread.sleep(250);
 
-        states = FeyiuControls.getCurrentJoyValues();
+        states = FeyiuControls.getConsolidatedJoystickState();
 
-        assertEquals(60, states[0]);
-        assertEquals(85, states[1]);
+        assertEquals(60, states.joyPan);
+        assertEquals(85, states.joyTilt);
 
         Thread.sleep(50);
 
-        states = FeyiuControls.getCurrentJoyValues();
+        states = FeyiuControls.getConsolidatedJoystickState();
 
-        assertEquals(10, states[0]);
-        assertEquals(15, states[1]);
+        assertEquals(10, states.joyPan);
+        assertEquals(15, states.joyTilt);
 
 
         Thread.sleep(500);
 
-        states = FeyiuControls.getCurrentJoyValues();
+        states = FeyiuControls.getConsolidatedJoystickState();
 
-        assertEquals(0, states[0]);
-        assertEquals(0, states[1]);
+        assertEquals(0, states.joyPan);
+        assertEquals(0, states.joyTilt);
     }
 
     // Your test cases will go here

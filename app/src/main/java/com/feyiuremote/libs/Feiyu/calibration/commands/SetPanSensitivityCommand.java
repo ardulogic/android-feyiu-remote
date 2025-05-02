@@ -5,6 +5,7 @@ import android.util.Log;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
+import com.feyiuremote.ui.gimbal.GimbalEmulator;
 
 public class SetPanSensitivityCommand extends GimbalCommand {
 
@@ -24,4 +25,11 @@ public class SetPanSensitivityCommand extends GimbalCommand {
         FeyiuState.joy_sens_pan = pan_sens;
     }
 
+    @Override
+    public void executeEmulated() {
+        super.executeEmulated();
+
+        GimbalEmulator.setPanSensitivity(pan_sens);
+        FeyiuState.joy_sens_pan = pan_sens;
+    }
 }

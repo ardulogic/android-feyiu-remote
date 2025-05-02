@@ -11,11 +11,9 @@ import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
 public class BluetoothGimbalPositionObserver implements Observer<byte[]> {
     private final String TAG = BluetoothGimbalPositionObserver.class.getSimpleName();
     private final FragmentCameraBinding binding;
-    private final GimbalWaypointsProcessor waypointsProcessor;
 
-    public BluetoothGimbalPositionObserver(FragmentCameraBinding binding, GimbalWaypointsProcessor waypointsProcessor) {
+    public BluetoothGimbalPositionObserver(FragmentCameraBinding binding) {
         this.binding = binding;
-        this.waypointsProcessor = waypointsProcessor;
     }
 
     @Override
@@ -34,13 +32,5 @@ public class BluetoothGimbalPositionObserver implements Observer<byte[]> {
                 FeyiuState.getInstance().angle_tilt.posToString(),
                 FeyiuState.getInstance().angle_yaw.posToString())
         ));
-
-        if (waypointsProcessor != null) {
-            waypointsProcessor.onGimbalUpdate();
-
-            if (waypointsProcessor.getTarget() != null) {
-                binding.textGimbalSpeeds.setText(waypointsProcessor.toString());
-            }
-        }
     }
 }
