@@ -5,7 +5,6 @@ import android.util.Log;
 
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
-import com.feyiuremote.ui.gimbal.GimbalEmulator;
 
 import java.util.Objects;
 
@@ -43,6 +42,10 @@ public class AxisCalibration {
         return init_angle_diff;
     }
 
+    public ContentValues getCal() {
+        return cal;
+    }
+
     public boolean matchCalibrationTo(AxisCalibration target, Double max_speed) {
         // Compute the desired movement time from the target axis (in ms)
         double targetTimeMs = target.getMovementTimeInMs();
@@ -52,10 +55,18 @@ public class AxisCalibration {
         double idealSpeedDegPerSec = angleDiff / (targetTimeMs / 1_000.0);
 
         // Cap by the provided maximum:
-        idealSpeedDegPerSec = Math.min(idealSpeedDegPerSec, max_speed);
+        double chosenSpeed = Math.copySign(
+                Math.min(Math.abs(idealSpeedDegPerSec), max_speed),
+                angleDiff
+        );
+
+        if (Double.isNaN(chosenSpeed) || Double.isInfinite(chosenSpeed)) {
+            Log.e(TAG, "Problem while matching calibration, computed speed is invalid");
+            chosenSpeed = Math.copySign(1, angleDiff); // Or a safe fallback value
+        }
 
         // How can I pass the sign of angleDiff?
-        this.cal = mDb.getClosestToSpeed(axis, idealSpeedDegPerSec);
+        this.cal = mDb.getClosestToSpeed(axis, chosenSpeed);
 
         if (this.cal == null) {
             Log.e(TAG, "Could not find calibration!");
@@ -188,5 +199,9 @@ public class AxisCalibration {
 
     public float getOvershoot() {
         return this.cal.getAsFloat(axis + "_angle_overshoot");
+    }
+
+    public Double getTargetAngle() {
+        return target_angle;
     }
 }

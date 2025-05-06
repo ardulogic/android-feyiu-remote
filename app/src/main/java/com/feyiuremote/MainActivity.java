@@ -36,6 +36,7 @@ import com.feyiuremote.libs.Bluetooth.BluetoothPermissions;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Bluetooth.IOnBluetoothServicesDiscovered;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
+import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import org.opencv.android.OpenCVLoader;
@@ -77,6 +78,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // This needs to be available before inflating fragments
+        CalibrationDB.init(this);
 
         // Hide the status bar
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);

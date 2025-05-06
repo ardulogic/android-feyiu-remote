@@ -11,19 +11,24 @@ abstract public class GimbalCommand {
     private static final String TAG = GimbalCommand.class.getSimpleName();
     ;
     protected final BluetoothLeService mBt;
-    public Long actual_execution_time;
-    public float current_pan_angle;
-    public float current_tilt_angle;
+    public Long timeExecuted;
+    public float panAngleAtExecution;
+    public float tiltAngleAtExecution;
+
     public String comment = "";
 
     public GimbalCommand(BluetoothLeService bt) {
         this.mBt = bt;
     }
 
+    public void setComment(String comment) {
+        this.comment = comment;
+    }
+
     public void run() {
-        actual_execution_time = System.currentTimeMillis();
-        current_pan_angle = getCurrentPanAngle();
-        current_tilt_angle = getCurrentTiltAngle();
+        timeExecuted = System.currentTimeMillis();
+        panAngleAtExecution = getCurrentPanAngle();
+        tiltAngleAtExecution = getCurrentTiltAngle();
 
         if (GimbalEmulator.isEnabled) {
             executeEmulated();
@@ -35,6 +40,19 @@ abstract public class GimbalCommand {
 
     }
 
+    abstract void execute();
+
+    public void executeEmulated() {
+        this.timeExecuted = System.currentTimeMillis();
+    }
+
+    public boolean hasExecuted() {
+        return this.timeExecuted != null;
+    }
+
+    public long getTimeSinceExecution() {
+        return System.currentTimeMillis() - timeExecuted;
+    }
 
     public float getCurrentPanAngle() {
         return FeyiuState.getInstance().angle_pan.value();
@@ -45,24 +63,7 @@ abstract public class GimbalCommand {
     }
 
     public void log() {
-        Log.d(TAG, "Execution Time: " + actual_execution_time + " ms, Pan Angle/Value: " + getCurrentPanAngle() + ", Tilt Angle: " + getCurrentTiltAngle());
+        Log.d(TAG, "Gimbal Command Execution Timestamp: " + timeExecuted + " ms. Comment: " + comment);
     }
 
-    abstract void execute();
-
-    public long getTimeSinceExcecution() {
-        return System.currentTimeMillis() - actual_execution_time;
-    }
-
-    public boolean hasExecuted() {
-        return this.actual_execution_time != null;
-    }
-
-    public void executeEmulated() {
-        this.actual_execution_time = System.currentTimeMillis();
-    }
-
-    public void setComment(String comment) {
-        this.comment = comment;
-    }
 }

@@ -18,7 +18,7 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
 
 
     public GimbalFollowProcessor(BluetoothLeService mBluetoothLeService) {
-        this.mDbCal = new CalibrationDB(mBluetoothLeService.getApplicationContext());
+        this.mDbCal = CalibrationDB.get();
     }
 
     public static double evaluatePolynomial(double x) {

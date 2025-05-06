@@ -1,5 +1,6 @@
 package com.feyiuremote.ui.gimbal;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.le.ScanResult;
 import android.os.Bundle;
 import android.util.Log;
@@ -25,12 +26,10 @@ import com.feyiuremote.databinding.FragmentGimbalBinding;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
-import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
 import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueueTesting;
+import com.feyiuremote.ui.calibration.CalibrationFragment;
 import com.feyiuremote.ui.gimbal.adapters.BluetoothScanResultsAdapter;
-
-import org.checkerframework.checker.units.qual.C;
 
 import java.util.ArrayList;
 
@@ -67,7 +66,7 @@ public class GimbalFragment extends Fragment {
         });
 
         binding.buttonEmulate.setOnClickListener(v -> {
-            GimbalEmulator.init(mDb, mBluetoothViewModel);
+            GimbalEmulator.init(mBluetoothViewModel);
             GimbalEmulator.enable();
 
         });
@@ -76,12 +75,9 @@ public class GimbalFragment extends Fragment {
         mScanResultListAdapter = new BluetoothScanResultsAdapter(getContext());
         mListView.setAdapter(mScanResultListAdapter);
 
-        mBluetoothViewModel.registerCharacteristic(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID);
-        mBluetoothViewModel.characteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)
-                .observe(getViewLifecycleOwner(), btCharacteristicPositionObserver);
+        mBluetoothViewModel.feyiuStateUpdated.observe(getViewLifecycleOwner(), mFeyiuStateObserver);
 
-        this.mDb = new CalibrationDB(getContext());
-        if (mDb.rowCount() < 50) {
+        if (!CalibrationFragment.isCalibrated()) {
             binding.textGimbalImageStatus.setText("Not Calibrated!");
             binding.imageGimbalStatus.setImageResource(R.drawable.warning);
         } else {
@@ -101,6 +97,15 @@ public class GimbalFragment extends Fragment {
                 null,
                 new NavOptions.Builder()
                         .setPopUpTo(R.id.navigation_gimbal, true)
+                        .build());
+    }
+
+    private void switchToCalibration() {
+        NavController navController = Navigation.findNavController(getActivity(), R.id.nav_host_fragment_activity_main);
+        navController.navigate(R.id.navigation_calibration,
+                null,
+                new NavOptions.Builder()
+                        .setPopUpTo(R.id.navigation_calibration, true)
                         .build());
     }
 
@@ -141,12 +146,13 @@ public class GimbalFragment extends Fragment {
         }
     }
 
-    // Create the observer which updates the UI.
-    final Observer<byte[]> btCharacteristicPositionObserver = new Observer<byte[]>() {
+    /**
+     * Observer for Gimbal state updates
+     */
+    final Observer<Long> mFeyiuStateObserver = new Observer<Long>() {
+        @SuppressLint("SetTextI18n")
         @Override
-        public void onChanged(@Nullable final byte[] value) {
-            FeyiuState.getInstance().update(value);
-
+        public void onChanged(Long timestamp) {
             final TextView mTextPosition = binding.textPosition;
 
             mTextPosition.setText(
@@ -157,7 +163,11 @@ public class GimbalFragment extends Fragment {
             Log.d(TAG, "Switching to Camera...");
 
             if (mBluetoothViewModel.connected.getValue()) {
-                switchToCamera();
+                if (CalibrationFragment.isCalibrated()) {
+                    switchToCamera();
+                } else {
+                    switchToCalibration();
+                }
             }
         }
     };

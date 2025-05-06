@@ -9,23 +9,25 @@ public class StartCommand extends GimbalCommand {
 
 
     private static final String TAG = "StartCommand";
-    private int joyVal;
+    private final int joyPan;
+    private final int joyTilt;
 
-    public StartCommand(BluetoothLeService bt, int joy_value) {
+    public StartCommand(BluetoothLeService bt, int joyPan, int joyTilt) {
         super(bt);
 
-        this.joyVal = joy_value;
+        this.joyPan = joyPan;
+        this.joyTilt = joyTilt;
     }
 
     @Override
     void execute() {
         mBt.send(FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
-                FeyiuUtils.move(joyVal, joyVal)
+                FeyiuUtils.move(joyPan, joyTilt)
         );
     }
 
     @Override
     public void log() {
-        Log.d(TAG, "Start command initiated, joyVal:" + joyVal);
+        Log.d(TAG, "Start command initiated, joyPan:" + joyPan + " joy TIlt:" + joyTilt);
     }
 }

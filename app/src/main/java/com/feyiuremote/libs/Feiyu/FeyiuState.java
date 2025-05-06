@@ -29,6 +29,18 @@ public class FeyiuState {
         return mInstance;
     }
 
+    public static FeyiuAngle getAngle(Axes.Axis axis) {
+        if (axis == Axes.Axis.PAN) {
+            return getInstance().angle_pan;
+        } else if (axis == Axes.Axis.TILT) {
+            return getInstance().angle_tilt;
+        } else if (axis == Axes.Axis.YAW) {
+            return getInstance().angle_yaw;
+        }
+
+        return null;
+    }
+
     public static boolean angleIsCritical() {
         if (Math.abs(getInstance().angle_pan.value()) > 260 ||
                 Math.abs(getInstance().angle_tilt.value()) > 260) {
@@ -43,15 +55,13 @@ public class FeyiuState {
             update_interval = System.currentTimeMillis() - last_update;
         }
 
-        last_update = System.currentTimeMillis();
-
         if (data.length > 15) {
             angle_tilt.update((new BigInteger(new byte[]{data[11], data[10]})).intValue());
             angle_pan.update((new BigInteger(new byte[]{data[15], data[14]})).intValue());
             angle_yaw.update((new BigInteger(new byte[]{data[13], data[12]})).intValue());
         }
 
-//        Log.d(TAG, "Updated angle, Pan:" + angle_pan.value() + " Tilt:" + angle_tilt.value());
+        last_update = System.currentTimeMillis();
     }
 
     public void update(int joy_sens_pan, int joy_sens_tilt) {
@@ -76,10 +86,6 @@ public class FeyiuState {
         return 243L;
     }
 
-    public Long getMaxContinuousCommandTime() {
-        return 150L;
-    }
-
     public Long getTimeSinceLastUpdateMs() {
         if (last_update > 0) {
             return System.currentTimeMillis() - last_update;
@@ -90,6 +96,10 @@ public class FeyiuState {
 
     public long getTimeSinceLastCommandMs() {
         return System.currentTimeMillis() - last_command;
+    }
+
+    public boolean isStationary() {
+        return angle_pan.isStationary() && angle_tilt.isStationary() && angle_yaw.isStationary();
     }
 }
 

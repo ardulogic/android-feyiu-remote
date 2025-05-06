@@ -14,12 +14,12 @@ import com.feyiuremote.libs.Feiyu.queue.commands.JoyCommandLooselyTimed;
 import com.feyiuremote.libs.Feiyu.queue.commands.JoyCommandStrictlyTimed;
 import com.feyiuremote.libs.Feiyu.queue.commands.SingleCommand;
 import com.feyiuremote.libs.Feiyu.queue.commands.SingleSensitivityCommand;
-import com.feyiuremote.libs.Feiyu.queue.debug.QueueStopDebugger;
-import com.feyiuremote.libs.Feiyu.queue.entries.QueueJoyStateLooseEntry;
+import com.feyiuremote.libs.Feiyu.queue.debug.PositioningDebugger;
 import com.feyiuremote.libs.Feiyu.queue.entries.QueueEntry;
-import com.feyiuremote.libs.Feiyu.queue.entries.QueueJoyStateEntry;
-import com.feyiuremote.libs.Feiyu.queue.entries.QueueSensitivityStateEntry;
-import com.feyiuremote.libs.Feiyu.queue.entries.QueueJoyStateStrictEntry;
+import com.feyiuremote.libs.Feiyu.queue.entries.QueueJoySensitivityStateEntry;
+import com.feyiuremote.libs.Feiyu.queue.entries.QueueJoyValueEntry;
+import com.feyiuremote.libs.Feiyu.queue.entries.QueueJoyValueLooseEntry;
+import com.feyiuremote.libs.Feiyu.queue.entries.QueueJoyValueStrictEntry;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -33,7 +33,11 @@ import java.util.concurrent.ConcurrentSkipListMap;
 public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
     private final static String TAG = FeyiuCommandQueue.class.getSimpleName();
 
-    public enum Axis {PAN, TILT}
+    public static boolean hasPendingCommands() {
+        return !(scheduledCommands.isEmpty() && singleCommands.isEmpty());
+    }
+
+    public enum Axis {PAN, YAW, TILT}
 
     public static final long MIN_INTERVAL_MS = 40;
     public static final long DEFAULT_INTERVAL_MS = 100;
@@ -124,7 +128,7 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
         final NavigableMap<Long, QueueEntry> q = singleCommands;
 
         // Build the new queue entry
-        QueueSensitivityStateEntry newEntry = new QueueSensitivityStateEntry((SingleSensitivityCommand) cmd);
+        QueueJoySensitivityStateEntry newEntry = new QueueJoySensitivityStateEntry((SingleSensitivityCommand) cmd);
         if (!newEntry.needsToExecute()) {
             Log.d(TAG, "Skipping sensitivity change.");
             return;
@@ -164,7 +168,7 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
 
         if (q.isEmpty()) {
             for (long off = execDelay; off < cmd.durationMs; off += DEFAULT_INTERVAL_MS) {
-                QueueJoyStateLooseEntry newEntry = new QueueJoyStateLooseEntry(cmd, now + off);
+                QueueJoyValueLooseEntry newEntry = new QueueJoyValueLooseEntry(cmd, now + off);
                 schedule(newEntry);
             }
         } else {
@@ -175,7 +179,7 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
             long nextTs = q.isEmpty() ? now + execDelay : q.lastKey() + DEFAULT_INTERVAL_MS;
 
             for (; nextTs <= horizonTs; nextTs += DEFAULT_INTERVAL_MS) {
-                QueueJoyStateLooseEntry newEntry = new QueueJoyStateLooseEntry(cmd, nextTs);
+                QueueJoyValueLooseEntry newEntry = new QueueJoyValueLooseEntry(cmd, nextTs);
                 schedule(newEntry);
             }
         }
@@ -188,7 +192,7 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
         long nextTs = q.isEmpty() ? cmd.startTime : q.lastKey() + DEFAULT_INTERVAL_MS;
 
         for (; nextTs <= cmd.endTime; nextTs += DEFAULT_INTERVAL_MS) {
-            QueueJoyStateLooseEntry newEntry = new QueueJoyStateLooseEntry(cmd, nextTs);
+            QueueJoyValueLooseEntry newEntry = new QueueJoyValueLooseEntry(cmd, nextTs);
             schedule(newEntry);
         }
     }
@@ -213,16 +217,16 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
             Map.Entry<Long, QueueEntry> e = it.next();
             QueueEntry entry = e.getValue();
 
-            if (entry instanceof QueueJoyStateEntry) {
+            if (entry instanceof QueueJoyValueEntry) {
                 if (entry.executesAt() > cmd.startTime) {
-                    ((QueueJoyStateEntry) entry).overwriteWith(cmd);
+                    ((QueueJoyValueEntry) entry).overwriteWith(cmd);
                 }
 
                 if (entry.executesAt() > cmd.endTime) {
-                    if (((QueueJoyStateEntry) entry).axisHasNoValue(cmd.getOppositeAxis())) {
+                    if (((QueueJoyValueEntry) entry).axisHasNoValue(cmd.getOppositeAxis())) {
                         it.remove();
                     } else {
-                        ((QueueJoyStateEntry) entry).overwriteWith(cmd.axis, null);
+                        ((QueueJoyValueEntry) entry).overwriteWith(cmd.axis, null);
                     }
                 }
             }
@@ -247,11 +251,14 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
 
         final NavigableMap<Long, QueueEntry> q = scheduledCommands;
 
-        QueueJoyStateEntry previousJoyEntry = getFirstPreviousQueueEntryOfType(cmd.startTime, QueueJoyStateEntry.class);
-        QueueJoyStateStrictEntry newEntry = new QueueJoyStateStrictEntry(cmd);
+        QueueJoyValueEntry previousJoyEntry = getFirstPreviousQueueEntryOfType(cmd.startTime, QueueJoyValueEntry.class);
+        QueueJoyValueStrictEntry newEntry = new QueueJoyValueStrictEntry(cmd);
 
         if (newEntry.executesIn() < 0) {
-            throw new RuntimeException("Cannot have command executing earlier than now: " + newEntry.executesIn() + "ms");
+            long originalTime = newEntry.executesIn();
+            newEntry.updateTimestamp(getSoonestExecutionTimestamp());
+            Log.w(TAG, "Strict entry was to execute earlier than now:" + originalTime + " Moving to execution time:" + newEntry.executesIn());
+//            throw new RuntimeException("Cannot have command executing earlier than now: " + newEntry.executesIn() + "ms");
         }
 
         if (previousJoyEntry != null) {
@@ -310,7 +317,7 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
         if (neighbour != null) {
             QueueEntry entry = neighbour.getValue();
 
-            if (entry instanceof QueueJoyStateStrictEntry) {
+            if (entry instanceof QueueJoyValueStrictEntry) {
                 long gap = Math.abs(cmd.startTime - neighbour.getKey());
 
                 return gap < MIN_INTERVAL_MS;
@@ -330,7 +337,7 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
         if (neighbour != null) {
             QueueEntry entry = neighbour.getValue();
 
-            if (entry instanceof QueueJoyStateLooseEntry) {
+            if (entry instanceof QueueJoyValueLooseEntry) {
                 long gap = Math.abs(cmd.startTime - neighbour.getKey());
 
                 return gap < MIN_INTERVAL_MS;
@@ -350,11 +357,11 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
         final NavigableMap<Long, QueueEntry> q = scheduledCommands;
 
         // Remove neighbour
-        QueueJoyStateEntry neighbourQueueEntry = (QueueJoyStateEntry) neighbour.getValue();
+        QueueJoyValueEntry neighbourQueueEntry = (QueueJoyValueEntry) neighbour.getValue();
         q.remove(neighbourQueueEntry.executesAt());
 
         // Insert merged entry
-        QueueJoyStateStrictEntry newEntry = new QueueJoyStateStrictEntry(cmd);
+        QueueJoyValueStrictEntry newEntry = new QueueJoyValueStrictEntry(cmd);
         neighbourQueueEntry.mergeWith(newEntry);
         q.put(neighbourQueueEntry.executesAt(), neighbourQueueEntry);
 
@@ -400,11 +407,11 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
             qe = e.getValue();
         } else {
             Map.Entry<Long, QueueEntry> scheduled = scheduledCommands.pollFirstEntry();
-            qe = scheduled.getValue();
-
-            if (qe == null) {
+            if (scheduled == null) {
                 return true;
             }
+
+            qe = scheduled.getValue();
         }
 
         // 3) Dispatch and reschedule as before
@@ -425,15 +432,15 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
 
         Long timingError = qe.executesIn();
 
-        if (qe instanceof QueueJoyStateStrictEntry) {
-            QueueJoyStateStrictEntry qes = (QueueJoyStateStrictEntry) qe;
+        if (qe instanceof QueueJoyValueStrictEntry) {
+            QueueJoyValueStrictEntry qes = (QueueJoyValueStrictEntry) qe;
             Integer panVal = qes.panJoyValue;
             Integer tiltVal = qes.tiltJoyValue;
 
             if (panVal != null && panVal == 0) {
-                QueueStopDebugger.onPanStopCommand();
+                PositioningDebugger.onPanStopCommand();
             } else if (tiltVal != null && tiltVal == 0) {
-                QueueStopDebugger.onTiltStopCommand();
+                PositioningDebugger.onTiltStopCommand();
             }
             Log.w(TAG, "Sending (" + qe.executesIn() + "ms): " + qe.getCommand(null).toString());
         } else {
@@ -459,8 +466,8 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
             QueueEntry queueEntry = entry.getValue();
 
             sb
-                    .append(queueEntry instanceof QueueJoyStateStrictEntry ? "i" : "")
-                    .append(queueEntry instanceof QueueJoyStateStrictEntry && ((QueueJoyStateStrictEntry) queueEntry).isMerged ? "m" : "")
+                    .append(queueEntry instanceof QueueJoyValueStrictEntry ? "i" : "")
+                    .append(queueEntry instanceof QueueJoyValueStrictEntry && ((QueueJoyValueStrictEntry) queueEntry).isMerged ? "m" : "")
                     .append("  • [")
                     .append(timestamp - current_ts).append(" ↑").append(last_ts > 0 ? timestamp - last_ts : 0)
 //                    .append(" ↑").append(last_ts > 0 ? entry.getValue().executesAt() - last_ts : 0)

@@ -1,8 +1,5 @@
 package com.feyiuremote.ui.camera;
 
-import androidx.core.content.ContextCompat;
-import androidx.fragment.app.Fragment;
-
 import android.annotation.SuppressLint;
 import android.content.res.ColorStateList;
 import android.os.Bundle;
@@ -11,6 +8,9 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.ItemTouchHelper;
 
@@ -18,7 +18,6 @@ import com.feyiuremote.MainActivity;
 import com.feyiuremote.R;
 import com.feyiuremote.databinding.FragmentCameraWaypointsBinding;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
-import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
 import com.feyiuremote.ui.camera.listeners.WaypointAddClickListener;
 import com.feyiuremote.ui.camera.models.CameraViewModel;
@@ -61,17 +60,7 @@ public class CameraWaypointsFragment extends Fragment {
         mWaypointsProcessor.setCamera(cameraViewModel.camera);
 
         mBluetoothViewModel = new ViewModelProvider(requireActivity()).get(BluetoothViewModel.class);
-        mBluetoothViewModel.characteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)
-                .observe(getViewLifecycleOwner(), bytes -> {
-                    if (mWaypointsProcessor != null) {
-                        mWaypointsProcessor.onGimbalUpdate();
-
-                        if (mWaypointsProcessor.getTarget() != null) {
-                            // Outputs debug values
-                            waypointsViewModel.debugMessage.postValue(mWaypointsProcessor.toString());
-                        }
-                    }
-                });
+        mBluetoothViewModel.feyiuStateUpdated.observe(getViewLifecycleOwner(), mFeyiuStateObserver);
 
         // Drag and drop waypoints
         wpListAdapter = new WaypointListAdapter(getContext(), getViewLifecycleOwner(), waypointsViewModel);
@@ -127,4 +116,22 @@ public class CameraWaypointsFragment extends Fragment {
 
         return binding.getRoot();
     }
+
+    /**
+     * Observer for Gimbal state updates
+     */
+    final Observer<Long> mFeyiuStateObserver = new Observer<Long>() {
+        @SuppressLint("SetTextI18n")
+        @Override
+        public void onChanged(Long timestamp) {
+            if (mWaypointsProcessor != null) {
+                mWaypointsProcessor.onGimbalUpdate();
+
+                if (mWaypointsProcessor.getTarget() != null) {
+                    // Outputs debug values
+                    waypointsViewModel.debugMessage.postValue(mWaypointsProcessor.toString());
+                }
+            }
+        }
+    };
 }

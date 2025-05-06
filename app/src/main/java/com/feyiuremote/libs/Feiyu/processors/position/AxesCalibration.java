@@ -1,8 +1,8 @@
 package com.feyiuremote.libs.Feiyu.processors.position;
 
-import android.content.Context;
 import android.util.Log;
 
+import com.feyiuremote.libs.Feiyu.Axes;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
 
 public class AxesCalibration {
@@ -14,14 +14,26 @@ public class AxesCalibration {
     public AxisCalibration pan;
     public AxisCalibration tilt;
 
-    public AxesCalibration(Context context, double pan_angle, double tilt_angle, double max_pan_speed, double max_tilt_speed) {
-        this.mDb = new CalibrationDB(context);
+    public AxesCalibration(double pan_angle, double tilt_angle, double max_pan_speed, double max_tilt_speed) {
+        this.mDb = CalibrationDB.get();
 
         this.max_pan_speed = max_pan_speed + 1;
         this.max_tilt_speed = max_tilt_speed + 1;
 
         this.pan = new AxisCalibration(mDb, AxisCalibration.AXIS_PAN, pan_angle);
         this.tilt = new AxisCalibration(mDb, AxisCalibration.AXIS_TILT, tilt_angle);
+    }
+
+    public AxisCalibration getAxis(Axes.Axis axis) {
+        if (axis == Axes.Axis.PAN) {
+            return this.pan;
+        }
+
+        if (axis == Axes.Axis.TILT) {
+            return this.tilt;
+        }
+
+        return null;
     }
 
 

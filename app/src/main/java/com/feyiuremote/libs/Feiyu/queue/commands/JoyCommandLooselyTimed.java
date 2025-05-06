@@ -1,10 +1,10 @@
 package com.feyiuremote.libs.Feiyu.queue.commands;
 
-import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueue;
+import com.feyiuremote.libs.Feiyu.Axes;
 
 public class JoyCommandLooselyTimed extends JoyCommand {
 
-    public JoyCommandLooselyTimed(FeyiuCommandQueue.Axis axis, int value, int durationMs) {
+    public JoyCommandLooselyTimed(Axes.Axis axis, int value, int durationMs) {
         super(axis, value, durationMs);
     }
 }

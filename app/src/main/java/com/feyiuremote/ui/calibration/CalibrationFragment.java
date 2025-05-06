@@ -3,7 +3,10 @@ package com.feyiuremote.ui.calibration;
 import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
 import android.content.ContentValues;
+import android.graphics.Typeface;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Html;
 import android.util.Log;
 import android.view.Gravity;
@@ -11,11 +14,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.LinearInterpolator;
+import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
@@ -25,7 +28,6 @@ import com.feyiuremote.databinding.FragmentCalibrationBinding;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
-import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationPresetDbHelper;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationRunnable;
@@ -33,10 +35,10 @@ import com.feyiuremote.libs.Feiyu.calibration.ICalibrationListener;
 import com.feyiuremote.libs.Feiyu.calibration.commands.FinaliseCommand;
 import com.feyiuremote.libs.Feiyu.calibration.commands.GimbalCommand;
 import com.feyiuremote.libs.Feiyu.calibration.commands.MoveCalibrationCommand;
-import com.feyiuremote.libs.Feiyu.calibration.commands.MoveCalibrationLockedCommand;
 import com.feyiuremote.libs.Feiyu.calibration.commands.StartCommand;
 import com.feyiuremote.libs.Feiyu.calibration.commands.StopCommand;
 import com.feyiuremote.libs.Feiyu.calibration.commands.WaitCommand;
+import com.feyiuremote.libs.Feiyu.controls.commands.CenterCommand;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -53,11 +55,16 @@ public class CalibrationFragment extends Fragment {
     private CalibrationRunnable calibrationRunnable;
     private CalibrationViewModel calibrationModel;
 
-    private static final LinkedHashMap<Integer, int[]> CAL_MAP = new LinkedHashMap<Integer, int[]>() {{
+    public static final LinkedHashMap<Integer, int[]> CAL_MAP = new LinkedHashMap<Integer, int[]>() {{
         put(25, new int[]{65, 90, 100, 105, 135, 170, 200, 205, 235, 240});
         put(60, new int[]{55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215, 220, 225, 230, 235, 240});
         put(230, new int[]{52, 53, 54, 55, 56, 57, 58, 60, 61, 62, 64, 66, 68, 70, 71, 72, 74, 76, 78, 79, 80, 82, 83, 85, 90, 100, 110, 130, 140});
     }};
+
+    public static boolean isCalibrated() {
+        CalibrationDB db = CalibrationDB.get();
+        return db.rowCount() > 100;
+    }
 
 // For Debugging
 //    private static final LinkedHashMap<Integer, int[]> CAL_MAP =  new LinkedHashMap<Integer, int[]>() {{
@@ -73,7 +80,7 @@ public class CalibrationFragment extends Fragment {
 
     private int currentIteration = 0;
     private int stageIndex = 0;
-    private final int maxStageIndex = 5;
+    private final int maxStageIndex = 3;
     private int totalIterations;
     private long calibrationStartTime = 0L;
 
@@ -123,42 +130,63 @@ public class CalibrationFragment extends Fragment {
         calibrationModel.mTextProgress.observe(getViewLifecycleOwner(), binding.textCalibrationProgress::setText);
         calibrationModel.mPercProgress.observe(getViewLifecycleOwner(), binding.circularProgressBar::setProgress);
 
-        bluetoothViewModel.characteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)
-                .observe(getViewLifecycleOwner(), btCharacteristicPositionObserver);
+        bluetoothViewModel.feyiuStateUpdated.observe(getViewLifecycleOwner(), mFeyiuStateObserver);
 
         mainActivity = (MainActivity) getActivity();
     }
 
     private void printCalibrationTable(ContentValues cv) {
-        binding.tableCalibration.removeAllViews();
+        boolean boldTiltValues = cv != null
+                && Boolean.TRUE.equals(cv.getAsBoolean("tilt_only"));
+
+        boolean boldPanValues = cv != null
+                && Boolean.TRUE.equals(cv.getAsBoolean("pan_only"));
+
+        TableLayout table = binding.tableCalibration;
+        table.removeAllViews();
+
+        // Optional: these two lines make the table fill the parent width
+        // and let the weight values you set below take over.
+        table.setStretchAllColumns(true);
+        table.setShrinkAllColumns(true);
+
+        // Re-use the same LayoutParams object for every cell:
+        TableRow.LayoutParams cellLp =
+                new TableRow.LayoutParams(0,              // width 0dp → use weight instead
+                        TableRow.LayoutParams.WRAP_CONTENT,
+                        1f);            // every cell gets 1 “share”
 
         for (String key : calibrationDb.getColumnNames()) {
-            // Create a new TableRow
-            TableRow tableRow = new TableRow(getContext());
+            TableRow row = new TableRow(getContext());
 
-            // Create a TextView for the key (first column)
-            TextView keyTextView = new TextView(getContext());
-            keyTextView.setText(key);
-            keyTextView.setGravity(Gravity.START);
-            keyTextView.setPadding(8, 8, 8, 8);
+            TextView keyTv = new TextView(getContext());
+            keyTv.setGravity(Gravity.END);
+            keyTv.setText(key);
+            keyTv.setPadding(8, 8, 8, 8);
+            keyTv.setLayoutParams(cellLp);               // ⬅ 50 % of the row
 
-            // Create a TextView for the value (second column)
-            TextView valueTextView = new TextView(getContext());
-            valueTextView.setText(cv.getAsString(key));
-            valueTextView.setGravity(Gravity.START);
-            valueTextView.setPadding(8, 8, 8, 8);
+            TextView valueTv = new TextView(getContext());
+            valueTv.setText(cv.getAsString(key));
+            valueTv.setPadding(8, 8, 8, 8);
+            valueTv.setLayoutParams(cellLp);             // ⬅ 50 % of the row
 
-            // Add the TextViews to the TableRow
-            tableRow.addView(keyTextView);
-            tableRow.addView(valueTextView);
+            if (key.contains("tilt") && boldTiltValues) {
+                valueTv.setTypeface(valueTv.getTypeface(), Typeface.BOLD);
+            }
 
-            // Add the TableRow to the TableLayout
-            binding.tableCalibration.addView(tableRow);
+            if (key.contains("pan") && boldPanValues) {
+                valueTv.setTypeface(valueTv.getTypeface(), Typeface.BOLD);
+            }
+
+            row.addView(keyTv);
+            row.addView(valueTv);
+            table.addView(row);
         }
     }
 
+
     private void initializeDatabaseHelpers() {
-        calibrationDb = new CalibrationDB(mainActivity);
+        calibrationDb = CalibrationDB.get();
         presetDb = new CalibrationPresetDbHelper(mainActivity);
     }
 
@@ -185,11 +213,17 @@ public class CalibrationFragment extends Fragment {
 
     private void startCalibration() {
         resetCalibration();
-        calibrationRunnable = createCalibrationRunnable(0);
-        calibrationRunnable.start();
-        isCalibrating = true;
 
-        updateProgress();
+        (new CenterCommand(mainActivity.mBluetoothLeService)).run();
+
+        // wait for 300ms before kicking off the calibrationRunnable
+        new Handler(Looper.getMainLooper())
+                .postDelayed(() -> {
+                    calibrationRunnable = createCalibrationRunnable(0);
+                    calibrationRunnable.start();
+                    isCalibrating = true;
+                    updateProgress();
+                }, 300);
     }
 
     private void resetCalibration() {
@@ -205,55 +239,37 @@ public class CalibrationFragment extends Fragment {
 
         if (stage == 0) {
             return new CalibrationRunnable(
-                    "locked",
+                    "pan_only",
                     getJoySensitivity(),
-                    getJoyValue(),
-                    buildCalibrationCommandsLockedAxis(mainActivity.mBluetoothLeService, getJoyValue()),
+                    -getJoyValue(),
+                    buildCalibrationCommandsPanAxis(mainActivity.mBluetoothLeService, -getJoyValue(), 3500),
                     mainActivity.mBluetoothLeService,
                     calibrationListener
             );
         } else if (stage == 1) {
             return new CalibrationRunnable(
-                    "locked",
+                    "pan_only",
                     getJoySensitivity(),
-                    -getJoyValue(),
-                    buildCalibrationCommandsLockedAxis(mainActivity.mBluetoothLeService, -getJoyValue()),
+                    getJoyValue(),
+                    buildCalibrationCommandsPanAxis(mainActivity.mBluetoothLeService, getJoyValue(), 3500),
                     mainActivity.mBluetoothLeService,
                     calibrationListener
             );
         } else if (stage == 2) {
             return new CalibrationRunnable(
-                    "pan_only",
+                    "tilt_only",
                     getJoySensitivity(),
-                    getJoyValue(),
-                    buildCalibrationCommandsPanAxis(mainActivity.mBluetoothLeService, getJoyValue()),
+                    -getJoyValue(),
+                    buildCalibrationCommandsTiltAxis(mainActivity.mBluetoothLeService, -getJoyValue(), 3500),
                     mainActivity.mBluetoothLeService,
                     calibrationListener
             );
         } else if (stage == 3) {
             return new CalibrationRunnable(
-                    "pan_only",
-                    getJoySensitivity(),
-                    -getJoyValue(),
-                    buildCalibrationCommandsPanAxis(mainActivity.mBluetoothLeService, -getJoyValue()),
-                    mainActivity.mBluetoothLeService,
-                    calibrationListener
-            );
-        } else if (stage == 4) {
-            return new CalibrationRunnable(
                     "tilt_only",
                     getJoySensitivity(),
                     getJoyValue(),
-                    buildCalibrationCommandsTiltAxis(mainActivity.mBluetoothLeService, getJoyValue()),
-                    mainActivity.mBluetoothLeService,
-                    calibrationListener
-            );
-        } else if (stage == 5) {
-            return new CalibrationRunnable(
-                    "tilt_only",
-                    getJoySensitivity(),
-                    -getJoyValue(),
-                    buildCalibrationCommandsTiltAxis(mainActivity.mBluetoothLeService, -getJoyValue()),
+                    buildCalibrationCommandsTiltAxis(mainActivity.mBluetoothLeService, getJoyValue(), 3500),
                     mainActivity.mBluetoothLeService,
                     calibrationListener
             );
@@ -301,11 +317,11 @@ public class CalibrationFragment extends Fragment {
 
     private void updateProgress() {
         float progress = calculateProgress();
-        calibrationModel.mPercProgress.setValue((int) progress);
-        calibrationModel.mTextProgress.setValue(String.format("%d%%", (int) progress));
+        calibrationModel.mPercProgress.postValue((int) progress);
+        calibrationModel.mTextProgress.postValue(String.format("%d%%", (int) progress));
 
         String remainingTime = calculateRemainingTime(progress);
-        calibrationModel.mTextProgress.setValue(remainingTime);
+        calibrationModel.mTextProgress.postValue(remainingTime);
 
         updateProgressIndicators();
     }
@@ -321,7 +337,12 @@ public class CalibrationFragment extends Fragment {
 
         long minutes = remainingTimeMs / 60000;
         long seconds = (remainingTimeMs % 60000) / 1000;
-        return (minutes >= 1) ? minutes + " min" : seconds + " s";
+
+        if (progress > 0) {
+            return (minutes >= 1) ? minutes + " min" : seconds + " s";
+        } else {
+            return "...";
+        }
     }
 
     private void proceedToNextCalibration() {
@@ -339,7 +360,10 @@ public class CalibrationFragment extends Fragment {
 
         if (calibrationRunnable != null) {
             Log.d(TAG, "Starting calibration runnable");
-            calibrationRunnable.start();
+            new Thread(() -> {
+                // Background task
+                calibrationRunnable.start();
+            }).start();
         }
     }
 
@@ -380,13 +404,13 @@ public class CalibrationFragment extends Fragment {
         calibrationModel.mTextJoyVal.postValue("Joystick Value: " + getJoyValue());
     }
 
-    final Observer<byte[]> btCharacteristicPositionObserver = new Observer<byte[]>() {
-
+    /**
+     * Observer for Gimbal state updates
+     */
+    final Observer<Long> mFeyiuStateObserver = new Observer<Long>() {
         @SuppressLint("SetTextI18n")
         @Override
-        public void onChanged(@Nullable final byte[] value) {
-            FeyiuState.getInstance().update(value);
-
+        public void onChanged(Long timestamp) {
             String position = FeyiuState.getInstance().angle_tilt.posToString() + " | " +
                     FeyiuState.getInstance().angle_pan.posToString() + " | " +
                     FeyiuState.getInstance().angle_yaw.posToString();
@@ -399,33 +423,14 @@ public class CalibrationFragment extends Fragment {
         }
     };
 
-
-    public LinkedList<GimbalCommand> buildCalibrationCommandsLockedAxis(BluetoothLeService mBt, int mJoyVal) {
+    public LinkedList<GimbalCommand> buildCalibrationCommandsLockedAxis(BluetoothLeService mBt, int mJoyVal, int duration) {
         LinkedList<GimbalCommand> commandQueue = new LinkedList<>();
 
-        commandQueue.add(new StartCommand(mBt, mJoyVal));
+        commandQueue.add(new StartCommand(mBt, 0, mJoyVal));
 
-        for (int i = 0; i < 20; i++) {
-            commandQueue.add(new MoveCalibrationLockedCommand(mBt, mJoyVal));
-        }
+        int moveCommandCount = (int) Math.ceil((double) duration / FeyiuState.getInstance().getAverageUpdateIntervalMs());
 
-        commandQueue.add(new StopCommand(mBt));
-
-        for (int i = 0; i < 5; i++) {
-            commandQueue.add(new WaitCommand(mBt));
-        }
-
-        commandQueue.add(new FinaliseCommand(mBt));
-
-        return commandQueue;
-    }
-
-    public LinkedList<GimbalCommand> buildCalibrationCommandsPanAxis(BluetoothLeService mBt, int mJoyVal) {
-        LinkedList<GimbalCommand> commandQueue = new LinkedList<>();
-
-        commandQueue.add(new StartCommand(mBt, mJoyVal));
-
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < moveCommandCount; i++) {
             commandQueue.add(new MoveCalibrationCommand(mBt, mJoyVal, 0));
         }
 
@@ -440,12 +445,36 @@ public class CalibrationFragment extends Fragment {
         return commandQueue;
     }
 
-    public LinkedList<GimbalCommand> buildCalibrationCommandsTiltAxis(BluetoothLeService mBt, int mJoyVal) {
+    public LinkedList<GimbalCommand> buildCalibrationCommandsPanAxis(BluetoothLeService mBt, int mJoyVal, int duration) {
         LinkedList<GimbalCommand> commandQueue = new LinkedList<>();
 
-        commandQueue.add(new StartCommand(mBt, mJoyVal));
+        commandQueue.add(new StartCommand(mBt, mJoyVal, 0));
 
-        for (int i = 0; i < 20; i++) {
+        int moveCommandCount = (int) Math.ceil((double) duration / FeyiuState.getInstance().getAverageUpdateIntervalMs());
+
+        for (int i = 0; i < moveCommandCount; i++) {
+            commandQueue.add(new MoveCalibrationCommand(mBt, mJoyVal, 0));
+        }
+
+        commandQueue.add(new StopCommand(mBt));
+
+        for (int i = 0; i < 5; i++) {
+            commandQueue.add(new WaitCommand(mBt));
+        }
+
+        commandQueue.add(new FinaliseCommand(mBt));
+
+        return commandQueue;
+    }
+
+    public LinkedList<GimbalCommand> buildCalibrationCommandsTiltAxis(BluetoothLeService mBt, int mJoyVal, int duration) {
+        LinkedList<GimbalCommand> commandQueue = new LinkedList<>();
+
+        commandQueue.add(new StartCommand(mBt, 0, mJoyVal));
+
+        int moveCommandCount = (int) Math.ceil((double) duration / FeyiuState.getInstance().getAverageUpdateIntervalMs());
+
+        for (int i = 0; i < moveCommandCount; i++) {
             commandQueue.add(new MoveCalibrationCommand(mBt, 0, mJoyVal));
         }
 

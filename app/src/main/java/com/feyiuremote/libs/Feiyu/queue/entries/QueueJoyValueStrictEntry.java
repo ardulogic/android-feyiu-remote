@@ -1,12 +1,11 @@
 package com.feyiuremote.libs.Feiyu.queue.entries;
 
 
-import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueue;
 import com.feyiuremote.libs.Feiyu.queue.commands.JoyCommandStrictlyTimed;
 
-public class QueueJoyStateStrictEntry extends QueueJoyStateEntry {
+public class QueueJoyValueStrictEntry extends QueueJoyValueEntry {
 
-    public QueueJoyStateStrictEntry(JoyCommandStrictlyTimed cmd) {
+    public QueueJoyValueStrictEntry(JoyCommandStrictlyTimed cmd) {
         super(cmd.getPanJoy(), cmd.getTiltJoy(), cmd.startTime);
 
         cmd.updateStartTime(cmd.startTime);

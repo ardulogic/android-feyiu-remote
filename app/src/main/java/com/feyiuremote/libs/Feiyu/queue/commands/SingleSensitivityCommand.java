@@ -1,13 +1,13 @@
 package com.feyiuremote.libs.Feiyu.queue.commands;
 
-import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueue;
+import com.feyiuremote.libs.Feiyu.Axes;
 
 public class SingleSensitivityCommand extends SingleCommand {
 
-    public FeyiuCommandQueue.Axis axis;
+    public Axes.Axis axis;
     public Integer value;
 
-    public SingleSensitivityCommand(FeyiuCommandQueue.Axis axis, Integer value) {
+    public SingleSensitivityCommand(Axes.Axis axis, Integer value) {
         super();
 
         this.axis = axis;

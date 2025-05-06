@@ -13,6 +13,12 @@ public class FeyiuUtils {
         return "a55a03047200000100017ee0";
     }
 
+
+    /**
+     * WANT TO CAPTURE MORE COMMANDS?
+     * Use your phone with wireshark, select "Android Snooper"
+     */
+
     /**
      * | SpdX  | SpdY | CRC
      * a55a03000e0000050000 | 5d00  | 0000 | 7109
@@ -35,6 +41,22 @@ public class FeyiuUtils {
                 + intToTwoByteReversedHex(0);
 
         return FeyiuCrc.calc(hex);
+    }
+
+    public static String center() {
+        return "a55a03023320000100023c56";
+    }
+
+    public static String setModeAsSmooth() {
+        return "a55a0302302000010001bfa8";
+    }
+
+    public static String setModeAsNormal() {
+        return "a55a03023020000100009eb8";
+    }
+
+    public static String setModeAsMotion() {
+        return "a55a0302302000010002dc98";
     }
 
     /**

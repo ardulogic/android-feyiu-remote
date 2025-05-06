@@ -12,8 +12,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
-import androidx.lifecycle.MutableLiveData;
-
 import java.util.ArrayList;
 
 public class BluetoothLeUpdateReceiver extends BroadcastReceiver {
@@ -110,11 +108,7 @@ public class BluetoothLeUpdateReceiver extends BroadcastReceiver {
 
             case BluetoothLeService.ACTION_GATT_CHARACTERISTIC_UPDATE:
                 String id = intent.getStringExtra(EXTRA_ID);
-                if (model.characteristics.containsKey(id)) {
-                    model.characteristics.get(id).setValue(intent.getByteArrayExtra(EXTRA_DATA));
-                } else {
-                    model.characteristics.put(id, new MutableLiveData<byte[]>(intent.getByteArrayExtra(EXTRA_DATA)));
-                }
+                model.onCharacteristicsUpdate(id, intent.getByteArrayExtra(EXTRA_DATA));
         }
 
         if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {

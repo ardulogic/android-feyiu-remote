@@ -12,8 +12,8 @@ import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 public class MoveCalibrationCommand extends GimbalCommand {
 
     private static final String TAG = MoveCalibrationCommand.class.getSimpleName();
-    private int tilt;
-    private int pan;
+    public int tilt;
+    public int pan;
 
     public MoveCalibrationCommand(BluetoothLeService bt, int joy_pan_value, int joy_tilt_value) {
         super(bt);
@@ -36,6 +36,8 @@ public class MoveCalibrationCommand extends GimbalCommand {
         mBt.send(FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
                 FeyiuUtils.move(pan, tilt)
         );
+
+        log();
     }
 
     public void log() {

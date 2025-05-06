@@ -2,6 +2,7 @@ package com.feyiuremote.ui.camera.waypoints;
 
 import android.graphics.Bitmap;
 
+import java.util.Objects;
 import java.util.UUID;
 
 public class Waypoint {
@@ -53,6 +54,29 @@ public class Waypoint {
     public Waypoint() {
         // Used for deserializing
         this.setId();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Waypoint)) return false;
+
+        Waypoint w = (Waypoint) o;
+
+        // Compare only the fields that define “content” for UI-diffing.
+        // Exclude transient Bitmap + `active` flag because they change often
+        // and Bitmap equality is heavy / undefined.
+        return angleSpeed == w.angleSpeed &&
+                dwellTimeMs == w.dwellTimeMs &&
+                Double.compare(w.anglePan, anglePan) == 0 &&
+                Double.compare(w.angleTilt, angleTilt) == 0 &&
+                Objects.equals(id, w.id) &&
+                Objects.equals(focusPoint, w.focusPoint);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, anglePan, angleTilt, angleSpeed, dwellTimeMs, focusPoint);
     }
 
     public void setId() {

@@ -2,6 +2,7 @@ package com.feyiuremote.ui.camera;
 
 import android.annotation.SuppressLint;
 import android.os.Bundle;
+import android.text.Html;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -22,10 +23,10 @@ import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCameraDiscovery;
 import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
-import com.feyiuremote.libs.Feiyu.FeyiuControls;
-import com.feyiuremote.libs.Feiyu.FeyiuUtils;
+import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueue;
 import com.feyiuremote.libs.LiveStream.abstracts.FrameProcessor;
+import com.feyiuremote.ui.SafeNav;
 import com.feyiuremote.ui.camera.listeners.CameraControlClickListener;
 import com.feyiuremote.ui.camera.listeners.CameraDiscoveryListener;
 import com.feyiuremote.ui.camera.listeners.CameraFocusClickListener;
@@ -35,7 +36,6 @@ import com.feyiuremote.ui.camera.models.CameraViewModel;
 import com.feyiuremote.ui.camera.models.CameraWaypointsViewModel;
 import com.feyiuremote.ui.camera.observers.BluetoothConnectivityObserver;
 import com.feyiuremote.ui.camera.observers.BluetoothEnabledObserver;
-import com.feyiuremote.ui.camera.observers.BluetoothGimbalPositionObserver;
 import com.feyiuremote.ui.camera.observers.CameraFocusObserver;
 import com.feyiuremote.ui.camera.observers.CameraObserver;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -53,6 +53,7 @@ public class CameraFragment extends Fragment {
     private CameraWaypointsViewModel waypointsModel;
     private BluetoothViewModel mBluetoothViewModel;
     private NavController cameraNavController;
+    private PanasonicCameraDiscovery cameraDiscovery;
 
 
     @SuppressLint("SetTextI18n")
@@ -62,18 +63,6 @@ public class CameraFragment extends Fragment {
         mainActivity = (MainActivity) getActivity();
         binding = FragmentCameraBinding.inflate(inflater, container, false);
 
-
-        // This MUST be NavHostFragment, not just Fragment.
-        NavHostFragment navHostFragment = (NavHostFragment)
-                getChildFragmentManager().findFragmentById(R.id.nav_host_fragment_camera);
-
-        // Obtain the NavController
-        cameraNavController = navHostFragment.getNavController();
-
-        BottomNavigationView cameraBottomNav = binding.cameraBottomNav;
-        NavigationUI.setupWithNavController(cameraBottomNav, cameraNavController);
-
-//        FeyiuControls.init(mainActivity.mBluetoothLeService);
         FeyiuCommandQueue.assignBluetoothService(mainActivity.mBluetoothLeService);
 
         cameraViewModel = new ViewModelProvider(requireActivity()).get(CameraViewModel.class);
@@ -89,8 +78,7 @@ public class CameraFragment extends Fragment {
         waypointsModel = new ViewModelProvider(requireActivity()).get(CameraWaypointsViewModel.class);
         waypointsModel.debugMessage.observe(getViewLifecycleOwner(), s -> binding.textDebug.setText(s));
 
-        mBluetoothViewModel.characteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)
-                .observe(getViewLifecycleOwner(), new BluetoothGimbalPositionObserver(binding));
+        mBluetoothViewModel.feyiuStateUpdated.observe(getViewLifecycleOwner(), mFeyiuStateObserver);
 
         binding.buttonCameraConnect.setOnClickListener(view -> {
             if (cameraViewModel.streamIsStarted()) {
@@ -121,14 +109,38 @@ public class CameraFragment extends Fragment {
             connectToCamera();
         }
 
+        NavHostFragment navHost =
+                (NavHostFragment) getChildFragmentManager()
+                        .findFragmentById(R.id.nav_host_fragment_camera);
+        NavController nav = navHost.getNavController();
+
+        // --- replace NavigationUI’s default click handler ----------------------
+        BottomNavigationView bnv = binding.cameraBottomNav;
+        NavigationUI.setupWithNavController(bnv, nav);   // keeps icons & titles in sync
+        bnv.setOnItemSelectedListener(item -> {
+            SafeNav.to(nav, item.getItemId());           // our guarded call
+            return true;
+        });
+
+
         return binding.getRoot();
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        Log.w(TAG, "Camera fragment resume!");
+    }
+
     private void connectToCamera() {
-        PanasonicCameraDiscovery cameraDiscovery = new PanasonicCameraDiscovery(mainActivity.executor);
+        if (cameraDiscovery == null) {
+            cameraDiscovery = new PanasonicCameraDiscovery(mainActivity.executor);
+        }
 
         cameraDiscovery.clear();
-        cameraDiscovery.search(getContext(), new CameraDiscoveryListener(cameraViewModel, this::startLiveView, this::connectToCamera));
+        // getContext() can be null on other tabs!
+        cameraDiscovery.search(mainActivity, new CameraDiscoveryListener(cameraViewModel, this::startLiveView, this::connectToCamera));
     }
 
     public void startLiveView() {
@@ -164,6 +176,29 @@ public class CameraFragment extends Fragment {
         return null;
     }
 
+
+    /**
+     * Observer for Gimbal state updates
+     */
+    final Observer<Long> mFeyiuStateObserver = new Observer<Long>() {
+        @SuppressLint("SetTextI18n")
+        @Override
+        public void onChanged(Long timestamp) {
+            binding.textGimbalSpeeds.setText(String.format("%s, %s, %s",
+                    FeyiuState.getInstance().angle_pan.speedToString(),
+                    FeyiuState.getInstance().angle_tilt.speedToString(),
+                    FeyiuState.getInstance().angle_yaw.speedToString())
+            );
+
+
+            binding.textGimbalAngles.setText(Html.fromHtml(String.format("%s, %s, %s",
+                    FeyiuState.getInstance().angle_pan.posToString(),
+                    FeyiuState.getInstance().angle_tilt.posToString(),
+                    FeyiuState.getInstance().angle_yaw.posToString())
+            ));
+        }
+    };
+
     /**
      * Rebind existing live stream to newly created fragment
      */
@@ -177,6 +212,11 @@ public class CameraFragment extends Fragment {
     }
 
     public void stopLiveView() {
+        CameraLiveFeedReceiver feedReceiver = cameraViewModel.liveFeedReceiver.getValue();
+        if (feedReceiver != null) {
+            feedReceiver.onStop("Fragment has been destroyed.");
+        }
+
         PanasonicCamera camera = cameraViewModel.camera.getValue();
 
         if (camera != null && camera.getLiveView() != null) {
@@ -186,17 +226,12 @@ public class CameraFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
-        cancelAll();
-
         super.onDestroyView();
-        binding = null;
+        cancelAll();
     }
 
     private void cancelAll() {
-        CameraLiveFeedReceiver feedReceiver = cameraViewModel.liveFeedReceiver.getValue();
-        if (feedReceiver != null) {
-            feedReceiver.onStop("Fragment has been destroyed.");
-        }
+        stopLiveView();
     }
 
     class CameraControlListener implements ICameraControlListener {

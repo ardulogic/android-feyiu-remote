@@ -10,6 +10,7 @@ import android.util.Log;
 import com.feyiuremote.libs.Utils.Networks;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
@@ -47,6 +48,10 @@ public class SSDPConnection {
         this.context = context;
         this.executor = executor;
         this.network = Networks.getWifiNetwork(context);
+
+        if (this.network == null) {
+            throw new RuntimeException("No network!");
+        }
     }
 
     public void inquire(ISSDPDiscoveryListener listener) {
@@ -95,6 +100,8 @@ public class SSDPConnection {
                 for (String response : responses) {
                     listener.onDeviceFound(response);
                 }
+            } catch (ConnectException e) {
+                listener.onFailure("SSDP - No network, socket closed!");
             } catch (Exception e) {
                 if (socket != null && !socket.isClosed()) {
                     socket.close();
@@ -170,10 +177,15 @@ public class SSDPConnection {
     }
 
     private DatagramSocket getDatagramSocket() throws SocketException {
+        if (network == null) {
+            throw new ConnectException("There is no network!");
+        }
+
         Log.d(TAG, "Creating SSDP socket");
 
         DatagramSocket socket = new DatagramSocket();
         socket.setReuseAddress(true);
+
         try {
             network.bindSocket(socket);
         } catch (IOException e) {

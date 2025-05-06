@@ -2,12 +2,12 @@ package com.feyiuremote.libs.Feiyu.queue.entries;
 
 
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
+import com.feyiuremote.libs.Feiyu.Axes;
 import com.feyiuremote.libs.Feiyu.controls.commands.GimbalCommand;
 import com.feyiuremote.libs.Feiyu.controls.commands.MoveCommand;
-import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueue;
 import com.feyiuremote.libs.Feiyu.queue.commands.JoyCommand;
 
-public abstract class QueueJoyStateEntry extends QueueEntry {
+public abstract class QueueJoyValueEntry extends QueueEntry {
 
     public Integer panJoyValue;
     public Integer tiltJoyValue;
@@ -15,7 +15,7 @@ public abstract class QueueJoyStateEntry extends QueueEntry {
     public boolean isMerged = false;
     public boolean isMergedWithPrevious = false;
 
-    public QueueJoyStateEntry(Integer panJoy, Integer tiltJoy, Long timeExecutes) {
+    public QueueJoyValueEntry(Integer panJoy, Integer tiltJoy, Long timeExecutes) {
         super(timeExecutes);
 
         panJoyValue = panJoy;
@@ -31,7 +31,7 @@ public abstract class QueueJoyStateEntry extends QueueEntry {
     }
 
 
-    public void mergeWith(QueueJoyStateEntry entry) {
+    public void mergeWith(QueueJoyValueEntry entry) {
         if (entry.panJoyValue != null) {
             panJoyValue = entry.panJoyValue;
         }
@@ -43,7 +43,7 @@ public abstract class QueueJoyStateEntry extends QueueEntry {
         this.isMerged = true;
     }
 
-    public void copyInitialValuesFrom(QueueJoyStateEntry entry) {
+    public void copyInitialValuesFrom(QueueJoyValueEntry entry) {
         if (panJoyValue == null) {
             panJoyValue = entry.panJoyValue;
         }
@@ -60,18 +60,18 @@ public abstract class QueueJoyStateEntry extends QueueEntry {
         overwriteWith(cmd.axis, cmd.value);
     }
 
-    public void overwriteWith(FeyiuCommandQueue.Axis axis, Integer value) {
-        if (axis == FeyiuCommandQueue.Axis.PAN) {
+    public void overwriteWith(Axes.Axis axis, Integer value) {
+        if (axis == Axes.Axis.PAN) {
             this.panJoyValue = value;
         }
 
-        if (axis == FeyiuCommandQueue.Axis.TILT) {
+        if (axis == Axes.Axis.TILT) {
             this.tiltJoyValue = value;
         }
     }
 
-    public boolean axisHasNoValue(FeyiuCommandQueue.Axis axis) {
-        if (axis == FeyiuCommandQueue.Axis.PAN) {
+    public boolean axisHasNoValue(Axes.Axis axis) {
+        if (axis == Axes.Axis.PAN) {
             return this.panJoyValue == null;
         } else {
             return this.tiltJoyValue == null;

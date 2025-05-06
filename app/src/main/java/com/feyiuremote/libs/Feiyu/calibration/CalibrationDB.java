@@ -10,7 +10,6 @@ import android.util.Log;
 
 import com.feyiuremote.libs.Database.SQLiteTableWrapper;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
-import com.feyiuremote.libs.Utils.Debugger;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,11 +18,19 @@ import java.util.regex.Pattern;
 
 public class CalibrationDB extends SQLiteTableWrapper {
     private final String TAG = CalibrationDB.class.getSimpleName();
-    public static final int PAN_ONLY = 1;
-    public static final int TILT_ONLY = 2;
-    public static final int LOCKED = 0;
+
     public static final String AXIS_PAN = "pan";
     public static final String AXIS_TILT = "tilt";
+
+    public static CalibrationDB instance;
+
+    public static void init(Context context) {
+        instance = new CalibrationDB(context);
+    }
+
+    public static CalibrationDB get() {
+        return instance;
+    }
 
     public CalibrationDB(Context context) {
         super(context);
@@ -49,14 +56,14 @@ public class CalibrationDB extends SQLiteTableWrapper {
 
                 + "pan_speed Double not null,"
                 + "pan_angle_overshoot Double not null,"
-                + "pan_angle_diff Double not null,"
 
-                + "tilt_speed Double Double null,"
+                + "tilt_speed Double not null,"
                 + "tilt_angle_overshoot Double not null,"
-                + "tilt_angle_diff Double not null,"
 
                 + "dir int not null,"
-                + "time_ms int not null"
+                + "time_to_accel int not null,"
+                + "pan_angle_to_accel Double not null,"
+                + "tilt_angle_to_accel Double not null"
                 + ");"
 
                 // Add indexes for optimization
@@ -95,9 +102,9 @@ public class CalibrationDB extends SQLiteTableWrapper {
     @Override
     public String[] getColumnNames() {
         return new String[]{"_id", "preset", "pan_only", "tilt_only", "locked", "joy_sens", "joy_val",
-                "pan_speed", "pan_angle_overshoot", "pan_angle_diff",
-                "tilt_speed", "tilt_angle_overshoot", "tilt_angle_diff",
-                "dir", "time_ms"
+                "pan_speed", "pan_angle_overshoot",
+                "tilt_speed", "tilt_angle_overshoot",
+                "dir", "time_to_accel", "pan_angle_to_accel", "tilt_angle_to_accel"
         };
     }
 
@@ -114,12 +121,13 @@ public class CalibrationDB extends SQLiteTableWrapper {
         row.put("joy_val", c.getInt(6));
         row.put("pan_speed", c.getDouble(7));
         row.put("pan_angle_overshoot", c.getDouble(8));
-        row.put("pan_angle_diff", c.getDouble(9));
         row.put("tilt_speed", c.getDouble(10));
         row.put("tilt_angle_overshoot", c.getDouble(11));
-        row.put("tilt_angle_diff", c.getDouble(12));
         row.put("dir", c.getInt(13));
-        row.put("time_ms", c.getInt(14));
+        row.put("time_to_accel", c.getInt(14));
+        row.put("pan_angle_to_accel", c.getInt(15));
+        row.put("tilt_angle_to_accel", c.getInt(16));
+
 
         return row;
     }

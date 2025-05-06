@@ -1,11 +1,9 @@
 package com.feyiuremote.libs.Feiyu;
 
-import android.util.Log;
+import androidx.annotation.NonNull;
 
 import java.util.ArrayList;
 import java.util.Optional;
-
-import androidx.annotation.NonNull;
 
 public class FeyiuAngle {
     private final static String TAG = FeyiuAngle.class.getSimpleName();
@@ -20,6 +18,8 @@ public class FeyiuAngle {
 
     // This angle is calculated accounting full rotations
     private float last_true_angle = 0;
+
+    private boolean isStationary = true;
 
     private ArrayList<DataPoint> history = new ArrayList<>();
     private final int HISTORY_LEN = 5;
@@ -86,6 +86,10 @@ public class FeyiuAngle {
         return s;
     }
 
+    public boolean isStationary() {
+        return isStationary;
+    }
+
     public String speedToString() {
         return Optional.ofNullable(speed()).map(speed -> {
                     return String.format("%.1f°", speed() * 1000);
@@ -94,6 +98,13 @@ public class FeyiuAngle {
     }
 
     public void addToHistory(long timestamp, float angle) {
+        if (!history.isEmpty()) {
+            float lastAngle = history.get(history.size() - 1).value;
+            isStationary = Math.abs(lastAngle - angle) < 0.1;
+        } else {
+            isStationary = false;
+        }
+
         history.add(new DataPoint(timestamp, angle));
 
         if (history.size() > HISTORY_LEN) {

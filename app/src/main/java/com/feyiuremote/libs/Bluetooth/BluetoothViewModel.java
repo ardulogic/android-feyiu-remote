@@ -1,18 +1,16 @@
 package com.feyiuremote.libs.Bluetooth;
 
 import android.bluetooth.le.ScanResult;
-import android.os.Handler;
-import android.os.Looper;
 
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
-import com.feyiuremote.ui.gimbal.GimbalEmulator;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Objects;
 
 public class BluetoothViewModel extends ViewModel {
 
@@ -25,9 +23,10 @@ public class BluetoothViewModel extends ViewModel {
     public final MutableLiveData<Boolean> enabled;
     public final MutableLiveData<Boolean> services_discovered;
 
-    public final HashMap<String, MutableLiveData<byte[]>> characteristics;
+    private final HashMap<String, MutableLiveData<byte[]>> characteristics;
 
     public final MutableLiveData<Boolean> isEmulated = new MutableLiveData<>();
+    public final MutableLiveData<Long> feyiuStateUpdated = new MutableLiveData<>();
 
 //    public final List<String> CHARACTERISTIC_IDS = new List<String>(){"0000ff02-0000-1000-8000-00805f9b34fb"};
 
@@ -55,8 +54,23 @@ public class BluetoothViewModel extends ViewModel {
      */
     public void registerCharacteristic(String id) {
         if (!this.characteristics.containsKey(id)) {
-            this.characteristics.put(id, new MutableLiveData<>());
+            characteristics.putIfAbsent(id, new MutableLiveData<>());
         }
     }
 
+    public void onCharacteristicsUpdate(String id, byte[] bytes) {
+        if (characteristics.containsKey(id)) {
+            characteristics.get(id).postValue(bytes);
+        } else {
+            characteristics.put(id, new MutableLiveData<byte[]>(bytes));
+        }
+
+        // Don't want to update the feyiuInstance left and right, centralized updated instead.
+        if (Objects.equals(id, FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID)) {
+            FeyiuState.getInstance().update(bytes);
+
+            // This can be safely observed from wherever
+            feyiuStateUpdated.setValue(System.currentTimeMillis()); // or use postValue from background thread
+        }
+    }
 }

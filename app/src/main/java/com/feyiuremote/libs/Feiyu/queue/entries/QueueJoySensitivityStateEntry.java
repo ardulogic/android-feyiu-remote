@@ -2,18 +2,18 @@ package com.feyiuremote.libs.Feiyu.queue.entries;
 
 
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
+import com.feyiuremote.libs.Feiyu.Axes;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.controls.commands.GimbalCommand;
 import com.feyiuremote.libs.Feiyu.controls.commands.SetJoySensitivityCommand;
-import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueue;
 import com.feyiuremote.libs.Feiyu.queue.commands.SingleSensitivityCommand;
 
-public class QueueSensitivityStateEntry extends QueueEntry {
+public class QueueJoySensitivityStateEntry extends QueueEntry {
 
-    public FeyiuCommandQueue.Axis axis;
+    public Axes.Axis axis;
     public Integer value;
 
-    public QueueSensitivityStateEntry(SingleSensitivityCommand cmd) {
+    public QueueJoySensitivityStateEntry(SingleSensitivityCommand cmd) {
         super(cmd.startTime);
 
         this.axis = cmd.axis;
@@ -30,7 +30,7 @@ public class QueueSensitivityStateEntry extends QueueEntry {
     }
 
     public boolean needsToExecute() {
-        if (this.axis == FeyiuCommandQueue.Axis.PAN) {
+        if (this.axis == Axes.Axis.PAN) {
             return this.value != FeyiuState.joy_sens_pan;
         } else {
             return this.value != FeyiuState.joy_sens_tilt;

@@ -6,11 +6,9 @@ import android.os.Looper;
 import android.util.Log;
 
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
+import com.feyiuremote.libs.Feiyu.Axes;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
-import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
-import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueue;
-import com.feyiuremote.libs.Feiyu.queue.debug.GimbalEmulatorDebugger;
 
 public class GimbalEmulator {
     private static final String TAG = GimbalEmulator.class.getSimpleName();
@@ -35,18 +33,24 @@ public class GimbalEmulator {
 
     private static boolean overshootEnabled = true;
 
-    public static void init(CalibrationDB db, BluetoothViewModel btViewModel) {
-        calDB = db;
+    public static void init(BluetoothViewModel btViewModel) {
+        calDB = CalibrationDB.get();
+        if (calDB == null) {
+            throw new RuntimeException("Please provide CalibrationDB!");
+        }
+
         btModel = btViewModel;
 
         btModel.connected.setValue(true);
 
-        btModel.characteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID).postValue(new byte[]{});
         FeyiuState.getInstance().angle_pan.update(0);
         FeyiuState.getInstance().angle_tilt.update(0);
         FeyiuState.getInstance().angle_yaw.update(0);
         FeyiuState.getInstance().last_update = System.currentTimeMillis();
         FeyiuState.getInstance().update(panSens, tiltSens);
+
+        btModel.feyiuStateUpdated.postValue(System.currentTimeMillis());
+        Log.w("WhoIsCallingUpdate", "Emulator");
 
     }
 
@@ -99,8 +103,6 @@ public class GimbalEmulator {
         simulatePanAngle();
         simulateTiltAngle();
 
-
-        btModel.characteristics.get(FeyiuUtils.NOTIFICATION_CHARACTERISTIC_ID).postValue(new byte[]{});
         FeyiuState.getInstance().angle_pan.update((int) (Math.round(pan_angle * 100)));
         FeyiuState.getInstance().angle_tilt.update((int) (Math.round(tilt_angle * 100)));
         FeyiuState.getInstance().angle_yaw.update(0);
@@ -108,6 +110,8 @@ public class GimbalEmulator {
 
         last_pan_update = System.currentTimeMillis();
         last_tilt_update = System.currentTimeMillis();
+
+        btModel.feyiuStateUpdated.postValue(System.currentTimeMillis());
     }
 
     public static long timeSinceLastPanUpdate() {
@@ -149,8 +153,8 @@ public class GimbalEmulator {
         return null;
     }
 
-    public static void setJoySensitivity(FeyiuCommandQueue.Axis axis, int value) {
-        if (axis == FeyiuCommandQueue.Axis.PAN) {
+    public static void setJoySensitivity(Axes.Axis axis, int value) {
+        if (axis == Axes.Axis.PAN) {
             setPanSensitivity(value);
         } else {
             setTiltSensitivity(value);
@@ -173,13 +177,12 @@ public class GimbalEmulator {
     }
 
     public static void setPanJoy(int value) {
+        FeyiuState.joy_val_pan = value;
+
         if (value == panJoy) return;
 
         logD("Seting pan joy (" + panJoy + ") to: " + value);
         simulatePanAngle();
-
-        GimbalEmulatorDebugger.onPanEnd(pan_angle);
-
 
         if (overshootEnabled) {
             if (panJoy != 0 && value == 0) {
@@ -193,19 +196,15 @@ public class GimbalEmulator {
 
         panJoy = value;
         FeyiuState.joy_val_pan = panJoy;
-
-        if (value != 0) {
-            GimbalEmulatorDebugger.onPanValuesSet(getPanCal().getAsDouble("pan_speed"));
-        }
     }
 
     public static void setTiltJoy(int value) {
+        FeyiuState.joy_val_tilt = value;
+
         if (value == tiltJoy) return;
 
         logD("Setting tilt joy (" + tiltJoy + ") to: " + value);
         simulateTiltAngle();
-
-        GimbalEmulatorDebugger.onTiltEnd(tilt_angle);
 
         if (overshootEnabled) {
             if (tiltJoy != 0 && value == 0) {
@@ -220,10 +219,6 @@ public class GimbalEmulator {
         tiltJoy = value;
 
         FeyiuState.joy_val_tilt = tiltJoy;
-
-        if (value != 0) {
-            GimbalEmulatorDebugger.onTiltValuesSet(getTiltCal().getAsDouble("tilt_speed"));
-        }
     }
 
 

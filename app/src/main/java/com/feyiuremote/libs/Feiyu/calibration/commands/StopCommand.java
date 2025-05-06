@@ -18,6 +18,8 @@ public class StopCommand extends GimbalCommand {
         mBt.send(FeyiuUtils.SERVICE_ID, FeyiuUtils.CONTROL_CHARACTERISTIC_ID,
                 FeyiuUtils.move(0, 0)
         );
+
+        log();
     }
 
     @Override

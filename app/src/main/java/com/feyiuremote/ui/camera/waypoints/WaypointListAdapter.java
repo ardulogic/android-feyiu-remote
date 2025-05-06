@@ -4,13 +4,19 @@ import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.InputType;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TableLayout;
+import android.widget.TableRow;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -22,7 +28,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.feyiuremote.R;
 import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
-import com.feyiuremote.ui.camera.models.CameraViewModel;
 import com.feyiuremote.ui.camera.models.CameraWaypointsViewModel;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.gson.Gson;
@@ -35,13 +40,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 
 public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapter.ItemViewHolder> implements ItemTouchHelperAdapter {
-    private final String TAG = WaypointListAdapter.class.getSimpleName();
+    private final String TAG = WaypointListAdapterNew.class.getSimpleName();
     private static final String PREF_KEY_WAYPOINT_LIST = "saved_waypoints";
 
     private final Context context;
@@ -58,6 +62,9 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
     private boolean waiting = false;
 
     private ScheduledFuture<?> autosaveScheduledFuture;
+
+    private final Handler main = new Handler(Looper.getMainLooper());
+
 
     @SuppressLint("NotifyDataSetChanged")
     public WaypointListAdapter(Context context, LifecycleOwner lifecycleOwner, CameraWaypointsViewModel viewModel) {
@@ -100,12 +107,10 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
 
     private void waitForFragment() {
         waiting = true;
-
-        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-        executor.schedule(() -> {
+        main.postDelayed(() -> {
             waiting = false;
-            triggerWaypointObserver();
-        }, 500, TimeUnit.MILLISECONDS);
+            triggerWaypointObserver();   // ← already on main
+        }, 300);
     }
 
     private void loadWaypointsInBackground() {
@@ -135,6 +140,43 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
         return new ItemViewHolder(view);
     }
 
+    // Helper method to create a table row with a label and EditText
+    TableRow createTableRow(String labelText, EditText editText) {
+        TableRow row = new TableRow(context);
+
+        TextView label = new TextView(context);
+        label.setText(labelText);
+        label.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        label.setPadding(0, 10, 10, 50);
+
+        // Set layout parameters with vertical centering for label
+        TableRow.LayoutParams labelParams = new TableRow.LayoutParams(
+                TableRow.LayoutParams.WRAP_CONTENT,
+                TableRow.LayoutParams.WRAP_CONTENT
+        );
+        labelParams.gravity = Gravity.CENTER_VERTICAL;
+        label.setLayoutParams(labelParams);
+
+        editText.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        editText.setBackground(null);
+        editText.setPadding(10, 0, 10, 50);
+        editText.setMinEms(5);
+        editText.setTextSize(24);
+        editText.setSingleLine(true);
+
+        // Set layout parameters with vertical centering for EditText
+        TableRow.LayoutParams editTextParams = new TableRow.LayoutParams(
+                TableRow.LayoutParams.MATCH_PARENT,
+                TableRow.LayoutParams.WRAP_CONTENT
+        );
+        editTextParams.gravity = Gravity.CENTER_VERTICAL;
+        editText.setLayoutParams(editTextParams);
+
+        row.addView(label);
+        row.addView(editText);
+        return row;
+    }
+
     @SuppressLint("DefaultLocale")
     @Override
     public void onBindViewHolder(@NonNull ItemViewHolder holder, int position) {
@@ -157,28 +199,55 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
 
         // Adding long click listener for dwell time input
         holder.buttonGoTo.setOnLongClickListener(view -> {
-            // Create an EditText for input
-            EditText input = new EditText(view.getContext());
+            Context context = view.getContext();
 
-            // Pre-populate with the current dwell time (assuming 'item' is available in your adapter)
-            input.setText(String.valueOf(item.dwellTimeMs));
+            // Create the TableLayout
+            TableLayout tableLayout = new TableLayout(context);
+            tableLayout.setStretchAllColumns(true);
+            tableLayout.setPadding(50, 40, 50, 10);
+            tableLayout.setGravity(Gravity.CENTER);
 
-            // Create an AlertDialog to input the dwell time
-            new AlertDialog.Builder(view.getContext()).setTitle("Set Dwell Time").setMessage("How long do you want the camera to stay at this waypoint?").setView(input) // Set the EditText as the dialog view
+            // Create and pre-populate inputs
+            EditText dwellTimeInput = new EditText(context);
+            dwellTimeInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+            dwellTimeInput.setText(String.valueOf(item.dwellTimeMs));
+
+            EditText panAngleInput = new EditText(context);
+            panAngleInput.setInputType(InputType.TYPE_NUMBER_FLAG_SIGNED | InputType.TYPE_CLASS_NUMBER);
+            panAngleInput.setText(String.format("%.2f", item.anglePan));
+
+            EditText tiltAngleInput = new EditText(context);
+            tiltAngleInput.setInputType(InputType.TYPE_NUMBER_FLAG_SIGNED | InputType.TYPE_CLASS_NUMBER);
+            tiltAngleInput.setText(String.format("%.2f", item.angleTilt));
+
+            // Add rows to the table
+            tableLayout.addView(createTableRow("Dwell time (ms):", dwellTimeInput));
+            tableLayout.addView(createTableRow("Pan angle (°):", panAngleInput));
+            tableLayout.addView(createTableRow("Tilt angle (°):", tiltAngleInput));
+
+            // Build and show AlertDialog
+            new AlertDialog.Builder(context)
+                    .setTitle("Set Waypoint Parameters")
+                    .setView(tableLayout)
                     .setPositiveButton("OK", (dialog, whichButton) -> {
-                        // Parse and set the dwell time
                         try {
-                            int dwellTime = Integer.parseInt(input.getText().toString());
-                            item.dwellTimeMs = dwellTime;  // Update the dwell time
+                            int dwellTime = Integer.parseInt(dwellTimeInput.getText().toString());
+                            double panAngle = Double.parseDouble(panAngleInput.getText().toString());
+                            double tiltAngle = Double.parseDouble(tiltAngleInput.getText().toString());
+
+                            item.dwellTimeMs = dwellTime;
+                            item.anglePan = panAngle;
+                            item.angleTilt = tiltAngle;
+
                             triggerWaypointObserver();
-                            Log.d("WaypointListAdapter", "Dwell time updated to: " + dwellTime);
+                            Log.d("WaypointListAdapter", "Updated waypoint: Dwell=" + dwellTime + "ms, Pan=" + panAngle + "°, Tilt=" + tiltAngle + "°");
                         } catch (NumberFormatException e) {
-                            Log.e("WaypointListAdapter", "Invalid dwell time input", e);
+                            Log.e("WaypointListAdapter", "Invalid input in waypoint configuration", e);
                         }
-                    }).setNegativeButton("Cancel", (dialog, whichButton) -> {
-                        // Handle cancel action
-                        dialog.dismiss();
-                    }).show();
+                    })
+                    .setNegativeButton("Cancel", (dialog, whichButton) -> dialog.dismiss())
+                    .show();
+
             return true;
         });
 
@@ -239,7 +308,10 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
     }
 
     private void triggerWaypointObserver() {
-        waypointList.postValue(waypointList.getValue());
+        main.post(() -> {
+            waypointList.setValue(waypointList.getValue()); // setValue, not postValue
+            updateLocalWaypoints();                         // safe – on main
+        });
     }
 
     private void setTextBoxes(ItemViewHolder holder, Waypoint item) {
@@ -366,11 +438,14 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
 
         @Override
         public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
-            boolean isSame = Objects.equals(oldList.get(oldItemPosition).getId(), newList.get(newItemPosition).getId()) &&
-                    (oldList.get(oldItemPosition).angleSpeed == newList.get(newItemPosition).angleSpeed) &&
-                    (oldList.get(oldItemPosition).isActive() == newList.get(newItemPosition).isActive());
+            Waypoint oldItem = oldList.get(oldItemPosition);
+            Waypoint newItem = newList.get(newItemPosition);
 
-            return isSame;
+            return oldItem.angleSpeed == newItem.angleSpeed &&
+                    oldItem.dwellTimeMs == newItem.dwellTimeMs &&
+                    oldItem.anglePan == newItem.anglePan &&
+                    oldItem.angleTilt == newItem.angleTilt &&
+                    Objects.equals(oldItem.getId(), newItem.getId());
         }
     }
 
