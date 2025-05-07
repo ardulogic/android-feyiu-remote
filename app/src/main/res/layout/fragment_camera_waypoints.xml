@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:paddingBottom="0dp"
-    tools:context=".ui.camera.CameraWaypointsFragment">
+    tools:context=".ui.camera.fragments.waypoints.CameraWaypointsFragment">
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/listWaypoints"

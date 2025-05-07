@@ -41,6 +41,7 @@ public class FrameProcessorDispatcher {
         if (currentProcessor != null) {
             currentProcessor.terminate();
         }
+
         currentProcessor = processor;
     }
 
@@ -108,5 +109,9 @@ public class FrameProcessorDispatcher {
 
     public FrameProcessor getCurrentProcessor() {
         return currentProcessor;
+    }
+
+    public void terminateProcessor() {
+        this.currentProcessor.terminate();
     }
 }

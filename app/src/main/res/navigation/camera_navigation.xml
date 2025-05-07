@@ -7,19 +7,19 @@
 
     <fragment
         android:id="@+id/navigation_joystick"
-        android:name="com.feyiuremote.ui.camera.CameraJoystickFragment"
+        android:name="com.feyiuremote.ui.camera.fragments.joystick.CameraJoystickFragment"
         android:label="@string/title_cam_joystick"
         tools:layout="@layout/fragment_camera_joystick" />
 
     <fragment
         android:id="@+id/navigation_waypoints"
-        android:name="com.feyiuremote.ui.camera.CameraWaypointsFragment"
+        android:name="com.feyiuremote.ui.camera.fragments.waypoints.CameraWaypointsFragment"
         android:label="@string/title_cam_waypoints"
         tools:layout="@layout/fragment_camera_waypoints" />
 
     <fragment
         android:id="@+id/navigation_tracking"
-        android:name="com.feyiuremote.ui.camera.CameraTrackingFragment"
+        android:name="com.feyiuremote.ui.camera.fragments.tracker.CameraTrackingFragment"
         android:label="@string/title_cam_tracking"
         tools:layout="@layout/fragment_camera_tracking" />
 </navigation>

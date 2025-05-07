@@ -32,4 +32,9 @@ public interface IObjectTracker {
      */
     void stop();
 
+    /**
+     * Before closing
+     */
+    void shutdown();
+
 }

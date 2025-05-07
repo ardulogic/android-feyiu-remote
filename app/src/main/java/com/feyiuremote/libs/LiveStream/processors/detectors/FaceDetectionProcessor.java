@@ -1,13 +1,13 @@
-package com.feyiuremote.libs.LiveStream.processors;
+package com.feyiuremote.libs.LiveStream.processors.detectors;
 
 import com.feyiuremote.libs.AI.detectors.FaceDetector;
 import com.feyiuremote.libs.Cameras.abstracts.CameraFrame;
 import com.feyiuremote.libs.LiveStream.LiveView.OverlayView;
 import com.feyiuremote.libs.LiveStream.abstracts.FrameProcessor;
 
-public class LiveFaceDetectionProcessor extends FrameProcessor {
+public class FaceDetectionProcessor extends FrameProcessor {
 
-    public LiveFaceDetectionProcessor(OverlayView v) {
+    public FaceDetectionProcessor(OverlayView v) {
         super(v);
     }
 

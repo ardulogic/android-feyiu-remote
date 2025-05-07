@@ -26,18 +26,18 @@ import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueue;
 import com.feyiuremote.libs.LiveStream.abstracts.FrameProcessor;
-import com.feyiuremote.ui.SafeNav;
+import com.feyiuremote.ui.camera.fragments.waypoints.CameraWaypointsViewModel;
 import com.feyiuremote.ui.camera.listeners.CameraControlClickListener;
 import com.feyiuremote.ui.camera.listeners.CameraDiscoveryListener;
 import com.feyiuremote.ui.camera.listeners.CameraFocusClickListener;
 import com.feyiuremote.ui.camera.listeners.CameraLiveFeedReceiver;
 import com.feyiuremote.ui.camera.listeners.CameraStartStreamListener;
 import com.feyiuremote.ui.camera.models.CameraViewModel;
-import com.feyiuremote.ui.camera.models.CameraWaypointsViewModel;
 import com.feyiuremote.ui.camera.observers.BluetoothConnectivityObserver;
 import com.feyiuremote.ui.camera.observers.BluetoothEnabledObserver;
 import com.feyiuremote.ui.camera.observers.CameraFocusObserver;
 import com.feyiuremote.ui.camera.observers.CameraObserver;
+import com.feyiuremote.ui.camera.views.BatteryLevelView;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.concurrent.Executors;
@@ -109,19 +109,18 @@ public class CameraFragment extends Fragment {
             connectToCamera();
         }
 
-        NavHostFragment navHost =
-                (NavHostFragment) getChildFragmentManager()
-                        .findFragmentById(R.id.nav_host_fragment_camera);
-        NavController nav = navHost.getNavController();
+        // This MUST be NavHostFragment, not just Fragment.
+        NavHostFragment navHostFragment = (NavHostFragment)
+                getChildFragmentManager().findFragmentById(R.id.nav_host_fragment_camera);
 
-        // --- replace NavigationUI’s default click handler ----------------------
-        BottomNavigationView bnv = binding.cameraBottomNav;
-        NavigationUI.setupWithNavController(bnv, nav);   // keeps icons & titles in sync
-        bnv.setOnItemSelectedListener(item -> {
-            SafeNav.to(nav, item.getItemId());           // our guarded call
-            return true;
-        });
+        // Obtain the NavController
+        cameraNavController = navHostFragment.getNavController();
 
+        BottomNavigationView cameraBottomNav = binding.cameraBottomNav;
+        NavigationUI.setupWithNavController(cameraBottomNav, cameraNavController);
+
+        BatteryLevelView batteryView = binding.batteryView;
+        batteryView.setBatteryLevel(50); // Set to 50%
 
         return binding.getRoot();
     }
@@ -146,16 +145,28 @@ public class CameraFragment extends Fragment {
     public void startLiveView() {
         cameraViewModel.status.postValue("Enabling camera controls...");
         PanasonicCamera camera = cameraViewModel.camera.getValue();
+        camera.setStateListener(state -> cameraViewModel.camera.postValue(cameraViewModel.camera.getValue()));
 
         camera.controls.enable(new ICameraControlListener() {
             @Override
             public void onSuccess() {
-                cameraViewModel.status.postValue("Starting stream...");
+                cameraViewModel.status.postValue("Setting stream resolution...");
 
-                camera.controls.startStream(new CameraStartStreamListener(getViewLifecycleOwner(), mainActivity, cameraViewModel, binding, () -> {
-                    // Runnable when stream has started successfully
-                    //                    setLiveImageProcessors(cameraViewModel.liveFeedReceiver.getValue());
-                }));
+                camera.controls.setStreamResolution(true, new ICameraControlListener() {
+                    @Override
+                    public void onSuccess() {
+                        cameraViewModel.status.postValue("Starting stream...");
+                        camera.controls.startStream(new CameraStartStreamListener(getViewLifecycleOwner(), mainActivity, cameraViewModel, binding, () -> {
+                            // Runnable when stream has started successfully
+                            //                    setLiveImageProcessors(cameraViewModel.liveFeedReceiver.getValue());
+                        }));
+                    }
+
+                    @Override
+                    public void onFailure() {
+                        cameraViewModel.status.postValue("Could set livestream resolution.");
+                    }
+                });
             }
 
             @Override

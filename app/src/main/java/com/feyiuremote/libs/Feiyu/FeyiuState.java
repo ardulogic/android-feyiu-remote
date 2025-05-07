@@ -50,6 +50,16 @@ public class FeyiuState {
         return false;
     }
 
+    public static Integer getSensitivity(Axes.Axis axis) {
+        if (axis == Axes.Axis.PAN) {
+            return joy_sens_pan;
+        } else if (axis == Axes.Axis.TILT) {
+            return joy_val_tilt;
+        } else {
+            throw new RuntimeException("That axis does not exist!");
+        }
+    }
+
     public void update(byte[] data) {
         if (last_update > 0) {
             update_interval = System.currentTimeMillis() - last_update;

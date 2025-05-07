@@ -92,5 +92,25 @@ public class XmlSafeParser {
             setter.accept(b, s);
         });
     }
+
+    /**
+     * Like safeApply, but returns true only if the value matches `onValue`, case-insensitively.
+     *
+     * @param data    Map of tag names to their string values
+     * @param key     The XML tag name to extract
+     * @param onValue The string value that represents "true"
+     * @param setter  BiConsumer that accepts the Boolean state and the raw string
+     * @return true if a non-empty value was found (and setter called)
+     */
+    public static boolean safeParseBool(
+            Map<String, String> data,
+            String key,
+            String onValue,
+            BiConsumer<Boolean, String> setter) {
+        return safeApply(data, key, s -> {
+            boolean b = s.equalsIgnoreCase(onValue);
+            setter.accept(b, s);
+        });
+    }
 }
 

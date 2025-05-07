@@ -1,15 +1,10 @@
-package com.feyiuremote.ui.camera.models;
+package com.feyiuremote.ui.camera.fragments.waypoints;
 
-import android.content.Context;
-
-import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
-import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
-import com.feyiuremote.ui.camera.waypoints.WaypointListAdapter;
 
 import java.util.ArrayList;
 

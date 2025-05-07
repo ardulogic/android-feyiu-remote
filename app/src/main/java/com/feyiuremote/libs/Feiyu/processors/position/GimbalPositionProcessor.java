@@ -11,7 +11,7 @@ import com.feyiuremote.libs.Feiyu.Axes;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
 import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueue;
-import com.feyiuremote.libs.Feiyu.queue.FeyiuCommands;
+import com.feyiuremote.libs.Feiyu.queue.FeyiuControls;
 import com.feyiuremote.libs.Feiyu.queue.debug.PositioningDebugger;
 import com.feyiuremote.libs.Utils.Debugger;
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
@@ -86,8 +86,8 @@ public class GimbalPositionProcessor {
             if (startListener != null) {
                 startListener.onStarted();
             }
-            FeyiuCommands.setTiltSensitivity(target.getSensitivity(Axes.Axis.TILT));
-            FeyiuCommands.setPanSensitivity(target.getSensitivity(Axes.Axis.PAN));
+            FeyiuControls.setTiltSensitivity(target.getSensitivity(Axes.Axis.TILT));
+            FeyiuControls.setPanSensitivity(target.getSensitivity(Axes.Axis.PAN));
 
             PanasonicCamera cam = camera != null ? camera.getValue() : null;
 
@@ -111,7 +111,7 @@ public class GimbalPositionProcessor {
     public void cancel() {
         setActive(false);
 
-        FeyiuCommands.clearAll();
+        FeyiuControls.clearAll();
         this.target = null;
 
         Log.i(TAG, "Target cleared.");
@@ -120,9 +120,9 @@ public class GimbalPositionProcessor {
     public void stop() {
         setActive(false);
 
-        FeyiuCommands.clearAll();
-        FeyiuCommands.setPanJoy(0);
-        FeyiuCommands.setTiltJoy(0);
+        FeyiuControls.clearAll();
+        FeyiuControls.setPanJoy(0);
+        FeyiuControls.setTiltJoy(0);
     }
 
     public GimbalPositionTarget getTarget() {
@@ -183,7 +183,7 @@ public class GimbalPositionProcessor {
 
             if (target.getMovementTime(axis) > 0) { // Negative on overshoot
                 Log.w(TAG, axisName + " is anticipating stop in: " + axisMovementTime);
-                FeyiuCommands.setStrictJoyAfter(axis, 0, axisMovementTime, FeyiuCommands.SHORT);
+                FeyiuControls.setStrictJoyAfter(axis, 0, axisMovementTime, FeyiuControls.SHORT);
             } else {
                 Log.e(TAG, axisName + " movement time became negative, ignoring.: " + axisMovementTime);
             }
@@ -194,7 +194,7 @@ public class GimbalPositionProcessor {
 
         // Not stopping, not reached and shouldnt stop:
         Log.d(TAG, axisName + " is moving regularly to target....");
-        FeyiuCommands.setLooseJoyFor(axis, target.getJoyValue(axis), FeyiuCommands.REGULAR);
+        FeyiuControls.setLooseJoyFor(axis, target.getJoyValue(axis), FeyiuControls.REGULAR);
     }
 
     public void onGimbalUpdate() {

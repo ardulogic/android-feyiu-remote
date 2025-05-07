@@ -158,6 +158,11 @@ public class MediaPipeObjectTrackerCPU implements IObjectTracker {
         cancelTracking();
     }
 
+    @Override
+    public void shutdown() {
+        stop();
+    }
+
     private void handleTrackedBoxes(Packet packet) {
         BoxTrackerProto.TimedBoxProtoList list =
                 PacketGetter.getProto(

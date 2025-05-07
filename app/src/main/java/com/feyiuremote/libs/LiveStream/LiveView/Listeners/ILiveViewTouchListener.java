@@ -5,7 +5,7 @@ public interface ILiveViewTouchListener {
 
     public void onLongPress();
 
-    public void onDoubleTap();
+    public void onDoubleTap(int x, int y, int drawAreaW, int drawAreaH);
 
     public void onDrawingRectangleFail();
 

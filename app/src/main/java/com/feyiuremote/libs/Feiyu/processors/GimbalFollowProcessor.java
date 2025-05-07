@@ -4,20 +4,22 @@ import android.content.ContentValues;
 import android.util.Log;
 
 import com.feyiuremote.libs.AI.trackers.POI;
-import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
-import com.feyiuremote.libs.Feiyu.FeyiuControls;
-import com.feyiuremote.libs.Feiyu.FeyiuState;
+import com.feyiuremote.libs.Feiyu.Axes;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
+import com.feyiuremote.libs.Feiyu.queue.FeyiuControls;
 
 public class GimbalFollowProcessor implements IGimbalProcessor {
 
     private final String TAG = GimbalFollowProcessor.class.getSimpleName();
     private final CalibrationDB mDbCal;
 
-    private final int joy_sens = 25;
+    private final int joy_sens = 60;
 
+    private final int MIN_POI_UPDATE_INTERVAL = 150;
 
-    public GimbalFollowProcessor(BluetoothLeService mBluetoothLeService) {
+    private long timePoiUpdated = 0L;
+
+    public GimbalFollowProcessor() {
         this.mDbCal = CalibrationDB.get();
     }
 
@@ -35,8 +37,10 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
 
 
     private void moveTowards(POI poi) {
-        FeyiuControls.setPanSensitivity(joy_sens);
-        FeyiuControls.setTiltSensitivity(joy_sens);
+        Log.d(TAG, "MOving towards POI");
+
+        FeyiuControls.setSensitivity(Axes.Axis.PAN, 25);
+        FeyiuControls.setSensitivity(Axes.Axis.TILT, 25);
 
         double dev_x = poi.rect.xDevPercFromFrameCenter();
         double dev_y = poi.rect.yDevPercFromFrameCenter();
@@ -53,11 +57,11 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
             return;
         }
 
-        if (FeyiuState.angleIsCritical()) {
-            Log.e(TAG, "Angle is critical!");
-            stop();
-            return;
-        }
+//        if (FeyiuState.angleIsCritical()) {
+//            Log.e(TAG, "Angle is critical!");
+//            stop();
+//            return;
+//        }
 
         if (Math.abs(dev_x) < 0.05) {
             panSettings.put("joy_val", 0);
@@ -67,14 +71,17 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
             tiltSettings.put("joy_val", 0);
         }
 
-        FeyiuControls.setPanJoy(panSettings.getAsInteger("joy_val"), "Following target");
-        FeyiuControls.setTiltJoy(tiltSettings.getAsInteger("joy_val"), "Following target");
+        FeyiuControls.setPanJoy(panSettings.getAsInteger("joy_val"));
+        FeyiuControls.setTiltJoy(tiltSettings.getAsInteger("joy_val"));
     }
 
     @Override
     public void onPoiUpdate(POI poi) {
         try {
-            moveTowards(poi);
+            if (System.currentTimeMillis() - timePoiUpdated > MIN_POI_UPDATE_INTERVAL) {
+                moveTowards(poi);
+                timePoiUpdated = System.currentTimeMillis();
+            }
         } catch (NullPointerException e) {
             Log.e(TAG, "Poi no longer exists");
             stop();
@@ -84,7 +91,7 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
 
     @Override
     public void stop() {
-        FeyiuControls.setTiltJoy(0, "Stopping gimbal follow processor (Tilt)");
-        FeyiuControls.setPanJoy(0, "Stopping gimbal follow processor (Pan)");
+        FeyiuControls.setTiltJoy(0);
+        FeyiuControls.setPanJoy(0);
     }
 }

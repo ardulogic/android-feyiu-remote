@@ -1,6 +1,9 @@
 package com.feyiuremote.libs.Feiyu.queue;
 
+import android.util.Log;
+
 import com.feyiuremote.libs.Feiyu.Axes;
+import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.queue.commands.JoyCommandLooselyTimed;
 import com.feyiuremote.libs.Feiyu.queue.commands.JoyCommandStrictlyTimed;
 import com.feyiuremote.libs.Feiyu.queue.commands.SingleSensitivityCommand;
@@ -8,7 +11,9 @@ import com.feyiuremote.libs.Feiyu.queue.commands.SingleSensitivityCommand;
 /**
  * Scheduler for joystick pan/tilt commands – compatible with JDK6/7 (no lambdas, no java.util.Objects).
  */
-public final class FeyiuCommands {
+public final class FeyiuControls {
+
+    private final static String TAG = FeyiuControls.class.getSimpleName();
     public static int SHORT = 300;
     public static int REGULAR = 1000;
 
@@ -19,7 +24,11 @@ public final class FeyiuCommands {
      * @param value
      */
     public static void setSensitivity(Axes.Axis axis, int value) {
-        FeyiuCommandQueue.submitSingle(new SingleSensitivityCommand(axis, value));
+        if (FeyiuState.getSensitivity(axis) != value) {
+            FeyiuCommandQueue.submitSingle(new SingleSensitivityCommand(axis, value));
+        } else {
+            Log.i(TAG, "SetSensitivity: Sensitivity is the same, skipping...");
+        }
     }
 
     public static void setPanSensitivity(int value) {

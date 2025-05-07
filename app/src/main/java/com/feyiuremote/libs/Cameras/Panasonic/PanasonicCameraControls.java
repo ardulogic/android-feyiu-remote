@@ -124,6 +124,26 @@ public class PanasonicCameraControls extends CameraControls {
         });
     }
 
+    public void setStreamResolution(boolean high, ICameraControlListener listener) {
+//        http://192.168.54.1/cam.cgi?mode=setsetting&type=liveviewsize&value=vga
+        queueCommand(() -> {
+            String value = high ? "vga" : "qvga";
+            String ctrl_url = camera.state.getBaseUrl() + "cam.cgi?mode=setsettings&type=liveviewsize&value=" + value;
+            String reply = httpClient.get(ctrl_url, 1000);
+
+            if (reply != null) {
+                if (reply.contains("ok") || reply.contains("err_non_support")) {
+                    listener.onSuccess();
+                } else if (reply.contains("ok_under_research_no_msg")) {
+                    enable(listener);
+                    return;
+                }
+            }
+
+            listener.onFailure();
+        });
+    }
+
     public void updateModeState(ICameraControlListener listener) {
         queueCommand(() -> {
             String xml = httpClient.get(
@@ -138,7 +158,22 @@ public class PanasonicCameraControls extends CameraControls {
             }
 
             ArrayList<String> fields = new ArrayList<String>(Arrays.asList(
-                    "batt", "cammode", "remaincapacity", "videoremaincapacity", "rec", "temperature"
+                    "batt", "cammode", "remaincapacity", "video_remaincapacity", "rec", "temperature",
+                    "sdcardstatus",
+                    "sd_memory",
+                    "burst_interval_status",
+                    "sd_access",
+                    "rem_disp_typ",
+                    "progress_time",
+                    "operate",
+                    "stop_motion_num",
+                    "stop_motion",
+                    "lens",
+                    "add_location_data",
+                    "interval_status",
+                    "sdi_state",
+                    "warn_disp",
+                    "version"
             ));
 
             // Parse only the fields we care about
@@ -147,16 +182,38 @@ public class PanasonicCameraControls extends CameraControls {
             // Apply each field safely, track if any succeeded
             boolean ok = false;
             ok |= XmlSafeParser.safeApply(data, "batt", v -> camera.state.battery = v);
-//            ok |= XmlSafeParser.safeApply(data, "cammode", v -> camera.state.mode = v);
-            ok |= XmlSafeParser.safeParseInt(data, "remaincapacity", v -> camera.state.remainingCapacity = v);
-//            ok |= XmlSafeParser.safeParseInt(data, "videoremaincapacity", v -> camera.state.videoCapacity = v);
-            ok |= XmlSafeParser.safeParseBool(data, "rec", (b, raw) -> camera.state.isRecording = b);
-//            ok |= XmlSafeParser.safeApply(data, "temperature", v -> camera.state.temperature = v);
+            ok |= XmlSafeParser.safeApply(data, "cammode", v -> camera.state.mode = v);
+            ok |= XmlSafeParser.safeParseInt(data, "remaincapacity", v -> camera.state.remainingPhotoCapacity = v);
+            ok |= XmlSafeParser.safeParseInt(data, "video_remaincapacity", v -> camera.state.remCapacityVideoSeconds = v); // Remaining video capacity, e.g., 0
+            ok |= XmlSafeParser.safeParseBool(data, "rec", "on", (b, raw) -> camera.state.isRecording = b);
+            ok |= XmlSafeParser.safeApply(data, "temperature", v -> camera.state.temperature = v);
+
+            ok |= XmlSafeParser.safeParseBool(data, "sd_memory", "set", (b, raw) -> camera.state.sdCardisAvailable = b); // SD memory status, e.g., "unset" or "set"
+            ok |= XmlSafeParser.safeParseBool(data, "sdcardstatus", "write_enable", (b, raw) -> camera.state.sdCardIsWritable = b); // SD card status, e.g., "write_enable"
+            ok |= XmlSafeParser.safeParseBool(data, "sd_memory", "set", (b, raw) -> camera.state.sdCardisAvailable = b); // SD memory status, e.g., "unset" or "set"
+            ok |= XmlSafeParser.safeParseBool(data, "burst_interval_status", "on", (b, raw) -> camera.state.isBurstOn = b); // Burst mode status, e.g., "off"
+            ok |= XmlSafeParser.safeParseBool(data, "sd_access", "on", (b, raw) -> camera.state.sdAccessActive = b); // SD access in progress? e.g., "off"
+            ok |= XmlSafeParser.safeApply(data, "rem_disp_typ", v -> camera.state.displayType = v); // Display type, e.g., "time"
+            ok |= XmlSafeParser.safeParseInt(data, "progress_time", v -> camera.state.progressTime = v); // Progress time (recording), e.g., 0
+            ok |= XmlSafeParser.safeApply(data, "operate", v -> camera.state.operateStatus = v); // Operational flags, e.g., "enable/enable"
+            ok |= XmlSafeParser.safeParseInt(data, "stop_motion_num", v -> camera.state.stopMotionFrames = v); // Stop-motion frame count, e.g., 0
+            ok |= XmlSafeParser.safeParseBool(data, "stop_motion", "on", (b, raw) -> camera.state.stopMotionEnabled = b); // Stop-motion enabled? e.g., "off"
+            ok |= XmlSafeParser.safeApply(data, "lens", v -> camera.state.lensMode = v); // Lens mode, e.g., "normal"
+            ok |= XmlSafeParser.safeParseBool(data, "add_location_data", "on", (b, raw) -> camera.state.isGeoTagging = b); // Location tagging on? e.g., "off"
+            ok |= XmlSafeParser.safeParseBool(data, "interval_status", "on", (b, raw) -> camera.state.isIntervalShooting = b); // Interval shooting? e.g., "off"
+            ok |= XmlSafeParser.safeApply(data, "sdi_state", v -> camera.state.sdiState = v); // SDI state, e.g., "none"
+            ok |= XmlSafeParser.safeApply(data, "warn_disp", v -> camera.state.warningDisplay = v); // Warning display, e.g., "no_disp"
+            ok |= XmlSafeParser.safeApply(data, "version", v -> camera.state.firmwareVersion = v); // Firmware version, e.g., "D2.80"
 
             camera.state.available = ok;
             if (ok) {
+                camera.updateState(camera.state);
+
                 listener.onSuccess();
             } else {
+                // Should probably be called here too (updateState)
+                // but got to reset everything except for url.. lazy
+
                 listener.onFailure();
             }
         });

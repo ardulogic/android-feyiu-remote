@@ -74,14 +74,38 @@ public class JpegPacket {
         endIndex = findEndOfImage(packet, length);
 
         if (startIndex != null && endIndex != null) {
-            System.arraycopy(packet, startIndex, tempBuffer, 0, endIndex - startIndex);
+            int imageLength = endIndex - startIndex;
+            System.arraycopy(packet, startIndex, tempBuffer, 0, imageLength);
 
-            return BitmapFactory.decodeByteArray(tempBuffer, 0, endIndex - startIndex);
+            Bitmap bmp = BitmapFactory.decodeByteArray(tempBuffer, 0, imageLength);
+            if (bmp == null) return null;
+
+            return fillTransparentPixelsWithGreen(bmp);
         } else {
             Log.e(TAG, "Video packet failed!");
         }
 
         return null;
+    }
+
+    private Bitmap fillTransparentPixelsWithGreen(Bitmap bmp) {
+        // Ensure mutable bitmap with alpha support
+        bmp = bmp.copy(Bitmap.Config.ARGB_8888, true);
+
+        int width = bmp.getWidth();
+        int height = bmp.getHeight();
+        int[] pixels = new int[width * height];
+        bmp.getPixels(pixels, 0, width, 0, 0, width, height);
+
+        for (int i = 0; i < pixels.length; i++) {
+            int alpha = (pixels[i] >> 24) & 0xff;
+            if (alpha < 255) {
+                pixels[i] = 0xff00ff00; // Opaque green
+            }
+        }
+
+        bmp.setPixels(pixels, 0, width, 0, 0, width, height);
+        return bmp;
     }
 
 

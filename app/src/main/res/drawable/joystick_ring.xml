@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- Outer ring -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#888888"
+        android:strokeWidth="10"
+        android:pathData="M100,10
+                          A90,90 0 1,1 99.999,10 Z" />
+
+    <!-- Inner guide circle (solid) -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#CCCCCC"
+        android:strokeWidth="4"
+        android:pathData="M100,70
+                          A30,30 0 1,1 99.999,70 Z" />
+</vector>

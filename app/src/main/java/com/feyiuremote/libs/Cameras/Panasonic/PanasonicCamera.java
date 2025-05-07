@@ -12,6 +12,7 @@ public class PanasonicCamera extends Camera {
     public PanasonicCameraLiveView live;
     public PanasonicCameraState state;
     public PanasonicFocus focus;
+    public IPanasonicCameraStateListener stateListener;
 
     /**
      * TODO: Add sound when recording is stopped
@@ -22,13 +23,25 @@ public class PanasonicCamera extends Camera {
      * @param ddUrl
      */
     public PanasonicCamera(Context context, String ddUrl) {
-        this.state = new PanasonicCameraState(ddUrl);
+        this.updateState(new PanasonicCameraState(ddUrl));
         this.controls = new PanasonicCameraControls(context, this);
     }
 
     public void setFocusListener(IPanasonicCameraFocusListener listener) {
         this.focus = new PanasonicFocus(this, listener);
         this.focus.start();
+    }
+
+    public void updateState(PanasonicCameraState state) {
+        this.state = state;
+
+        if (stateListener != null) {
+            stateListener.onUpdate(state);
+        }
+    }
+
+    public void setStateListener(IPanasonicCameraStateListener listener) {
+        this.stateListener = listener;
     }
 
     public boolean focusIsAvailable() {

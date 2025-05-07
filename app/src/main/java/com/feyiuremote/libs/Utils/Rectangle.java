@@ -254,7 +254,7 @@ public class Rectangle {
     }
 
     public double centerYPercInFrame() {
-        return centerX() / max_h;
+        return centerY() / max_h;
     }
 
     /**

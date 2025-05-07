@@ -7,8 +7,8 @@ import android.view.View;
 import com.feyiuremote.libs.Cameras.Panasonic.IPanasonicCameraFocusControlListener;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
+import com.feyiuremote.ui.camera.fragments.waypoints.CameraWaypointsViewModel;
 import com.feyiuremote.ui.camera.models.CameraViewModel;
-import com.feyiuremote.ui.camera.models.CameraWaypointsViewModel;
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
 
 public class WaypointAddClickListener implements View.OnClickListener {

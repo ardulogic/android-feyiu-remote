@@ -1,4 +1,4 @@
-package com.feyiuremote.ui.camera;
+package com.feyiuremote.ui.camera.fragments.waypoints;
 
 import android.annotation.SuppressLint;
 import android.content.res.ColorStateList;
@@ -21,7 +21,6 @@ import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
 import com.feyiuremote.ui.camera.listeners.WaypointAddClickListener;
 import com.feyiuremote.ui.camera.models.CameraViewModel;
-import com.feyiuremote.ui.camera.models.CameraWaypointsViewModel;
 import com.feyiuremote.ui.camera.waypoints.ItemTouchHelperCallback;
 import com.feyiuremote.ui.camera.waypoints.WaypointListAdapter;
 

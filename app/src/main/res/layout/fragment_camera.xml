@@ -7,7 +7,6 @@
     android:paddingBottom="60dp"
     tools:context=".ui.camera.CameraFragment">
 
-
     <view
         android:id="@+id/liveView"
         class="com.feyiuremote.libs.LiveStream.LiveView.LiveImageView"
@@ -21,10 +20,55 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <com.feyiuremote.ui.camera.views.BatteryLevelView
+        android:id="@+id/batteryView"
+        android:layout_width="30dp"
+        android:layout_height="15dp"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/liveView"
+        app:layout_constraintEnd_toEndOf="@+id/textGimbalAngles" />
+
+    <TextView
+        android:id="@+id/textGimbalAngles"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:text="- °, - °"
+        android:textColor="#FFFFFF"
+        app:layout_constraintEnd_toEndOf="@+id/liveView"
+        app:layout_constraintTop_toTopOf="@+id/liveView" />
+
+    <TextView
+        android:id="@+id/textGimbalSpeeds"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:text="- °, - °"
+        android:textColor="#FFFFFF"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/liveView" />
+
+    <TextView
+        android:id="@+id/textCameraStatus"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:text="Position Unavailable"
+        android:textAlignment="center"
+        android:textColor="#B3B3B3"
+        android:textSize="10sp"
+        app:layout_constraintBottom_toBottomOf="@+id/liveView"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent" />
+
     <com.feyiuremote.libs.LiveStream.LiveView.OverlayView
         android:id="@+id/overlayView"
         android:layout_width="0dp"
-        android:layout_height="300dp"
+        android:layout_height="0dp"
         android:background="@android:color/transparent"
         app:layout_constraintBottom_toBottomOf="@id/liveView"
         app:layout_constraintEnd_toEndOf="@id/liveView"
@@ -75,42 +119,6 @@
 
     </HorizontalScrollView>
 
-    <TextView
-        android:id="@+id/textGimbalAngles"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:text="- °, - °"
-        android:textColor="#FFFFFF"
-        app:layout_constraintEnd_toEndOf="@+id/liveView"
-        app:layout_constraintTop_toTopOf="@+id/liveView" />
-
-
-    <TextView
-        android:id="@+id/textGimbalSpeeds"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:text="- °, - °"
-        android:textColor="#FFFFFF"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/liveView" />
-
-    <TextView
-        android:id="@+id/textCameraStatus"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:text="Position Unavailable"
-        android:textAlignment="center"
-        android:textColor="#B3B3B3"
-        android:textSize="10sp"
-        app:layout_constraintBottom_toBottomOf="@+id/liveView"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent" />
 
     <ProgressBar
         android:id="@+id/progressBarFocus"
@@ -208,6 +216,13 @@
             app:iconGravity="textStart"
             app:iconPadding="0dp"
             app:iconSize="20dp" />
+
+        <TextView
+            android:id="@+id/textCameraVideoRemaining"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textColor="#919191" />
 
     </LinearLayout>
 

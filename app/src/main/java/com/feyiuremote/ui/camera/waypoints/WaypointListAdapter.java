@@ -28,7 +28,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.feyiuremote.R;
 import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
-import com.feyiuremote.ui.camera.models.CameraWaypointsViewModel;
+import com.feyiuremote.ui.camera.fragments.waypoints.CameraWaypointsViewModel;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

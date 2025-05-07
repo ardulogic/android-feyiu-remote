@@ -8,6 +8,7 @@ import android.graphics.Paint;
 import android.util.Log;
 
 import com.feyiuremote.libs.AI.ObjectUtils;
+import com.feyiuremote.libs.AI.detectors.abstracts.DetectedObject;
 import com.feyiuremote.libs.AI.trackers.POI;
 
 import org.opencv.core.Rect;
@@ -59,8 +60,8 @@ abstract public class ObjectDetector {
 
             try {
                 for (DetectedObject obj : detectedObjects) {
-                    if (obj.label == 0) {
-                        canvas.drawRect(ObjectUtils.cvRectToAndroidRect(obj.rect), paint);
+                    if (obj.id == 0) {
+                        canvas.drawRect(ObjectUtils.cvRectToAndroidRect(obj.rect.toOpenCVRect()), paint);
                     }
                 }
             } catch (NullPointerException e) {
@@ -81,7 +82,7 @@ abstract public class ObjectDetector {
             double minDistance = Double.MAX_VALUE;
 
             for (DetectedObject obj : detectedObjects) {
-                if (obj.label == label_index) {
+                if (obj.id == label_index) {
                     if (mPOI != null) {
 //                        double distance = mPOI.calculateDistance(obj.rect);
 //                        if (distance < minDistance) {
@@ -95,7 +96,7 @@ abstract public class ObjectDetector {
             }
 
             if (closestObject != null) {
-                Log.d(TAG, "Closest object found: Label " + closestObject.label + ", Distance: " + minDistance);
+                Log.d(TAG, "Closest object found: Label " + closestObject.id + ", Distance: " + minDistance);
                 // Do something with the closest object, for example, update the POI or perform other actions
                 return closestObject;
             } else {

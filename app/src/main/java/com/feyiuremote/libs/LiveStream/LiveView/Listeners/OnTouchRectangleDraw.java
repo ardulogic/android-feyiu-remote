@@ -9,6 +9,11 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
 public class OnTouchRectangleDraw implements View.OnTouchListener {
     private static final String TAG = "RectangleDrawTouchListener";
     private static final int MIN_RECT_SIZE = 30;
@@ -23,8 +28,12 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
     private int endY;
     private boolean moved;
 
+    private ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    private ScheduledFuture<?> singleTapFuture;
+
     private GestureDetector gestureDetector;
     private ILiveViewTouchListener mListener;
+
 
     public OnTouchRectangleDraw(Context context) {
         initGestureDetector(context);
@@ -43,9 +52,33 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
             @Override
             public boolean onDoubleTap(@NonNull MotionEvent e) {
                 if (mListener != null) {
-                    mListener.onDoubleTap();
+                    // Cancel the pending single-tap execution
+                    if (singleTapFuture != null && !singleTapFuture.isDone()) {
+                        singleTapFuture.cancel(true);
+                        Log.d(TAG, "Cancelled pending single tap");
+                    }
+
+                    mListener.onDoubleTap((int) e.getX(), (int) e.getY(), drawAreaW, drawAreaH);
                 }
                 return true;
+            }
+
+            @Override
+            public boolean onSingleTapUp(@NonNull MotionEvent e) {
+                if (mListener != null) {
+                    mListener.onSingleTap((int) e.getX(), (int) e.getY(), drawAreaW, drawAreaH);
+                }
+
+                return true;
+            }
+
+            @Override
+            public boolean onSingleTapConfirmed(@NonNull MotionEvent e) {
+//                if (mListener != null) {
+//                    mListener.onSingleTap((int) e.getX(), (int) e.getY(), drawAreaW, drawAreaH);
+//                }
+
+                return super.onSingleTapConfirmed(e);
             }
         });
     }
@@ -96,12 +129,13 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
 
     private void handleActionUp(int x, int y) {
         updateDrag(x, y);
-        if (!moved) {
-            notifySingleTap(x, y);
-        } else if (isValidDrag()) {
-            notifyNewRectangle(startX, startY, endX, endY);
-        } else {
-            notifyFail();
+
+        if (moved) {
+            if (isValidDrag()) {
+                notifyNewRectangle(startX, startY, endX, endY);
+            } else {
+                notifyFail();
+            }
         }
     }
 
@@ -127,7 +161,15 @@ public class OnTouchRectangleDraw implements View.OnTouchListener {
 
     private void notifySingleTap(int x, int y) {
         if (mListener != null) {
-            mListener.onSingleTap(x, y, drawAreaW, drawAreaH);
+
+            // Cancel any previously scheduled single tap
+            if (singleTapFuture != null && !singleTapFuture.isDone()) {
+                singleTapFuture.cancel(false);
+            }
+
+            singleTapFuture = executor.schedule(() -> {
+                mListener.onSingleTap(x, y, drawAreaW, drawAreaH);
+            }, 250, TimeUnit.MILLISECONDS); // 250ms window to detect double tap
         }
     }
 

@@ -8,17 +8,20 @@ import androidx.viewbinding.ViewBinding;
 import com.feyiuremote.MainActivity;
 import com.feyiuremote.databinding.FragmentCameraBinding;
 import com.feyiuremote.libs.Cameras.abstracts.CameraFrame;
+import com.feyiuremote.libs.LiveStream.abstracts.FrameProcessor;
 import com.feyiuremote.libs.LiveStream.abstracts.LiveFeedReceiver;
-import com.feyiuremote.libs.LiveStream.processors.BoxTrackingMediapipeProcessor;
 import com.feyiuremote.libs.LiveStream.processors.FrameProcessorDispatcher;
+import com.feyiuremote.libs.LiveStream.processors.trackers.BoxTrackingMediapipeProcessor;
 import com.feyiuremote.ui.camera.models.CameraViewModel;
 
+import java.lang.reflect.Constructor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class CameraLiveFeedReceiver extends LiveFeedReceiver {
     private final String TAG = CameraLiveFeedReceiver.class.getSimpleName();
     private final CameraViewModel cameraModel;
+    private final MainActivity mainActivity;
     private LifecycleOwner lifecycleOwner;
     private FragmentCameraBinding binding;
 
@@ -30,15 +33,43 @@ public class CameraLiveFeedReceiver extends LiveFeedReceiver {
     public CameraLiveFeedReceiver(LifecycleOwner lfOwner, MainActivity mainActivity, CameraViewModel cameraModel, FragmentCameraBinding binding) {
         this.cameraModel = cameraModel;
         this.binding = binding;
+        this.mainActivity = mainActivity;
         this.lifecycleOwner = lfOwner;
 
         this.frameProcessorDispatcher = new FrameProcessorDispatcher();
-//        this.frameProcessorDispatcher.setFrameProcessor(new FrameDummyProcessor(binding.overlayView));
-        this.frameProcessorDispatcher.setFrameProcessor(new BoxTrackingMediapipeProcessor(
-                binding.overlayView,
-                mainActivity,
-                cameraModel
-        ));
+        setFrameProcessor(BoxTrackingMediapipeProcessor.class.getName());
+//        setFrameProcessor(BoxTrackingOpenCvProcessor.class.getName());
+    }
+
+    public void setFrameProcessor(String processorClassName) {
+        if (this.frameProcessorDispatcher.getCurrentProcessor() != null) {
+            this.frameProcessorDispatcher.terminateProcessor();
+        }
+
+        if (processorClassName == null) {
+            this.frameProcessorDispatcher.setFrameProcessor(null);
+            return;
+        }
+
+        try {
+            Class<?> clazz = Class.forName(processorClassName);
+            Constructor<?> constructor = clazz.getConstructor(
+                    binding.overlayView.getClass(), // or View.class
+                    MainActivity.class,      // or Activity.class / LifecycleOwner.class
+                    cameraModel.getClass()          // or CameraModel.class
+            );
+
+            Object processorInstance = constructor.newInstance(
+                    binding.overlayView,
+                    mainActivity,
+                    cameraModel
+            );
+
+            this.frameProcessorDispatcher.setFrameProcessor((FrameProcessor) processorInstance);
+            setBinding(binding);
+        } catch (Exception e) {
+            e.printStackTrace(); // Ideally replace with proper logging
+        }
     }
 
     @Override
