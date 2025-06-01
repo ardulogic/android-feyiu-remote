@@ -56,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
     private Boolean locked = false;
 
     public BluetoothLeService mBluetoothLeService;
-    public ExecutorService executor = Executors.newFixedThreadPool(10);
+    public ExecutorService executor = Executors.newFixedThreadPool(5);
 
     static {
         System.loadLibrary("mediapipe_jni");
@@ -68,11 +68,31 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private PowerManager.WakeLock mWakeLock;
+    private WifiManager.MulticastLock multicastLock;
     private BluetoothLeUpdateReceiver mGattUpdateReceiver;
 
     @Override
     protected void onResume() {
         super.onResume();
+        if (mWakeLock != null && !mWakeLock.isHeld()) {
+            mWakeLock.acquire();
+        }
+        if (multicastLock != null && !multicastLock.isHeld()) {
+            multicastLock.acquire();
+        }
+        registerReceiver(mGattUpdateReceiver, BluetoothIntent.getFilter());
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mWakeLock != null && mWakeLock.isHeld()) {
+            mWakeLock.release();
+        }
+        if (multicastLock != null && multicastLock.isHeld()) {
+            multicastLock.release();
+        }
+        unregisterReceiver(mGattUpdateReceiver);
     }
 
     @Override
@@ -108,11 +128,11 @@ public class MainActivity extends AppCompatActivity {
 
         mGattUpdateReceiver = new BluetoothLeUpdateReceiver(bluetoothViewModel);
         mGattUpdateReceiver.setOnConnectedListener(mBluetoothServicesDiscoveredListener);
-        registerReceiver(mGattUpdateReceiver, BluetoothIntent.getFilter());
+        // Registration moved to onResume
 
         WifiManager wm = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        WifiManager.MulticastLock multicastLock = wm.createMulticastLock("multicastLock");
-        multicastLock.acquire();
+        multicastLock = wm.createMulticastLock("multicastLock");
+        // Acquisition moved to onResume
 
         if (!OpenCVLoader.initDebug()) {
             Log.e(this.getClass().getSimpleName(), "  OpenCVLoader.initDebug(), not working.");
@@ -124,10 +144,24 @@ public class MainActivity extends AppCompatActivity {
 
         final PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         this.mWakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "feyiuremote:main");
-        this.mWakeLock.acquire();
+        // Acquisition moved to onResume
+        // this.mWakeLock.acquire(); // Ensure it's acquired in onResume after initialization
 
-        ensureLocationEnabled();
-        ensureBluetoothEnabled();
+        ensurePermissionsAndServicesEnabled();
+    }
+
+    private void ensurePermissionsAndServicesEnabled() {
+        // Location check
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (locationManager != null && !locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            buildAlertMessageNoGps();
+        }
+
+        // Bluetooth check
+        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled()) {
+            buildAlertMessageNoBluetooth();
+        }
     }
 
     private void startBtService() {
@@ -176,23 +210,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    public void ensureLocationEnabled() {
-        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-
-        if (locationManager != null && !locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            // GPS is not enabled, prompt the user to enable it
-            buildAlertMessageNoGps();
-        }
-    }
-
-    public void ensureBluetoothEnabled() {
-        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-
-        if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled()) {
-            // Bluetooth is not enabled, prompt the user to enable it
-            buildAlertMessageNoBluetooth();
-        }
-    }
+    // ensureLocationEnabled and ensureBluetoothEnabled are now combined into ensurePermissionsAndServicesEnabled
 
     private void buildAlertMessageNoGps() {
         final AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -275,8 +293,17 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onDestroy() {
-        this.mWakeLock.release();
-        mBluetoothLeService.disconnect();
+        if (mWakeLock != null && mWakeLock.isHeld()) {
+            mWakeLock.release();
+        }
+        if (multicastLock != null && multicastLock.isHeld()) {
+            multicastLock.release();
+        }
+        if (mBluetoothLeService != null) {
+            mBluetoothLeService.disconnect();
+            unbindService(mBtServiceConnection);
+        }
+        // unregisterReceiver(mGattUpdateReceiver) // Already done in onPause if activity is paused before destroyed
 
         super.onDestroy();
     }

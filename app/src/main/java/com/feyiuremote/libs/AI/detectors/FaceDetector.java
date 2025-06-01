@@ -3,6 +3,7 @@ package com.feyiuremote.libs.AI.detectors;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.util.Log;
 
 import com.feyiuremote.R;
 
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 public class FaceDetector {
 
     private static CascadeClassifier mCascadeClassifier;
+    private static final String TAG = "FaceDetector";
 
     /**
      * The following code loads face detection model
@@ -33,6 +35,10 @@ public class FaceDetector {
      * @param activity
      */
     public static void init(Activity activity) {
+        if (mCascadeClassifier != null) {
+            // Model already loaded
+            return;
+        }
         InputStream is = activity.getResources().openRawResource(R.raw.lbpcascade_frontalface_improved);
         File cascadeDir = activity.getDir("cascade", Context.MODE_PRIVATE);
         File cascadeFile = new File(cascadeDir, "lbpcascade_frontalface_improved.xml");
@@ -49,15 +55,25 @@ public class FaceDetector {
             os.close();
 
             mCascadeClassifier = new CascadeClassifier(cascadeFile.getAbsolutePath());
+            if (mCascadeClassifier.empty()) {
+                Log.e(TAG, "Failed to load cascade classifier from " + cascadeFile.getAbsolutePath());
+                mCascadeClassifier = null;
+            } else {
+                Log.i(TAG, "Cascade classifier loaded successfully from " + cascadeFile.getAbsolutePath());
+            }
 
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            Log.e(TAG, "FileNotFoundException while loading cascade classifier: " + cascadeFile.getAbsolutePath(), e);
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e(TAG, "IOException while loading cascade classifier: " + e.getMessage(), e);
         }
     }
 
     public static Bitmap detect(Bitmap bitmap) {
+        if (mCascadeClassifier == null) {
+            System.err.println("FaceDetector: CascadeClassifier not initialized. Call init() first.");
+            return bitmap; // Return original bitmap if model not loaded
+        }
         Mat imageMatrix = new Mat (bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC1);
         Utils.bitmapToMat(bitmap, imageMatrix);
 
