@@ -18,13 +18,10 @@ public class BluetoothViewModel extends ViewModel {
     public final MutableLiveData<String> statusMessage;
     public final MutableLiveData<String> connectionStatus;
     public final MutableLiveData<Boolean> busy;
-
     public final MutableLiveData<Boolean> connected;
     public final MutableLiveData<Boolean> enabled;
     public final MutableLiveData<Boolean> services_discovered;
-
     private final HashMap<String, MutableLiveData<byte[]>> characteristics;
-
     public final MutableLiveData<Boolean> isEmulated = new MutableLiveData<>();
     public final MutableLiveData<Long> feyiuStateUpdated = new MutableLiveData<>();
 

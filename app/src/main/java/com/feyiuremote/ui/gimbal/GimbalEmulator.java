@@ -39,6 +39,10 @@ public class GimbalEmulator {
             throw new RuntimeException("Please provide CalibrationDB!");
         }
 
+        if (btModel == null) {
+            throw new RuntimeException("Please provide btModel!");
+        }
+
         btModel = btViewModel;
 
         btModel.connected.setValue(true);
@@ -49,9 +53,8 @@ public class GimbalEmulator {
         FeyiuState.getInstance().last_update = System.currentTimeMillis();
         FeyiuState.getInstance().update(panSens, tiltSens);
 
-        btModel.feyiuStateUpdated.postValue(System.currentTimeMillis());
         Log.w("WhoIsCallingUpdate", "Emulator");
-
+        btModel.feyiuStateUpdated.postValue(System.currentTimeMillis());
     }
 
     private static void applyPanOvershoot() {

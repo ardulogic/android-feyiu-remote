@@ -37,6 +37,8 @@ import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Bluetooth.IOnBluetoothServicesDiscovered;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
+import com.feyiuremote.libs.Utils.WifiConnector;
+import com.feyiuremote.libs.WiFi.WifiViewModel;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import org.opencv.android.OpenCVLoader;
@@ -50,7 +52,8 @@ public class MainActivity extends AppCompatActivity {
 
     private final static String TAG = MainActivity.class.getSimpleName();
 
-    private BluetoothViewModel bluetoothViewModel;
+    public BluetoothViewModel bluetoothViewModel;
+    public WifiViewModel wifiViewModel;
     private ActivityMainBinding binding;
 
     private Boolean locked = false;
@@ -69,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
 
     private PowerManager.WakeLock mWakeLock;
     private BluetoothLeUpdateReceiver mGattUpdateReceiver;
+    private WifiConnector mWifiConnector;
 
     @Override
     protected void onResume() {
@@ -113,6 +117,10 @@ public class MainActivity extends AppCompatActivity {
         WifiManager wm = (WifiManager) getSystemService(Context.WIFI_SERVICE);
         WifiManager.MulticastLock multicastLock = wm.createMulticastLock("multicastLock");
         multicastLock.acquire();
+
+        wifiViewModel = new WifiViewModel(getApplication());
+        wifiViewModel.saveDefaultAPs();
+        wifiViewModel.getWifiConnector().askToChooseAP(this);
 
         if (!OpenCVLoader.initDebug()) {
             Log.e(this.getClass().getSimpleName(), "  OpenCVLoader.initDebug(), not working.");

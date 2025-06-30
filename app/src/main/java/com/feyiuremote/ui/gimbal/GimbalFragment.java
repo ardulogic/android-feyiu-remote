@@ -50,8 +50,8 @@ public class GimbalFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
 
-        mBluetoothViewModel = new ViewModelProvider(requireActivity()).get(BluetoothViewModel.class);
         mainActivity = (MainActivity) getActivity();
+        mBluetoothViewModel = new ViewModelProvider(requireActivity()).get(BluetoothViewModel.class);
         binding = FragmentGimbalBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
@@ -70,6 +70,15 @@ public class GimbalFragment extends Fragment {
             GimbalEmulator.enable();
 
         });
+
+        binding.buttonEditAPs.setOnClickListener(v -> {
+            mainActivity.wifiViewModel.getWifiConnector().editAPs(mainActivity);
+        });
+
+        binding.buttonConnectToAPs.setOnClickListener(v -> {
+            mainActivity.wifiViewModel.getWifiConnector().askToChooseAP(mainActivity);
+        });
+
 
         final ListView mListView = binding.listScanResults;
         mScanResultListAdapter = new BluetoothScanResultsAdapter(getContext());
@@ -163,9 +172,7 @@ public class GimbalFragment extends Fragment {
             Log.d(TAG, "Switching to Camera...");
 
             if (mBluetoothViewModel.connected.getValue()) {
-                if (CalibrationFragment.isCalibrated()) {
-                    switchToCamera();
-                } else {
+                if (!CalibrationFragment.isCalibrated()) {
                     switchToCalibration();
                 }
             }
