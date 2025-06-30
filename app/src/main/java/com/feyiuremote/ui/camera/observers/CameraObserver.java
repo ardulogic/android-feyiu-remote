@@ -43,15 +43,19 @@ public class CameraObserver implements Observer<PanasonicCamera> {
 
         if (c.state.sdCardisAvailable != null) {
             if (c.state.sdCardisAvailable) {
+
                 if (c.state.remCapacityVideoSeconds > 0) {
                     int minutes = c.state.remCapacityVideoSeconds / 60;
                     int seconds = c.state.remCapacityVideoSeconds % 60;
                     String formatted = String.format("%02d:%02d", minutes, seconds);
+                    binding.textCameraVideoRemaining.setTextColor(context.getResources().getColor(R.color.text_default));
                     binding.textCameraVideoRemaining.setText(formatted);
                 } else {
+                    binding.textCameraVideoRemaining.setTextColor(context.getResources().getColor(R.color.text_error));
                     binding.textCameraVideoRemaining.setText("FULL");
                 }
             } else {
+                binding.textCameraVideoRemaining.setTextColor(context.getResources().getColor(R.color.text_error));
                 binding.textCameraVideoRemaining.setText("NO SD!");
             }
         }

@@ -18,4 +18,7 @@
     <color name="button_recording">#BF2D39</color>
     <color name="icon_light_green">#90EE90</color>
     <color name="icon_default">#8D8D8D</color>
+
+    <color name="text_error">#BF2D39</color>
+    <color name="text_default">#171717</color>
 </resources>
