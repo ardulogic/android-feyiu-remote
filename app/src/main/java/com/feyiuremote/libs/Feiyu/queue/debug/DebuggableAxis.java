@@ -5,7 +5,6 @@ import android.util.Log;
 
 import com.feyiuremote.libs.Feiyu.Axes;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
-import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
 import com.feyiuremote.libs.Feiyu.processors.position.GimbalPositionTarget;
 
 public class DebuggableAxis {
@@ -76,25 +75,26 @@ public class DebuggableAxis {
         double overshootCalibrated = getCalibrationOvershoot();
         double overshootCalculated = onStoppingAngleDiff - extraAngle - speed * onStoppingMovementTime / 1000;
         double finalAngleError = onStoppedAngleDiff;
+        double newOvershoot = overshootCalibrated - finalAngleError / 2;
 
         Log.d(TAG, Axes.toString(axis) + " overshoot analysis: Calibrated " + overshootCalibrated + ", Calculated " + overshootCalculated + " Real angle error: " + finalAngleError);
 
-        if (Math.abs(finalAngleError) > 0.8 && Math.abs(finalAngleError) < 10) {
-            // Update calibrated values:
-            double newOvershoot = overshootCalibrated - finalAngleError / 2;
-
-            calibration.put(getCalibrationOvershootColumn(), newOvershoot);
-            CalibrationDB.get().updateOrCreate(calibration);
-
-            Log.w(TAG, String.format(
-                    "Will update " + Axes.toString(axis) + " calibraiton: Sensitivity %d JoyVal %d Speed %.2f Overshoot %.2f -> %.2f",
-                    calibration.getAsInteger("joy_sens"),
-                    calibration.getAsInteger("joy_val"),
-                    speed,
-                    calibration.getAsDouble(getCalibrationOvershootColumn()),
-                    newOvershoot
-            ));
-        }
+//        if (Math.abs(finalAngleError) > 0.8 && Math.abs(finalAngleError) < 10) {
+//            // Update calibrated values:
+//            double newOvershoot = overshootCalibrated - finalAngleError / 2;
+//
+//            calibration.put(getCalibrationOvershootColumn(), newOvershoot);
+//            CalibrationDB.get().updateOrCreate(calibration);
+//
+//            Log.w(TAG, String.format(
+//                    "Will update " + Axes.toString(axis) + " calibraiton: Sensitivity %d JoyVal %d Speed %.2f Overshoot %.2f -> %.2f",
+//                    calibration.getAsInteger("joy_sens"),
+//                    calibration.getAsInteger("joy_val"),
+//                    speed,
+//                    calibration.getAsDouble(getCalibrationOvershootColumn()),
+//                    newOvershoot
+//            ));
+//        }
     }
 
     public void log() {

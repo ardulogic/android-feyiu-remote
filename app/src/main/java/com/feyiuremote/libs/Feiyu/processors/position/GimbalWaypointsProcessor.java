@@ -3,12 +3,9 @@ package com.feyiuremote.libs.Feiyu.processors.position;
 import android.content.Context;
 import android.util.Log;
 
-import androidx.lifecycle.MutableLiveData;
-
 import com.feyiuremote.ui.camera.waypoints.Waypoint;
+import com.feyiuremote.ui.camera.waypoints.WaypointsList;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -23,7 +20,7 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     public static final String MODE_PLAY_ONCE = "all"; // Mode when we just need to go through all waypoints once
 
     public static final String MODE_PLAY_LOOP = "endless"; // Mode when we want to loop waypoints
-    private final MutableLiveData<ArrayList<Waypoint>> waypoints;
+    private final WaypointsList waypoints;
 
     public String mode = MODE_GO_TO;
 
@@ -35,7 +32,7 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
 
     ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
-    public GimbalWaypointsProcessor(Context context, MutableLiveData<ArrayList<Waypoint>> waypoints) {
+    public GimbalWaypointsProcessor(Context context, WaypointsList waypoints) {
         super(context);
 
         this.waypoints = waypoints;
@@ -44,7 +41,7 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     }
 
     public boolean atLeastTwoWaypointsExist() {
-        return this.waypoints.getValue().size() >= 2;
+        return this.waypoints.size() >= 2;
     }
 
     public void setStateListener(IGimbalWaypointsProcessorStateListener listener) {
@@ -83,8 +80,7 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     }
 
     public void setAllWaypointsInactive() {
-        waypoints.getValue().forEach(wp -> wp.setActive(false));
-        waypoints.postValue(waypoints.getValue());
+        waypoints.setAllAsInactive();
     }
 
 
@@ -95,10 +91,11 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     public void setActiveWaypoint(int index) {
         if (waypointExists(index)) {
             getWaypoint(current_waypoint).setActive(false);
+            waypoints.onWaypointIsActiveChanged(getWaypoint(current_waypoint));
+
             getWaypoint(index).setActive(true);
             current_waypoint = index;
-
-            waypoints.postValue(waypoints.getValue());
+            waypoints.onWaypointIsActiveChanged(getWaypoint(current_waypoint));
         } else {
             setActive(false);
         }
@@ -122,8 +119,7 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     }
 
     private boolean isAtLastWaypoint() {
-        List<Waypoint> list = waypoints.getValue();
-        return list.isEmpty() || current_waypoint == list.size() - 1;
+        return waypoints.isEmpty() || current_waypoint == waypoints.size() - 1;
     }
 
     private void moveToNextWaypoint() {
@@ -221,11 +217,11 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
     }
 
     private Waypoint getWaypoint(int index) {
-        return waypoints.getValue().get(index);
+        return waypoints.get(index);
     }
 
     private boolean waypointExists(int index) {
-        return (index >= 0 && index < waypoints.getValue().size());
+        return (index >= 0 && index < waypoints.size());
     }
 
 

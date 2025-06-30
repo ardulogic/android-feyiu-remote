@@ -177,6 +177,17 @@
         app:layout_constraintTop_toBottomOf="@+id/progressBarFocus">
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonGimbalCenter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:isScrollContainer="false"
+            android:scaleType="center"
+            app:icon="@drawable/ic_baseline_joystick_24"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="20dp" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonCameraConnect"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

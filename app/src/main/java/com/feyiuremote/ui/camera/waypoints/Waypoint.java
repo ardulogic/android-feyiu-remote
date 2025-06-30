@@ -23,6 +23,7 @@ public class Waypoint {
     public int dwellTimeMs;
 
     private transient boolean active = false;
+    private boolean isSaved;
 
     public Waypoint(Bitmap bitmap, float anglePan, float angleTilt, int angleSpeed, int dwell_time_ms, Double focusPoint) {
         this.waypointImage = bitmap;
@@ -146,4 +147,17 @@ public class Waypoint {
     public boolean isActive() {
         return this.active;
     }
+
+    public void setDwellTime(int dwellTimeMs) {
+        this.dwellTimeMs = dwellTimeMs;
+    }
+
+    public void setPanAngle(double panAngle) {
+        this.anglePan = panAngle;
+    }
+
+    public void setTiltAngle(double tiltAngle) {
+        this.angleTilt = tiltAngle;
+    }
+
 }

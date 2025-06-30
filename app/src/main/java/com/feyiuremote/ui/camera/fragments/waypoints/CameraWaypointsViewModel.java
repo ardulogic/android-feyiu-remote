@@ -4,43 +4,23 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
 import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
-import com.feyiuremote.ui.camera.waypoints.Waypoint;
-
-import java.util.ArrayList;
+import com.feyiuremote.ui.camera.waypoints.WaypointsList;
 
 public class CameraWaypointsViewModel extends ViewModel {
 
     private final String TAG = CameraWaypointsViewModel.class.getSimpleName();
 
     public final MutableLiveData<GimbalWaypointsProcessor> processor = new MutableLiveData<>();
-    public MutableLiveData<ArrayList<Waypoint>> waypointList = new MutableLiveData<>();
-    public MutableLiveData<Boolean> waypointsLoaded = new MutableLiveData<>();
-
-    public MutableLiveData<Boolean> isActive = new MutableLiveData<>();
+    public WaypointsList waypointList;
     public MutableLiveData<Boolean> isPlayLoopActive = new MutableLiveData<>();
     public MutableLiveData<Boolean> isPlayOnceActive = new MutableLiveData<>();
-
-
     public MutableLiveData<String> debugMessage = new MutableLiveData<>();
 
     public CameraWaypointsViewModel() {
         // This prevents from saving waypoints twice
         // since loading triggers observer
         processor.setValue(null);
-        waypointsLoaded.setValue(false);
-        waypointList.setValue(new ArrayList<Waypoint>());
+        waypointList = new WaypointsList();
     }
-
-    public void addWaypoint(Waypoint wp, boolean main_thread) {
-        ArrayList<Waypoint> list = waypointList.getValue();
-        list.add(wp);
-
-        if (main_thread) {
-            waypointList.setValue(list);
-        } else {
-            waypointList.postValue(list);
-        }
-    }
-
 
 }

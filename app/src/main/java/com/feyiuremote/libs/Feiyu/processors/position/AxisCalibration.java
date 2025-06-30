@@ -148,16 +148,21 @@ public class AxisCalibration {
         double overshoot = getOvershoot();
         double realSpeed = getLiveSpeed();
 
+        Log.d(TAG, axis + "Angle Diff: " + angleDiff + " AngleSpeed:" + angleSpeedDegPerSec + " Overshoot:" + overshoot);
         double extraAngle = ((double) FeyiuState.getInstance().getTimeSinceLastUpdateMs() / 1000 * angleSpeedDegPerSec);
 
         // Accounts for time passed since last update
         angleDiff -= extraAngle;
+        Log.d(TAG, axis + "Extra Angle: " + extraAngle + " Final diff:" + angleDiff);
 
         double timeToStop = angleDiff / angleSpeedDegPerSec * 1000.0; // deg / deg/sec
+        Log.d(TAG, axis + "Time To stop: " + timeToStop);
 
 //        if (Math.abs(realSpeed) > Math.abs(angleSpeedDegPerSec) * 0.3) {
         double overshootCompensation = Math.abs(overshoot / angleSpeedDegPerSec * 1000.0);
         timeToStop -= overshootCompensation;
+
+        Log.d(TAG, axis + "Final time to stop: " + timeToStop + "(" + overshootCompensation + ") compensation)");
 //        }
 //        Log.d(TAG, "Real "  + axis + " speed: " + realSpeed + " calSpeed:" + angleSpeedDegPerSec);
 

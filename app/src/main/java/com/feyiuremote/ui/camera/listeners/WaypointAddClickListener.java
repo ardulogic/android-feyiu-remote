@@ -30,27 +30,37 @@ public class WaypointAddClickListener implements View.OnClickListener {
         Bitmap lastImage = cameraViewModel.getLastImage(activity);
 
         Waypoint w = new Waypoint(
-                lastImage, FeyiuState.getInstance().angle_pan.value(),
+                resizeImage(lastImage), FeyiuState.getInstance().angle_pan.value(),
                 FeyiuState.getInstance().angle_tilt.value(),
                 50, 2000, null);
+
+        waypointsViewModel.waypointList.add(w);
 
         if (canAcquireFocus()) {
             cameraViewModel.camera.getValue().focus.update(new IPanasonicCameraFocusControlListener() {
                 @Override
                 public void onSuccess(double position) {
                     w.setFocus(position);
-                    waypointsViewModel.addWaypoint(w, false);
+                    waypointsViewModel.waypointList.onWaypointDataChanged(w);
                 }
 
                 @Override
                 public void onFailure() {
                     cameraViewModel.status.postValue("Failed to acquire focus!");
-                    waypointsViewModel.addWaypoint(w, false);
                 }
             });
-        } else {
-            waypointsViewModel.addWaypoint(w, false);
         }
+    }
+
+    private Bitmap resizeImage(Bitmap image) {
+        int targetHeight = 240;
+        int originalWidth = image.getWidth();
+        int originalHeight = image.getHeight();
+
+        float scale = (float) targetHeight / originalHeight;
+        int targetWidth = Math.round(originalWidth * scale);
+
+        return Bitmap.createScaledBitmap(image, targetWidth, targetHeight, true);
     }
 
     private boolean canAcquireFocus() {

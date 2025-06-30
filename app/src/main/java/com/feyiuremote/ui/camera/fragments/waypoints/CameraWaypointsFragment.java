@@ -64,6 +64,7 @@ public class CameraWaypointsFragment extends Fragment {
         // Drag and drop waypoints
         wpListAdapter = new WaypointListAdapter(getContext(), getViewLifecycleOwner(), waypointsViewModel);
         binding.listWaypoints.setAdapter(wpListAdapter);
+        wpListAdapter.attachToRecyclerView(binding.listWaypoints);
 
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelperCallback(wpListAdapter));
         itemTouchHelper.attachToRecyclerView(binding.listWaypoints);

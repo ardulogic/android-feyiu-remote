@@ -2,6 +2,8 @@ package com.feyiuremote.ui.camera;
 
 import android.annotation.SuppressLint;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Html;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -24,6 +26,7 @@ import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCameraDiscovery;
 import com.feyiuremote.libs.Cameras.abstracts.Connection.ICameraControlListener;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
+import com.feyiuremote.libs.Feiyu.controls.commands.CenterCommand;
 import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueue;
 import com.feyiuremote.libs.LiveStream.abstracts.FrameProcessor;
 import com.feyiuremote.ui.camera.fragments.waypoints.CameraWaypointsViewModel;
@@ -49,7 +52,6 @@ public class CameraFragment extends Fragment {
     private MainActivity mainActivity;
     private FragmentCameraBinding binding;
     private CameraViewModel cameraViewModel;
-
     private CameraWaypointsViewModel waypointsModel;
     private BluetoothViewModel mBluetoothViewModel;
     private NavController cameraNavController;
@@ -79,6 +81,10 @@ public class CameraFragment extends Fragment {
         waypointsModel.debugMessage.observe(getViewLifecycleOwner(), s -> binding.textDebug.setText(s));
 
         mBluetoothViewModel.feyiuStateUpdated.observe(getViewLifecycleOwner(), mFeyiuStateObserver);
+
+        binding.buttonGimbalCenter.setOnClickListener(view -> {
+            (new CenterCommand(mainActivity.mBluetoothLeService)).run();
+        });
 
         binding.buttonCameraConnect.setOnClickListener(view -> {
             if (cameraViewModel.streamIsStarted()) {
@@ -126,8 +132,25 @@ public class CameraFragment extends Fragment {
     }
 
     @Override
+    public void onPause() {
+        super.onPause();
+        waypointsModel.waypointList.save(mainActivity);
+
+        Log.w(TAG, "Camera fragment resume!");
+    }
+
+
+    @Override
     public void onResume() {
         super.onResume();
+
+
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            Executors.newSingleThreadExecutor().execute(() -> {
+                waypointsModel.waypointList.load(mainActivity);
+                Log.w(TAG, "Waypoints loaded in background");
+            });
+        }, 500); // Delay of 500 milliseconds (adjust as needed)
 
         Log.w(TAG, "Camera fragment resume!");
     }

@@ -40,7 +40,6 @@ import com.feyiuremote.libs.Feiyu.calibration.commands.StopCommand;
 import com.feyiuremote.libs.Feiyu.calibration.commands.WaitCommand;
 import com.feyiuremote.libs.Feiyu.controls.commands.CenterCommand;
 
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 
@@ -279,7 +278,11 @@ public class CalibrationFragment extends Fragment {
     }
 
     private int getJoySensitivity() {
-        Log.d(TAG, Arrays.toString(CAL_MAP.keySet().toArray()));
+        if (joySensitivityIndex >= CAL_MAP.size()) {
+            // Return a default or throw an exception depending on context
+            Log.w(TAG, "getJoySensitivity called with index out of bounds");
+            return 0;
+        }
         return (int) CAL_MAP.keySet().toArray()[joySensitivityIndex];
     }
 
@@ -392,6 +395,10 @@ public class CalibrationFragment extends Fragment {
     }
 
     private void updateProgressIndicators() {
+        if (!isCalibrating) {
+            return;
+        }
+
         int stageCount = maxStageIndex + 1;
 
         double joySensProgress = ((double) (joySensitivityIndex + 1) / CAL_MAP.keySet().size() * 100);
