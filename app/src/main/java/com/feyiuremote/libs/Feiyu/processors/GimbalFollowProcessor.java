@@ -4,14 +4,15 @@ import android.content.ContentValues;
 import android.util.Log;
 
 import com.feyiuremote.libs.AI.trackers.POI;
-import com.feyiuremote.libs.Feiyu.Axes;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
 import com.feyiuremote.libs.Feiyu.queue.FeyiuControls;
+import com.feyiuremote.ui.camera.models.CameraViewModel;
 
 public class GimbalFollowProcessor implements IGimbalProcessor {
 
     private final String TAG = GimbalFollowProcessor.class.getSimpleName();
     private final CalibrationDB mDbCal;
+    private final CameraViewModel mCameraViewModel;
 
     private final int joy_sens = 60;
 
@@ -19,8 +20,11 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
 
     private long timePoiUpdated = 0L;
 
-    public GimbalFollowProcessor() {
+    public GimbalFollowProcessor(CameraViewModel cameraViewModel) {
+
         this.mDbCal = CalibrationDB.get();
+        this.mCameraViewModel = cameraViewModel;
+
     }
 
     public static double evaluatePolynomial(double x) {
@@ -35,18 +39,22 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
         return result;
     }
 
-
     private void moveTowards(POI poi) {
-        Log.d(TAG, "MOving towards POI");
+        Log.d(TAG, "Moving towards POI");
 
-        FeyiuControls.setSensitivity(Axes.Axis.PAN, 25);
-        FeyiuControls.setSensitivity(Axes.Axis.TILT, 25);
+        double desiredPanOffset = mCameraViewModel.panOffset.getValue();  // e.g. 0.33
+        double desiredTiltOffset = mCameraViewModel.tiltOffset.getValue();  // e.g. 0.33
 
-        double dev_x = poi.rect.xDevPercFromFrameCenter();
-        double dev_y = poi.rect.yDevPercFromFrameCenter();
+        double dev_x = poi.rect.xDevPercFromFrameCenter();  // +ve → right
+        double dev_y = poi.rect.yDevPercFromFrameCenter();  // +ve → down
 
-        double spd_x = evaluatePolynomial(Math.abs(dev_x)) * (dev_x > 0 ? 1 : -1);
-        double spd_y = evaluatePolynomial(Math.abs(dev_y)) * (dev_y > 0 ? 1 : -1);
+        // <-- Only these two lines changed (sign fix) ------------------------
+        double err_x = dev_x - desiredPanOffset;
+        double err_y = dev_y - desiredTiltOffset;
+        // --------------------------------------------------------------------
+
+        double spd_x = evaluatePolynomial(Math.abs(err_x)) * Math.signum(err_x);
+        double spd_y = evaluatePolynomial(Math.abs(err_y)) * Math.signum(err_y);
 
         ContentValues panSettings = mDbCal.getClosestToSpeed(CalibrationDB.AXIS_PAN, spd_x);
         ContentValues tiltSettings = mDbCal.getClosestToSpeed(CalibrationDB.AXIS_TILT, spd_y);
@@ -57,23 +65,14 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
             return;
         }
 
-//        if (FeyiuState.angleIsCritical()) {
-//            Log.e(TAG, "Angle is critical!");
-//            stop();
-//            return;
-//        }
-
-        if (Math.abs(dev_x) < 0.05) {
-            panSettings.put("joy_val", 0);
-        }
-
-        if (Math.abs(dev_y) < 0.05) {
-            tiltSettings.put("joy_val", 0);
-        }
+        // Dead-zone (±5 %)
+        if (Math.abs(err_x) < 0.05) panSettings.put("joy_val", 0);
+        if (Math.abs(err_y) < 0.05) tiltSettings.put("joy_val", 0);
 
         FeyiuControls.setPanJoy(panSettings.getAsInteger("joy_val"));
         FeyiuControls.setTiltJoy(tiltSettings.getAsInteger("joy_val"));
     }
+
 
     @Override
     public void onPoiUpdate(POI poi) {

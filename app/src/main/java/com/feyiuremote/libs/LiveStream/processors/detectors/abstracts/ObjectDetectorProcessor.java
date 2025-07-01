@@ -25,7 +25,7 @@ public abstract class ObjectDetectorProcessor extends FrameProcessor {
 
         this.mainActivity = mainActivity;
         this.cameraViewModel = cameraViewModel;
-        gimbalFollowProcessor = new GimbalFollowProcessor();
+        gimbalFollowProcessor = new GimbalFollowProcessor(cameraViewModel);
 
         this.detector = createDetector();
         this.detector.init(mainActivity.getApplicationContext());

@@ -11,7 +11,6 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.feyiuremote.R;
-import com.feyiuremote.databinding.FragmentCameraBinding;
 import com.feyiuremote.databinding.FragmentCameraTrackingBinding;
 import com.feyiuremote.libs.LiveStream.processors.detectors.GooglePoseDetectorProcessor;
 import com.feyiuremote.libs.LiveStream.processors.trackers.BoxTrackingMediapipeProcessor;
@@ -25,7 +24,6 @@ public class CameraTrackingFragment extends Fragment {
     private CameraViewModel cameraViewModel;
 
     private FragmentCameraTrackingBinding binding;
-    private FragmentCameraBinding cameraBinding;
 
     private boolean isMutatingToggle = false;
 
@@ -35,8 +33,6 @@ public class CameraTrackingFragment extends Fragment {
                              ViewGroup container, Bundle savedInstanceState) {
 
         binding = FragmentCameraTrackingBinding.inflate(inflater, container, false);
-        cameraBinding = FragmentCameraBinding.inflate(inflater, container, false);
-
         cameraViewModel = new ViewModelProvider(requireActivity()).get(CameraViewModel.class);
 
         attachListeners();
@@ -84,6 +80,57 @@ public class CameraTrackingFragment extends Fragment {
                 isMutatingToggle = false;
             }
         });
+
+        // Grid Buttons - Pan and Tilt
+        binding.btnPanDecr.setOnClickListener(v -> cameraViewModel.adjPanOffset(-0.05));
+        binding.btnPanIncr.setOnClickListener(v -> cameraViewModel.adjPanOffset(+0.05));
+        binding.btnTiltDecr.setOnClickListener(v -> cameraViewModel.adjTiltOffset(-0.05));
+        binding.btnTiltIncr.setOnClickListener(v -> cameraViewModel.adjTiltOffset(+0.05));
+
+        // Grid Buttons - Rule of Thirds placeholders
+        View.OnClickListener ruleClickListener = v -> {
+            int id = v.getId();
+            switch (id) {
+                case R.id.btnRuleTopLeft:
+                    cameraViewModel.setPanOffset(-0.20);
+                    cameraViewModel.setTiltOffset(0.15);
+                    break;
+                case R.id.btnRuleTopRight:
+                    cameraViewModel.setPanOffset(0.20);
+                    cameraViewModel.setTiltOffset(0.15);
+                    break;
+                case R.id.btnRuleBottomLeft:
+                    cameraViewModel.setPanOffset(-0.20);
+                    cameraViewModel.setTiltOffset(-0.15);
+                    break;
+                case R.id.btnRuleBottomRight:
+                    cameraViewModel.setPanOffset(0.20);
+                    cameraViewModel.setTiltOffset(-0.15);
+                    break;
+            }
+        };
+
+        binding.btnRuleTopLeft.setOnClickListener(ruleClickListener);
+        binding.btnRuleTopRight.setOnClickListener(ruleClickListener);
+        binding.btnRuleBottomLeft.setOnClickListener(ruleClickListener);
+        binding.btnRuleBottomRight.setOnClickListener(ruleClickListener);
+        binding.buttonOffsetReset.setOnClickListener(v -> {
+            cameraViewModel.setPanOffset(0);
+            cameraViewModel.setTiltOffset(0);
+        });
+
+        // Live offset update
+        cameraViewModel.panOffset.observe(getViewLifecycleOwner(), pan ->
+                updateOffsetsText(pan, cameraViewModel.tiltOffset.getValue()));
+
+        cameraViewModel.tiltOffset.observe(getViewLifecycleOwner(), tilt ->
+                updateOffsetsText(cameraViewModel.panOffset.getValue(), tilt));
+    }
+
+    private void updateOffsetsText(Double pan, Double tilt) {
+        if (pan == null || tilt == null) return;
+        binding.buttonOffsetReset.setText(
+                String.format("Tilt: %.2f\nPan: %.2f", tilt, pan));
     }
 
 }

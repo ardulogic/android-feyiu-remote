@@ -10,9 +10,6 @@ import com.feyiuremote.R;
 import com.feyiuremote.libs.Cameras.Panasonic.PanasonicCamera;
 import com.feyiuremote.libs.Utils.BitmapHelper;
 import com.feyiuremote.ui.camera.listeners.CameraLiveFeedReceiver;
-import com.feyiuremote.ui.camera.waypoints.Waypoint;
-
-import java.util.ArrayList;
 
 public class CameraViewModel extends ViewModel {
 
@@ -24,11 +21,32 @@ public class CameraViewModel extends ViewModel {
     public final MutableLiveData<CameraLiveFeedReceiver> liveFeedReceiver = new MutableLiveData<>();
     public MutableLiveData<Boolean> isStreaming = new MutableLiveData<>();
     public MutableLiveData<String> debugMessage = new MutableLiveData<>();
+    public MutableLiveData<Double> panOffset = new MutableLiveData<>();
+    public MutableLiveData<Double> tiltOffset = new MutableLiveData<>();
 
     public CameraViewModel() {
         status.setValue("Waiting for camera...");
 
         isStreaming.setValue(false);
+
+        panOffset.postValue(0D);
+        tiltOffset.postValue(0D);
+    }
+
+    public void setPanOffset(double value) {
+        panOffset.postValue(value);
+    }
+
+    public void setTiltOffset(double value) {
+        tiltOffset.postValue(value);
+    }
+
+    public void adjPanOffset(double value) {
+        panOffset.postValue(panOffset.getValue() + value);
+    }
+
+    public void adjTiltOffset(double value) {
+        tiltOffset.postValue(tiltOffset.getValue() + value);
     }
 
     public boolean streamIsStarted() {

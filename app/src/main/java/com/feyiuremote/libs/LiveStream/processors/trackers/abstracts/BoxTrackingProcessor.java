@@ -36,7 +36,7 @@ public abstract class BoxTrackingProcessor extends FrameProcessor {
 
         this.mainActivity = mainActivity;
         this.cameraViewModel = cameraViewModel;
-        gimbalFollowProcessor = new GimbalFollowProcessor();
+        gimbalFollowProcessor = new GimbalFollowProcessor(cameraViewModel);
 
         tracker = createTracker();
         if (tracker == null) {
