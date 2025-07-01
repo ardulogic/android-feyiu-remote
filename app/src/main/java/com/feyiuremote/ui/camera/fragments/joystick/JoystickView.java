@@ -86,8 +86,8 @@ public class JoystickView extends View {
     //  Initial setup
     // ---------------------------------------------------------------------------------------------
     private void init(Context ctx) {
-        rawBg = drawableToBitmap(ContextCompat.getDrawable(ctx, R.drawable.joystick_ring));
-        rawKnob = drawableToBitmap(ContextCompat.getDrawable(ctx, R.drawable.joystick_knob));
+        rawBg = drawableToBitmap(ContextCompat.getDrawable(ctx, R.drawable.joystick_bg));
+        rawKnob = drawableToBitmap(ContextCompat.getDrawable(ctx, R.drawable.joystick_stick));
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -110,7 +110,7 @@ public class JoystickView extends View {
         centerX = w / 2f;
         centerY = h / 2f;
 
-        baseRadius = Math.min(w, h) / 2.2f;
+        baseRadius = Math.min(w, h) / 2.5f;
         knobRadius = baseRadius / 2.5f;
         knobPosition.set(centerX, centerY);
 

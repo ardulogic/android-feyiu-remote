@@ -13,9 +13,17 @@ import com.feyiuremote.libs.Utils.NamedThreadFactory;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.nio.ByteBuffer;
+import java.nio.channels.DatagramChannel;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -24,7 +32,7 @@ import java.util.concurrent.Executors;
 public class PanasonicCameraLiveView {
     private static final String TAG = "PanasonicCameraLiveView";
     public static final int PORT = 49152;
-    private static final int RECEIVE_BUFFER_SZ = 2_000_000;
+    private static final int RECEIVE_BUFFER_SZ = 150_000;
     private static final int TIMEOUT_MS = 500;
     private static final int PACKET_QUEUE_CAP = 128;
     private static final int FRAME_QUEUE_CAP = 4;
@@ -178,7 +186,7 @@ public class PanasonicCameraLiveView {
                     socket.close();
                 }
 
-                mLiveViewReceiver.onStop("Stream has finished.");
+                mLiveViewReceiver.onStop("Stream has finished. Auto restart: " + autoRestartStream + " isActive:" + isActive());
 
                 if (autoRestartStream && isActive()) {
                     restartStream();
@@ -190,6 +198,101 @@ public class PanasonicCameraLiveView {
             Log.d(TAG, "Network loop exiting");
         });
     }
+
+    private void startNetworkLoopNio() {
+        networkExecutor.execute(() -> {
+            Log.d(TAG, "Network loop (NIO) starting");
+
+            int socketLoopExceptions = 0;
+
+            try (DatagramChannel channel = DatagramChannel.open()) {
+                channel.configureBlocking(false);
+                channel.socket().bind(new InetSocketAddress(PORT));
+                channel.socket().setReuseAddress(true);
+                channel.socket().setReceiveBufferSize(RECEIVE_BUFFER_SZ);
+
+                Selector selector = Selector.open();
+                channel.register(selector, SelectionKey.OP_READ);
+
+                ByteBuffer buffer = ByteBuffer.allocate(RECEIVE_BUFFER_SZ); // Use heap buffer
+
+                while (streamActive && socketLoopExceptions < MAX_SOCKET_EXCEPTIONS_UNTIL_STOP) {
+                    try {
+                        int readyChannels = selector.select(10); // Short timeout
+
+                        if (readyChannels == 0) {
+                            socketLoopExceptions++;
+                            mLiveViewReceiver.onWarning("NIO timeout: " + socketLoopExceptions);
+                            continue;
+                        }
+
+                        Set<SelectionKey> selectedKeys = selector.selectedKeys();
+                        Iterator<SelectionKey> iter = selectedKeys.iterator();
+
+                        while (iter.hasNext()) {
+                            SelectionKey key = iter.next();
+                            iter.remove(); // Remove key early to avoid stale entries
+
+                            if (key.isReadable()) {
+                                while (true) {
+                                    buffer.clear();
+                                    SocketAddress sender = channel.receive(buffer);
+                                    if (sender == null) break; // No more packets
+
+                                    buffer.flip();
+                                    byte[] data = new byte[buffer.remaining()];
+                                    buffer.get(data);
+
+                                    DatagramPacket packet = new DatagramPacket(data, data.length);
+
+                                    if (!packetQueue.offer(packet)) {
+                                        packetQueue.poll(); // Drop oldest
+                                        packetQueue.offer(packet);
+                                        Log.w(TAG, "Dropped old packet: queue full");
+                                    }
+
+                                    frameSinceStreamRequest = 0;
+                                    socketLoopExceptions = 0;
+                                }
+                            }
+                        }
+
+                        // Prolong stream check
+                        if (frameSinceStreamRequest > 200 && !prolongingStream) {
+                            Log.w(TAG, "Prolonging stream...");
+                            prolongStream();
+                        }
+
+                        frameSinceStreamRequest++;
+
+                    } catch (IOException e) {
+                        socketLoopExceptions++;
+                        mLiveViewReceiver.onError("NIO I/O error: " + e.getMessage());
+                    } catch (Exception e) {
+                        socketLoopExceptions++;
+                        mLiveViewReceiver.onError("Unknown NIO error: " + e.getMessage());
+                    }
+                }
+
+                selector.close();
+
+            } catch (IOException e) {
+                mLiveViewReceiver.onError("Failed to open NIO DatagramChannel: " + e.getMessage());
+            }
+
+            mLiveViewReceiver.onStop("Stream has finished. Auto restart: " + autoRestartStream + " isActive: " + isActive());
+
+            if (autoRestartStream && isActive()) {
+                restartStream();
+            } else {
+                stop();
+            }
+
+            Log.d(TAG, "Network loop (NIO) exiting");
+        });
+    }
+
+
 
     //-------------------------------------------------------------------------
     // 2) Decoder: turn raw JPEG packets into Frame objects
@@ -214,6 +317,15 @@ public class PanasonicCameraLiveView {
             }
             Log.d(TAG, "Decoder loop exiting");
         });
+    }
+
+    private int indexOf(byte[] data, int b1, int b2) {
+        for (int i = 0; i < data.length - 1; i++) {
+            if ((data[i] & 0xFF) == b1 && (data[i + 1] & 0xFF) == b2) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     //-------------------------------------------------------------------------
@@ -243,6 +355,8 @@ public class PanasonicCameraLiveView {
             @Override
             public void onSuccess() {
                 startNetworkLoop();
+                // Non-blocking method, but seems to drop more frames
+//                startNetworkLoopNio();
             }
 
             @Override

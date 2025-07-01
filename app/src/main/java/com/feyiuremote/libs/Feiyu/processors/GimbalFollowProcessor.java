@@ -7,36 +7,27 @@ import com.feyiuremote.libs.AI.trackers.POI;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
 import com.feyiuremote.libs.Feiyu.queue.FeyiuControls;
 import com.feyiuremote.ui.camera.models.CameraViewModel;
-
 public class GimbalFollowProcessor implements IGimbalProcessor {
 
     private final String TAG = GimbalFollowProcessor.class.getSimpleName();
     private final CalibrationDB mDbCal;
     private final CameraViewModel mCameraViewModel;
 
-    private final int joy_sens = 60;
-
     private final int MIN_POI_UPDATE_INTERVAL = 150;
 
     private long timePoiUpdated = 0L;
 
     public GimbalFollowProcessor(CameraViewModel cameraViewModel) {
-
         this.mDbCal = CalibrationDB.get();
         this.mCameraViewModel = cameraViewModel;
-
     }
 
-    public static double evaluatePolynomial(double x) {
-        double result = 0.0;
-        result += -185.2251 * Math.pow(x, 5);
-        result += 453.9713 * Math.pow(x, 4);
-        result += -369.9565 * Math.pow(x, 3);
-        result += 105.8335 * Math.pow(x, 2);
-        result += 4.8634 * x;
-        result += 0.5173;
-
-        return result;
+    public double getSpeed(double error) {
+        if (Math.abs(error) < 0.3) {
+            return error * 20;
+        } else {
+            return error * 50;
+        }
     }
 
     private void moveTowards(POI poi) {
@@ -53,8 +44,11 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
         double err_y = dev_y - desiredTiltOffset;
         // --------------------------------------------------------------------
 
-        double spd_x = evaluatePolynomial(Math.abs(err_x)) * Math.signum(err_x);
-        double spd_y = evaluatePolynomial(Math.abs(err_y)) * Math.signum(err_y);
+        // calculate angle speed based on the error.  It should be ~ 1
+        double spd_x = getSpeed(err_x);
+        double spd_y = getSpeed(err_y);
+
+        Log.d(TAG, String.format("Err: %.2f SpdX: %.2f, Erry: %.2f SpdY: %.2f", err_x, spd_x, err_y, spd_y));
 
         ContentValues panSettings = mDbCal.getClosestToSpeed(CalibrationDB.AXIS_PAN, spd_x);
         ContentValues tiltSettings = mDbCal.getClosestToSpeed(CalibrationDB.AXIS_TILT, spd_y);
@@ -69,7 +63,9 @@ public class GimbalFollowProcessor implements IGimbalProcessor {
         if (Math.abs(err_x) < 0.05) panSettings.put("joy_val", 0);
         if (Math.abs(err_y) < 0.05) tiltSettings.put("joy_val", 0);
 
+        FeyiuControls.setPanSensitivity(panSettings.getAsInteger("joy_sens"));
         FeyiuControls.setPanJoy(panSettings.getAsInteger("joy_val"));
+        FeyiuControls.setTiltSensitivity(tiltSettings.getAsInteger("joy_sens"));
         FeyiuControls.setTiltJoy(tiltSettings.getAsInteger("joy_val"));
     }
 

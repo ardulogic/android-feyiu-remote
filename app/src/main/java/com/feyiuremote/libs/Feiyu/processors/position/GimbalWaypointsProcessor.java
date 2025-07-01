@@ -199,13 +199,31 @@ public class GimbalWaypointsProcessor extends GimbalPositionProcessor {
         }
     }
 
+    private void startTrackingPose() {
+        Log.d(TAG, "Now should start tracking pose.");
+        stateListener.onPoseTrackingToggle(true);
+    }
+
+    private void stopTrackingPose() {
+        Log.d(TAG, "Now should stop tracking pose.");
+        stateListener.onPoseTrackingToggle(false);
+    }
+
     private void scheduleGoToNextTarget(GimbalPositionTarget target) {
         // Schedule next waypoint otherwise
         Log.d(TAG, "Scheduling next waypoint in :" + target.dwell_time_ms);
 
+        if (getWaypoint(current_waypoint).getTrackPoseOnDwell()) {
+            startTrackingPose();
+        }
+
         // Schedule a new task to move to the next waypoint after a delay
         currentScheduledTask = scheduler.schedule(() -> {
             Log.d(TAG, "Executing scheduled waypoint:" + target.dwell_time_ms);
+            if (getWaypoint(current_waypoint).getTrackPoseOnDwell()) {
+                stopTrackingPose();
+            }
+
             try {
                 // After dwell time, move to the next waypoint
                 moveToNextWaypoint();

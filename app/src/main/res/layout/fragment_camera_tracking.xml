@@ -10,28 +10,25 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="16dp">>
+        android:padding="16dp">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_horizontal"
-            android:orientation="vertical"><![CDATA[>
-
-
-
-            ]]>
+            android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
                 android:text="Select Tracker:" />
 
             <com.google.android.material.button.MaterialButtonToggleGroup
                 android:id="@+id/toggle_group_tracker"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginBottom="16dp"
                 app:selectionRequired="true"
                 app:singleSelection="true">
 
@@ -65,13 +62,14 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
                 android:text="Select Detector:" />
 
             <com.google.android.material.button.MaterialButtonToggleGroup
                 android:id="@+id/toggle_group_detector"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
                 app:selectionRequired="true"
                 app:singleSelection="true">
 
@@ -97,9 +95,9 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
                 android:layout_weight="1"
-                android:text="Tracking Offset" />
+                android:text="Tracking Offset:" />
 
             <FrameLayout
                 android:layout_width="match_parent"
@@ -122,7 +120,7 @@
                     android:rowCount="3">
 
                     <!-- Top-left: Rule of Thirds -->
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnRuleTopLeft"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
@@ -132,10 +130,11 @@
                         android:layout_column="0"
                         android:layout_columnWeight="1"
                         android:layout_margin="4dp"
-                        android:text="Rule Of thirds" />
+                        android:text="⬊"
+                        android:textSize="34sp" />
 
                     <!-- Top-center: Tilt Decrease -->
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnTiltDecr"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
@@ -148,7 +147,7 @@
                         android:text="Tilt -" />
 
                     <!-- Top-right: Rule of thirds -->
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnRuleTopRight"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
@@ -158,10 +157,11 @@
                         android:layout_column="2"
                         android:layout_columnWeight="1"
                         android:layout_margin="4dp"
-                        android:text="Rule of thirds" />
+                        android:text="⬋"
+                        android:textSize="34sp" />
 
                     <!-- Middle-left: Pan Decrease -->
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnPanDecr"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
@@ -174,7 +174,7 @@
                         android:text="Pan -" />
 
                     <!-- Middle-center: Center TextView -->
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/buttonOffsetReset"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
@@ -183,13 +183,14 @@
                         android:layout_rowWeight="1"
                         android:layout_column="1"
                         android:layout_columnWeight="1"
+                        android:layout_margin="4dp"
                         android:gravity="center"
                         android:text="Tilt: 0\nPan: 0"
                         android:textAlignment="center"
-                        android:textSize="14sp" />
+                        android:textSize="12sp" />
 
                     <!-- Middle-right: Pan Increase -->
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnPanIncr"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
@@ -202,7 +203,7 @@
                         android:text="Pan +" />
 
                     <!-- Bottom-left: Rule of thirds -->
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnRuleBottomLeft"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
@@ -212,10 +213,11 @@
                         android:layout_column="0"
                         android:layout_columnWeight="1"
                         android:layout_margin="4dp"
-                        android:text="RuleOf Thirds" />
+                        android:text="⬈"
+                        android:textSize="34sp" />
 
                     <!-- Bottom-center: Tilt Increase -->
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnTiltIncr"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
@@ -228,7 +230,7 @@
                         android:text="Tilt +" />
 
                     <!-- Bottom-right: Rule of thirds -->
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnRuleBottomRight"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
@@ -238,7 +240,8 @@
                         android:layout_column="2"
                         android:layout_columnWeight="1"
                         android:layout_margin="4dp"
-                        android:text="Rule of thirds" />
+                        android:text="⬉"
+                        android:textSize="34sp" />
 
                 </GridLayout>
 

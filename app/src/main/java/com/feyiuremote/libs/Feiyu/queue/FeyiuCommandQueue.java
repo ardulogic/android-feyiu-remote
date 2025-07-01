@@ -84,10 +84,25 @@ public final class FeyiuCommandQueue implements Runnable, Handler.Callback {
 
         Long headTs;
 
-        if (singleCommands.isEmpty()) {
-            headTs = scheduledCommands.firstKey();    // earliest exec-time
+//        if (singleCommands.isEmpty()) {
+//            headTs = scheduledCommands.firstKey();    // earliest exec-time
+//        } else {
+//            // This triggers the error:
+//            headTs = singleCommands.firstKey();    // earliest exec-time
+//        }
+// Now was replaced with this:
+        Map.Entry<Long, QueueEntry> singleEntry = singleCommands.firstEntry();
+        Map.Entry<Long, QueueEntry> scheduledEntry = scheduledCommands.firstEntry();
+
+        if (singleEntry == null && scheduledEntry == null) {
+            TIMER.removeMessages(MSG_FIRE);
+            return;
+        } else if (singleEntry == null) {
+            headTs = scheduledEntry.getKey();
+        } else if (scheduledEntry == null) {
+            headTs = singleEntry.getKey();
         } else {
-            headTs = singleCommands.firstKey();    // earliest exec-time
+            headTs = Math.min(singleEntry.getKey(), scheduledEntry.getKey());
         }
 
         long delay = headTs - System.currentTimeMillis();                    // may be negative

@@ -10,6 +10,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TableLayout;
@@ -165,10 +166,16 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
             tiltAngleInput.setInputType(InputType.TYPE_NUMBER_FLAG_SIGNED | InputType.TYPE_CLASS_NUMBER);
             tiltAngleInput.setText(String.format("%.2f", item.angleTilt));
 
+            CheckBox trackPoseCheckbox = new CheckBox(context);
+            trackPoseCheckbox.setText("Track Pose on Dwell");
+            trackPoseCheckbox.setChecked(item.getTrackPoseOnDwell());  // Assuming getter exists
+            trackPoseCheckbox.setPadding(10, 30, 10, 10);
+
             // Add rows to the table
             tableLayout.addView(createTableRow("Dwell time (ms):", dwellTimeInput));
             tableLayout.addView(createTableRow("Pan angle (°):", panAngleInput));
             tableLayout.addView(createTableRow("Tilt angle (°):", tiltAngleInput));
+            tableLayout.addView(trackPoseCheckbox);
 
             // Build and show AlertDialog
             new AlertDialog.Builder(context)
@@ -179,10 +186,12 @@ public class WaypointListAdapter extends RecyclerView.Adapter<WaypointListAdapte
                             int dwellTime = Integer.parseInt(dwellTimeInput.getText().toString());
                             double panAngle = Double.parseDouble(panAngleInput.getText().toString());
                             double tiltAngle = Double.parseDouble(tiltAngleInput.getText().toString());
+                            boolean trackPoseOnDwell = trackPoseCheckbox.isChecked();
 
                             item.setDwellTime(dwellTime);
                             item.setPanAngle(panAngle);
                             item.setTiltAngle(tiltAngle);
+                            item.setTrackPoseOnDwell(trackPoseOnDwell);  // Assuming setter exists
 
                             waypointList.onWaypointDataChanged(item);
 

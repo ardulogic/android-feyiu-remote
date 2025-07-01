@@ -19,6 +19,8 @@ import com.feyiuremote.R;
 import com.feyiuremote.databinding.FragmentCameraWaypointsBinding;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Feiyu.processors.position.GimbalWaypointsProcessor;
+import com.feyiuremote.libs.Feiyu.processors.position.IGimbalWaypointsProcessorStateListener;
+import com.feyiuremote.libs.LiveStream.processors.detectors.GooglePoseDetectorProcessor;
 import com.feyiuremote.ui.camera.listeners.WaypointAddClickListener;
 import com.feyiuremote.ui.camera.models.CameraViewModel;
 import com.feyiuremote.ui.camera.waypoints.ItemTouchHelperCallback;
@@ -69,9 +71,24 @@ public class CameraWaypointsFragment extends Fragment {
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelperCallback(wpListAdapter));
         itemTouchHelper.attachToRecyclerView(binding.listWaypoints);
 
-        mWaypointsProcessor.setStateListener((mode, isActive) -> {
-            waypointsViewModel.isPlayLoopActive.postValue(isActive && Objects.equals(mode, GimbalWaypointsProcessor.MODE_PLAY_LOOP));
-            waypointsViewModel.isPlayOnceActive.postValue(isActive && Objects.equals(mode, GimbalWaypointsProcessor.MODE_PLAY_ONCE));
+        mWaypointsProcessor.setStateListener(new IGimbalWaypointsProcessorStateListener() {
+            @Override
+            public void onStateChange(String mode, boolean isActive) {
+                waypointsViewModel.isPlayLoopActive.postValue(isActive && Objects.equals(mode, GimbalWaypointsProcessor.MODE_PLAY_LOOP));
+                waypointsViewModel.isPlayOnceActive.postValue(isActive && Objects.equals(mode, GimbalWaypointsProcessor.MODE_PLAY_ONCE));
+            }
+
+            @Override
+            public void onPoseTrackingToggle(boolean isActive) {
+                if (isActive) {
+                    if (cameraViewModel.liveFeedReceiver.getValue() != null) {
+                        String processorClass = GooglePoseDetectorProcessor.class.getName();
+                        cameraViewModel.liveFeedReceiver.getValue().setFrameProcessor(processorClass);
+                    }
+                } else {
+                    stopTrackers();
+                }
+            }
         });
 
         waypointsViewModel.isPlayLoopActive.observe(getViewLifecycleOwner(), isPlayLoopActive -> {
@@ -96,6 +113,7 @@ public class CameraWaypointsFragment extends Fragment {
 
         binding.buttonWaypointPlayOnce.setOnClickListener(view -> {
             if (Boolean.TRUE.equals(mBluetoothViewModel.connected.getValue()) && !mWaypointsProcessor.isActive) {
+                stopTrackers();
                 mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_PLAY_ONCE);
             } else {
                 mWaypointsProcessor.stop();
@@ -104,17 +122,29 @@ public class CameraWaypointsFragment extends Fragment {
 
         binding.buttonWaypointPlayLoop.setOnClickListener(view -> {
             if (Boolean.TRUE.equals(mBluetoothViewModel.connected.getValue()) && !mWaypointsProcessor.isActive) {
+                stopTrackers();
                 mWaypointsProcessor.start(GimbalWaypointsProcessor.MODE_PLAY_LOOP);
             } else {
                 mWaypointsProcessor.stop();
             }
         });
 
-//        binding.buttonPlayWaypointsBlend.setOnClickListener(view -> {
-//            unifiedTrackingProcessor.mWaypointsProcessor.toggleFlag(GimbalWaypointsProcessor.FLAG_DWELL);
-//        });
-
         return binding.getRoot();
+    }
+
+    public void stopTrackers() {
+        if (cameraViewModel.liveFeedReceiver.getValue() != null) {
+            cameraViewModel.liveFeedReceiver.getValue().cancelFrameProcessor();
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+
+        if (mWaypointsProcessor != null && mWaypointsProcessor.isActive) {
+            mWaypointsProcessor.stop();
+        }
     }
 
     /**

@@ -16,6 +16,7 @@ import com.feyiuremote.libs.LiveStream.processors.detectors.GooglePoseDetectorPr
 import com.feyiuremote.libs.LiveStream.processors.trackers.BoxTrackingMediapipeProcessor;
 import com.feyiuremote.libs.LiveStream.processors.trackers.BoxTrackingOpenCvProcessor;
 import com.feyiuremote.ui.camera.models.CameraViewModel;
+import com.google.android.material.button.MaterialButton;
 
 public class CameraTrackingFragment extends Fragment {
 
@@ -120,17 +121,47 @@ public class CameraTrackingFragment extends Fragment {
         });
 
         // Live offset update
-        cameraViewModel.panOffset.observe(getViewLifecycleOwner(), pan ->
-                updateOffsetsText(pan, cameraViewModel.tiltOffset.getValue()));
+        cameraViewModel.panOffset.observe(getViewLifecycleOwner(), pan -> {
+            updateOffsetsText(pan, cameraViewModel.tiltOffset.getValue());
+            updateRuleButtons(pan, cameraViewModel.tiltOffset.getValue());
+        });
 
-        cameraViewModel.tiltOffset.observe(getViewLifecycleOwner(), tilt ->
-                updateOffsetsText(cameraViewModel.panOffset.getValue(), tilt));
+        cameraViewModel.tiltOffset.observe(getViewLifecycleOwner(), tilt -> {
+            updateOffsetsText(cameraViewModel.panOffset.getValue(), tilt);
+            updateRuleButtons(cameraViewModel.panOffset.getValue(), tilt);
+        });
     }
 
     private void updateOffsetsText(Double pan, Double tilt) {
         if (pan == null || tilt == null) return;
+
         binding.buttonOffsetReset.setText(
                 String.format("Tilt: %.2f\nPan: %.2f", tilt, pan));
+    }
+
+    private void updateRuleButtons(Double pan, Double tilt) {
+        if (pan == null || tilt == null) return;
+
+        // Define a small tolerance to account for rounding errors
+        final double TOLERANCE = 0.01;
+
+        boolean topLeft = Math.abs(pan + 0.20) < TOLERANCE && Math.abs(tilt - 0.15) < TOLERANCE;
+        boolean topRight = Math.abs(pan - 0.20) < TOLERANCE && Math.abs(tilt - 0.15) < TOLERANCE;
+        boolean bottomLeft = Math.abs(pan + 0.20) < TOLERANCE && Math.abs(tilt + 0.15) < TOLERANCE;
+        boolean bottomRight = Math.abs(pan - 0.20) < TOLERANCE && Math.abs(tilt + 0.15) < TOLERANCE;
+
+        setButtonOutline(binding.btnRuleTopLeft, topLeft);
+        setButtonOutline(binding.btnRuleTopRight, topRight);
+        setButtonOutline(binding.btnRuleBottomLeft, bottomLeft);
+        setButtonOutline(binding.btnRuleBottomRight, bottomRight);
+    }
+
+    private void setButtonOutline(MaterialButton button, boolean active) {
+        if (active) {
+            button.setBackgroundColor(getResources().getColor(R.color.waypoint_active));
+        } else {
+            button.setBackgroundColor(getResources().getColor(R.color.waypoint_inactive));
+        }
     }
 
 }

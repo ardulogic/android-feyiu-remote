@@ -28,6 +28,8 @@ public class WaypointGsonAdapter extends TypeAdapter<Waypoint> {
             out.name("focusPoint").value(waypoint.getFocusPoint());
         }
 
+        out.name("trackPoseOnDwell").value(waypoint.getTrackPoseOnDwell());
+
         out.endObject();
     }
 
@@ -82,6 +84,9 @@ public class WaypointGsonAdapter extends TypeAdapter<Waypoint> {
                     break;
                 case "focusPoint":
                     waypoint.focusPoint = in.nextDouble();
+                    break;
+                case "trackPoseOnDwell":
+                    waypoint.trackPoseOnDwell = in.nextBoolean();
                     break;
                 default:
                     in.skipValue();

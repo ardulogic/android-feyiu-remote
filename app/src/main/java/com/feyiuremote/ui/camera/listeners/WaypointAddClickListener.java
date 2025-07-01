@@ -32,7 +32,7 @@ public class WaypointAddClickListener implements View.OnClickListener {
         Waypoint w = new Waypoint(
                 resizeImage(lastImage), FeyiuState.getInstance().angle_pan.value(),
                 FeyiuState.getInstance().angle_tilt.value(),
-                50, 2000, null);
+                50, 2000, null, false);
 
         waypointsViewModel.waypointList.add(w);
 

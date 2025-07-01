@@ -23,15 +23,17 @@ public class Waypoint {
     public int dwellTimeMs;
 
     private transient boolean active = false;
+    public boolean trackPoseOnDwell = false;
     private boolean isSaved;
 
-    public Waypoint(Bitmap bitmap, float anglePan, float angleTilt, int angleSpeed, int dwell_time_ms, Double focusPoint) {
+    public Waypoint(Bitmap bitmap, float anglePan, float angleTilt, int angleSpeed, int dwell_time_ms, Double focusPoint, boolean trackPoseOnDwell) {
         this.waypointImage = bitmap;
         this.anglePan = anglePan;
         this.angleTilt = angleTilt;
         this.angleSpeed = angleSpeed;
         this.dwellTimeMs = dwell_time_ms;
         this.focusPoint = focusPoint;
+        this.trackPoseOnDwell = trackPoseOnDwell;
         this.setId();
     }
 
@@ -49,6 +51,7 @@ public class Waypoint {
         this.dwellTimeMs = w.dwellTimeMs;
         this.focusPoint = w.focusPoint;
         this.active = w.isActive();
+        this.trackPoseOnDwell = w.trackPoseOnDwell;
         this.id = w.id;
     }
 
@@ -72,12 +75,13 @@ public class Waypoint {
                 Double.compare(w.anglePan, anglePan) == 0 &&
                 Double.compare(w.angleTilt, angleTilt) == 0 &&
                 Objects.equals(id, w.id) &&
-                Objects.equals(focusPoint, w.focusPoint);
+                Objects.equals(focusPoint, w.focusPoint) &&
+                w.trackPoseOnDwell == trackPoseOnDwell;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, anglePan, angleTilt, angleSpeed, dwellTimeMs, focusPoint);
+        return Objects.hash(id, anglePan, angleTilt, angleSpeed, dwellTimeMs, focusPoint, trackPoseOnDwell);
     }
 
     public void setId() {
@@ -158,6 +162,14 @@ public class Waypoint {
 
     public void setTiltAngle(double tiltAngle) {
         this.angleTilt = tiltAngle;
+    }
+
+    public void setTrackPoseOnDwell(boolean enabled) {
+        this.trackPoseOnDwell = enabled;
+    }
+
+    public boolean getTrackPoseOnDwell() {
+        return this.trackPoseOnDwell;
     }
 
 }

@@ -54,10 +54,14 @@ public class CalibrationFragment extends Fragment {
     private CalibrationRunnable calibrationRunnable;
     private CalibrationViewModel calibrationModel;
 
+    public static final int SENS_SLOW = 25;
+    public static final int SENS_MED = 60;
+    public static final int SENS_FAST = 230;
+
     public static final LinkedHashMap<Integer, int[]> CAL_MAP = new LinkedHashMap<Integer, int[]>() {{
-        put(25, new int[]{65, 90, 100, 105, 135, 170, 200, 205, 235, 240});
-        put(60, new int[]{55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215, 220, 225, 230, 235, 240});
-        put(230, new int[]{52, 53, 54, 55, 56, 57, 58, 60, 61, 62, 64, 66, 68, 70, 71, 72, 74, 76, 78, 79, 80, 82, 83, 85, 90, 100, 110, 130, 140});
+        put(SENS_SLOW, new int[]{65, 90, 100, 105, 135, 170, 200, 205, 235, 240});
+        put(SENS_MED, new int[]{55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215, 220, 225, 230, 235, 240});
+        put(SENS_FAST, new int[]{52, 53, 54, 55, 56, 57, 58, 60, 61, 62, 64, 66, 68, 70, 71, 72, 74, 76, 78, 79, 80, 82, 83, 85, 90, 100, 110, 130, 140});
     }};
 
     public static boolean isCalibrated() {

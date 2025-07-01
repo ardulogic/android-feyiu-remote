@@ -61,7 +61,7 @@ public class WifiConnector {
 
         this.viewModel = viewModel;
         this.viewModel.ssid.postValue(getCurrentWifiSSID(context));
-
+        this.viewModel.connectionStatus.postValue(getCurrentConnectionStatus());
         loadPresets();
     }
 
@@ -86,31 +86,52 @@ public class WifiConnector {
 
                 NetworkInfo info = intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO);
                 if (info != null && info.getState() != null) {
-                    switch (info.getState()) {
-                        case DISCONNECTING:
-                            viewModel.connectionStatus.postValue(DISCONNECTING);
-                            break;
-                        case DISCONNECTED:
-                            viewModel.connectionStatus.postValue(DISCONNECTED);
-                            break;
-                        case CONNECTING:
-                            viewModel.connectionStatus.postValue(CONNECTING);
-                            break;
-                        case CONNECTED:
-                            Log.d(TAG, "Receiver received Connected status, but this is not reliable.");
+                    String state = mapNetworkStateToStatus(info.getState());
+                    Log.d(TAG, "Connection state updated: " + state);
 
-                            if (isCurrentlyConnectedToWifi()) {
-                                Log.d(TAG, "Is indeed connected.");
 
-                                viewModel.connectionStatus.postValue(CONNECTED);
-                            }
-                            break;
+                    if (state.equals(CONNECTED)) {
+                        if (isCurrentlyConnectedToWifi()) {
+                            Log.d(TAG, "Is indeed connected.");
+                            viewModel.connectionStatus.postValue(CONNECTED);
+                        }
+                    } else {
+                        viewModel.connectionStatus.postValue(state);
                     }
                 }
             }
         }
     };
 
+    public String getCurrentConnectionStatus() {
+        if (isCurrentlyConnectedToWifi()) {
+            return CONNECTED;
+        } else {
+            NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+            if (networkInfo != null && networkInfo.getType() == ConnectivityManager.TYPE_WIFI) {
+                NetworkInfo.State state = networkInfo.getState();
+
+                return mapNetworkStateToStatus(state);
+            }
+
+            return DISCONNECTED;
+        }
+    }
+
+    private String mapNetworkStateToStatus(NetworkInfo.State state) {
+        if (state == null) return DISCONNECTED;
+        switch (state) {
+            case CONNECTING:
+                return CONNECTING;
+            case DISCONNECTING:
+                return DISCONNECTING;
+            case CONNECTED:
+                return CONNECTED;
+            case DISCONNECTED:
+            default:
+                return DISCONNECTED;
+        }
+    }
 
     /* ─────────────────────────────────────── PERSISTENCE ─────────────────────────────────────── */
 
@@ -335,12 +356,14 @@ public class WifiConnector {
                 @Override
                 public void onLosing(@NonNull Network network, int maxMsToLive) {
                     super.onLosing(network, maxMsToLive);
+                    Log.d(TAG, "Losing connection to network: " + ap.ssid);
                     viewModel.connectionStatus.postValue(DISCONNECTING);
                 }
 
                 @Override
                 public void onLost(@NonNull Network network) {
                     super.onLost(network);
+                    Log.d(TAG, "Lost connection to network: " + ap.ssid);
                     viewModel.connectionStatus.postValue(DISCONNECTED);
                 }
 

@@ -41,6 +41,16 @@ public class CameraLiveFeedReceiver extends LiveFeedReceiver {
 //        setFrameProcessor(BoxTrackingOpenCvProcessor.class.getName());
     }
 
+    public FrameProcessor getFrameProcessor() {
+        return frameProcessorDispatcher.getCurrentProcessor();
+    }
+
+    public void cancelFrameProcessor() {
+        if (this.frameProcessorDispatcher.getCurrentProcessor() != null) {
+            this.frameProcessorDispatcher.terminateProcessor();
+        }
+    }
+
     public void setFrameProcessor(String processorClassName) {
         if (this.frameProcessorDispatcher.getCurrentProcessor() != null) {
             this.frameProcessorDispatcher.terminateProcessor();
