@@ -69,16 +69,18 @@ public class JpegPacket {
     }
 
     public Bitmap getBitmapIfAvailable(byte[] packet, int length) {
-
         startIndex = findStartOfImage(packet, length);
-        endIndex = findEndOfImage(packet, length);
+        endIndex = length;
 
-        if (startIndex != null && endIndex != null) {
+        if (startIndex != null) {
             int imageLength = endIndex - startIndex;
             System.arraycopy(packet, startIndex, tempBuffer, 0, imageLength);
 
             Bitmap bmp = BitmapFactory.decodeByteArray(tempBuffer, 0, imageLength);
-            if (bmp == null) return null;
+            if (bmp == null) {
+                Log.w(TAG, "Returning null bitmap, something went wrong!");
+                return null;
+            }
 
             return fillTransparentPixelsWithGreen(bmp);
         } else {

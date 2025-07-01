@@ -326,9 +326,9 @@ public class PanasonicCameraControls extends CameraControls {
         });
     }
 
-    public void keepAlive(ICameraControlListener listener) {
+    public void keepStreamAlive(ICameraControlListener listener) {
         queueCommand(() -> {
-            String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=playmode";
+            String url = camera.state.getBaseUrl() + "cam.cgi?mode=camcmd&value=recmode";
             String reply = httpClient.get(url, 1000);
 
             if (reply != null && reply.contains("<result>ok</result>")) {

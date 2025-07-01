@@ -58,10 +58,12 @@ public class PanasonicCameraLiveView {
 
     // Stream-restart & error-counting fields
     private int frameSinceStreamRequest = 0;
+    private int framesSinceSleepPrevention = 0;
     private boolean prolongingStream = false;
     private int prolongingStreamRetries = 0;
     private int restartingStreamRetries = 0;
-
+    private boolean preventingSleep = false;
+    private int preventingSleepRetries = 0;
     private final boolean autoRestartStream = true;
 
     public PanasonicCameraLiveView(PanasonicCamera camera,
@@ -131,6 +133,8 @@ public class PanasonicCameraLiveView {
     // 1) Network I/O: read UDP packets, restart stream if needed
     //-------------------------------------------------------------------------
     private void startNetworkLoop() {
+        framesSinceSleepPrevention = 0;
+
         networkExecutor.execute(() -> {
             Log.d(TAG, "Network loop starting");
 
@@ -147,9 +151,14 @@ public class PanasonicCameraLiveView {
                 while (streamActive && socketLoopExceptions < MAX_SOCKET_EXCEPTIONS_UNTIL_STOP) {
                     try {
                         // Prolong the camera stream periodically
-                        if (frameSinceStreamRequest > 200 && !prolongingStream) {
+                        if (frameSinceStreamRequest > 100 && !prolongingStream) {
                             Log.w(TAG, "Prolonging stream...");
                             prolongStream();
+                        }
+
+                        if (framesSinceSleepPrevention > 5000 && !preventingSleep) {
+                            Log.w(TAG, "Preventing from sleeping...");
+                            preventFromSleeping();
                         }
 
                         long refTime = System.currentTimeMillis();
@@ -167,6 +176,7 @@ public class PanasonicCameraLiveView {
                         }
 
                         frameSinceStreamRequest++;
+                        framesSinceSleepPrevention++;
                         socketLoopExceptions = 0;
                     } catch (SocketTimeoutException e) {
                         socketLoopExceptions++;
@@ -198,6 +208,7 @@ public class PanasonicCameraLiveView {
             Log.d(TAG, "Network loop exiting");
         });
     }
+
 
     private void startNetworkLoopNio() {
         networkExecutor.execute(() -> {
@@ -293,7 +304,6 @@ public class PanasonicCameraLiveView {
     }
 
 
-
     //-------------------------------------------------------------------------
     // 2) Decoder: turn raw JPEG packets into Frame objects
     //-------------------------------------------------------------------------
@@ -304,7 +314,10 @@ public class PanasonicCameraLiveView {
                 try {
                     DatagramPacket pkt = packetQueue.take();
                     Bitmap bmp = jpegPacket.getBitmapIfAvailable(pkt.getData(), pkt.getLength());
-                    if (bmp == null) continue;
+                    if (bmp == null) {
+                        mLiveViewReceiver.onInfo("Could not decode jpeg packet :(");
+                        continue;
+                    }
 
                     PanasonicCameraFrame f = new PanasonicCameraFrame(bmp);
                     if (!frameForDisplayQueue.offer(f)) {
@@ -401,6 +414,35 @@ public class PanasonicCameraLiveView {
                     } else {
                         mLiveViewReceiver.onError("Stream request failed!");
                         stop();
+                    }
+                }
+            });
+        }
+    }
+
+    private void preventFromSleeping() {
+        if (!preventingSleep) {
+            preventingSleep = true;
+            mCamera.controls.keepStreamAlive(new ICameraControlListener() {
+                @Override
+                public void onSuccess() {
+                    preventingSleep = false;
+                    framesSinceSleepPrevention = 0;
+                    Log.d(TAG, "Stream request prolonged");
+                    mLiveViewReceiver.onInfo("Stream has been prolonged.");
+                }
+
+                @Override
+                public void onFailure() {
+                    preventingSleep = false;
+                    preventingSleepRetries++;
+                    Log.e(TAG, "Stream request failed, retry " + preventingSleepRetries);
+                    if (preventingSleepRetries < 3) {
+                        mLiveViewReceiver.onInfo("Stream sleep prevention failed, retrying: " + preventingSleepRetries);
+                        preventFromSleeping();
+                    } else {
+                        mLiveViewReceiver.onError("Stream sleep prevention ignored...");
+                        framesSinceSleepPrevention = 0;
                     }
                 }
             });

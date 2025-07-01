@@ -1,7 +1,6 @@
 package com.feyiuremote.libs.AI.trackers;
 
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
@@ -27,7 +26,6 @@ public class POI {
         this.rect = rect;
         this.confidence = confidence;
     }
-
 
     /**
      * How much % POI is off target point
