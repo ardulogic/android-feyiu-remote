@@ -4,6 +4,7 @@ import android.app.Application;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
+import androidx.lifecycle.MutableLiveData;
 
 import com.feyiuremote.libs.Utils.WifiConnector;
 
@@ -12,10 +13,13 @@ import java.util.List;
 
 public class WifiViewModel extends AndroidViewModel {
     private final WifiConnector wifiConnector;
+    public MutableLiveData<String> connectionStatus = new MutableLiveData<String>();
+    public MutableLiveData<String> ssid = new MutableLiveData<>();
 
     public WifiViewModel(@NonNull Application application) {
         super(application);
-        wifiConnector = new WifiConnector(application.getApplicationContext());
+
+        wifiConnector = new WifiConnector(application.getApplicationContext(), this);
     }
 
     public WifiConnector getWifiConnector() {

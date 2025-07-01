@@ -12,6 +12,7 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
@@ -179,10 +180,24 @@ public class CameraFragment extends Fragment {
                     @Override
                     public void onSuccess() {
                         cameraViewModel.status.postValue("Starting stream...");
-                        camera.controls.startStream(new CameraStartStreamListener(getViewLifecycleOwner(), mainActivity, cameraViewModel, binding, () -> {
-                            // Runnable when stream has started successfully
-                            //                    setLiveImageProcessors(cameraViewModel.liveFeedReceiver.getValue());
-                        }));
+
+                        // Ensure Fragment is still attached and the View is valid
+                        if (!isAdded() || getView() == null || binding == null ||
+                                getViewLifecycleOwner().getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.CREATED) == false) {
+                            Log.w(TAG, "Skipping startStream - Fragment View is no longer valid.");
+                            return;
+                        }
+
+                        camera.controls.startStream(new CameraStartStreamListener(
+                                getViewLifecycleOwner(),
+                                mainActivity,
+                                cameraViewModel,
+                                binding,
+                                () -> {
+                                    // Optional: handle when stream starts
+                                    Log.d(TAG, "Camera stream started successfully.");
+                                }
+                        ));
                     }
 
                     @Override

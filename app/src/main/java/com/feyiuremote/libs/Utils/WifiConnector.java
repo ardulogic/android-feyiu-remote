@@ -4,13 +4,18 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.net.NetworkInfo;
 import android.net.NetworkRequest;
+import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.os.Build;
@@ -20,9 +25,11 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresPermission;
 
+import com.feyiuremote.libs.WiFi.WifiViewModel;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -35,16 +42,26 @@ public class WifiConnector {
     private static final String PREFS_NAME = "wifi_presets";
     private static final String KEY_PRESETS = "presets";
 
+    public static final String CONNECTED = "Connected";
+    public static final String CONNECTING = "Connecting";
+    public static final String DISCONNECTING = "Disconnecting";
+    public static final String DISCONNECTED = "Disconnected";
+
     private final Context context;
     private final WifiManager wifiManager;
     private final ConnectivityManager connectivityManager;
+    private final WifiViewModel viewModel;
 
     public List<AccessPoint> APs;
 
-    public WifiConnector(Context context) {
+    public WifiConnector(Context context, WifiViewModel viewModel) {
         this.context = context.getApplicationContext();
         this.wifiManager = (WifiManager) this.context.getSystemService(Context.WIFI_SERVICE);
         this.connectivityManager = (ConnectivityManager) this.context.getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        this.viewModel = viewModel;
+        this.viewModel.ssid.postValue(getCurrentWifiSSID(context));
+
         loadPresets();
     }
 
@@ -60,6 +77,40 @@ public class WifiConnector {
             this.password = password;
         }
     }
+
+    public final BroadcastReceiver wifiReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(intent.getAction()) ||
+                    WifiManager.WIFI_STATE_CHANGED_ACTION.equals(intent.getAction())) {
+
+                NetworkInfo info = intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO);
+                if (info != null && info.getState() != null) {
+                    switch (info.getState()) {
+                        case DISCONNECTING:
+                            viewModel.connectionStatus.postValue(DISCONNECTING);
+                            break;
+                        case DISCONNECTED:
+                            viewModel.connectionStatus.postValue(DISCONNECTED);
+                            break;
+                        case CONNECTING:
+                            viewModel.connectionStatus.postValue(CONNECTING);
+                            break;
+                        case CONNECTED:
+                            Log.d(TAG, "Receiver received Connected status, but this is not reliable.");
+
+                            if (isCurrentlyConnectedToWifi()) {
+                                Log.d(TAG, "Is indeed connected.");
+
+                                viewModel.connectionStatus.postValue(CONNECTED);
+                            }
+                            break;
+                    }
+                }
+            }
+        }
+    };
+
 
     /* ─────────────────────────────────────── PERSISTENCE ─────────────────────────────────────── */
 
@@ -184,6 +235,22 @@ public class WifiConnector {
                 .show();
     }
 
+    @SuppressLint("MissingPermission")
+    public String getCurrentWifiSSID(Context context) {
+        WifiManager wifiManager = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        if (wifiManager != null && wifiManager.isWifiEnabled()) {
+            WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+            if (wifiInfo != null) {
+                String ssid = wifiInfo.getSSID();
+                if (ssid != null) {
+                    // Remove quotes if present
+                    return ssid.replace("\"", "");
+                }
+            }
+        }
+        return null;
+    }
+
     /* ─────────────────────────────────────── CONNECTING ─────────────────────────────────────── */
 
     @SuppressLint("MissingPermission")
@@ -210,16 +277,41 @@ public class WifiConnector {
 
     public boolean isCurrentlyConnectedToWifi() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Network activeNetwork = connectivityManager.getActiveNetwork();
-            NetworkCapabilities caps = connectivityManager.getNetworkCapabilities(activeNetwork);
-            return caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
+            Network network = connectivityManager.getActiveNetwork();
+            if (network == null) return false;
+
+            NetworkCapabilities caps = connectivityManager.getNetworkCapabilities(network);
+            if (caps == null) return false;
+
+            boolean hasWifi = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
+            boolean hasInternet = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+
+            WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+            boolean hasValidSsid = wifiInfo != null
+                    && wifiInfo.getNetworkId() != -1
+                    && wifiInfo.getSupplicantState() == SupplicantState.COMPLETED
+                    && !"<unknown ssid>".equals(wifiInfo.getSSID())
+                    && !wifiInfo.getSSID().isEmpty();
+
+            return hasWifi && hasInternet && hasValidSsid;
         } else {
-            return wifiManager.isWifiEnabled() && wifiManager.getConnectionInfo() != null && wifiManager.getConnectionInfo().getNetworkId() != -1;
+            WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+            return wifiManager.isWifiEnabled()
+                    && wifiInfo != null
+                    && wifiInfo.getNetworkId() != -1
+                    && wifiInfo.getSupplicantState() == SupplicantState.COMPLETED
+                    && !"<unknown ssid>".equals(wifiInfo.getSSID())
+                    && !wifiInfo.getSSID().isEmpty();
         }
     }
 
     @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_WIFI_STATE, Manifest.permission.CHANGE_WIFI_STATE})
     private void connectTo(AccessPoint ap) {
+        viewModel.ssid.postValue(ap.ssid);
+
+        viewModel.connectionStatus.postValue(CONNECTING);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             WifiNetworkSpecifier specifier = new WifiNetworkSpecifier.Builder()
                     .setSsid(ap.ssid)
@@ -237,12 +329,26 @@ public class WifiConnector {
                     super.onAvailable(network);
                     Log.d(TAG, "Connected to network: " + ap.ssid);
                     connectivityManager.bindProcessToNetwork(network);
+                    viewModel.connectionStatus.postValue(CONNECTED);
+                }
+
+                @Override
+                public void onLosing(@NonNull Network network, int maxMsToLive) {
+                    super.onLosing(network, maxMsToLive);
+                    viewModel.connectionStatus.postValue(DISCONNECTING);
+                }
+
+                @Override
+                public void onLost(@NonNull Network network) {
+                    super.onLost(network);
+                    viewModel.connectionStatus.postValue(DISCONNECTED);
                 }
 
                 @Override
                 public void onUnavailable() {
                     super.onUnavailable();
                     Log.d(TAG, "Failed to connect to: " + ap.ssid);
+                    viewModel.connectionStatus.postValue(DISCONNECTED);
                 }
             };
 

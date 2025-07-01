@@ -1,10 +1,8 @@
 package com.feyiuremote.libs.Feiyu.controls.commands;
 
-import android.util.Log;
-
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
-import com.feyiuremote.ui.gimbal.GimbalEmulator;
+import com.feyiuremote.ui.connectivity.GimbalEmulator;
 
 abstract public class GimbalCommand {
 

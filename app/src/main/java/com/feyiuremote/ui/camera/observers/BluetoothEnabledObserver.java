@@ -30,7 +30,7 @@ public class BluetoothEnabledObserver implements Observer<Boolean> {
 
     private void navigateToGimbal() {
         NavController navController = Navigation.findNavController(mainActivity, R.id.nav_host_fragment_activity_main);
-        navController.navigate(R.id.navigation_gimbal,
+        navController.navigate(R.id.navigation_connectivity,
                 null,
                 new NavOptions.Builder()
                         .setPopUpTo(R.id.navigation_camera, true)

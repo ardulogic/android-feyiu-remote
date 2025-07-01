@@ -1,4 +1,4 @@
-package com.feyiuremote.ui.gimbal;
+package com.feyiuremote.ui.connectivity;
 
 import android.annotation.SuppressLint;
 import android.bluetooth.le.ScanResult;
@@ -7,8 +7,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -22,69 +20,66 @@ import androidx.navigation.Navigation;
 
 import com.feyiuremote.MainActivity;
 import com.feyiuremote.R;
-import com.feyiuremote.databinding.FragmentGimbalBinding;
+import com.feyiuremote.databinding.FragmentConnectivityBinding;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
+import com.feyiuremote.libs.Bluetooth.BluetoothPreferencesManager;
+import com.feyiuremote.libs.Bluetooth.BluetoothSetupDialog;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
-import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
-import com.feyiuremote.libs.Feiyu.queue.FeyiuCommandQueueTesting;
+import com.feyiuremote.libs.Utils.WifiConnector;
+import com.feyiuremote.libs.WiFi.WifiViewModel;
 import com.feyiuremote.ui.calibration.CalibrationFragment;
-import com.feyiuremote.ui.gimbal.adapters.BluetoothScanResultsAdapter;
 
 import java.util.ArrayList;
 
-public class GimbalFragment extends Fragment {
+public class ConnectivityFragment extends Fragment {
+    private final static String TAG = ConnectivityFragment.class.getSimpleName();
 
-    private final static String TAG = GimbalFragment.class.getSimpleName();
-
-    private final static String GIMBAL_MAC = "80:7D:3A:FE:84:36";
-    private FragmentGimbalBinding binding;
-
-    private BluetoothScanResultsAdapter mScanResultListAdapter;
-
+    private FragmentConnectivityBinding binding;
     private BluetoothViewModel mBluetoothViewModel;
-
     private MainActivity mainActivity;
-    private CalibrationDB mDb;
+    private WifiViewModel mWifiViewModel;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
 
         mainActivity = (MainActivity) getActivity();
         mBluetoothViewModel = new ViewModelProvider(requireActivity()).get(BluetoothViewModel.class);
-        binding = FragmentGimbalBinding.inflate(inflater, container, false);
+        binding = FragmentConnectivityBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
         final TextView mTextStatus = binding.textStatus;
         mBluetoothViewModel.statusMessage.observe(getViewLifecycleOwner(), mTextStatus::setText);
         mBluetoothViewModel.connectionStatus.observe(getViewLifecycleOwner(), btConnectionStatusObserver);
-        mBluetoothViewModel.scanResults.observe(getViewLifecycleOwner(), scanResultsObserver);
+        mBluetoothViewModel.scanResults.observe(getViewLifecycleOwner(), bluetoothScanResultsObserver);
+        mBluetoothViewModel.ssid.observe(getViewLifecycleOwner(), bluetoothConnectivitySsidObserver);
+        mBluetoothViewModel.feyiuStateUpdated.observe(getViewLifecycleOwner(), mFeyiuStateObserver);
 
-        final Button mButtonConnect = binding.buttonConnect;
-        mButtonConnect.setOnClickListener(view -> {
+        binding.buttonConnectGimbal.setOnClickListener(view -> {
             connectToGimbal();
         });
 
-        binding.buttonEmulate.setOnClickListener(v -> {
-            GimbalEmulator.init(mBluetoothViewModel);
-            GimbalEmulator.enable();
-
+        binding.buttonBluetoothSetup.setOnClickListener(v -> {
+            BluetoothSetupDialog dialogManager = new BluetoothSetupDialog(getContext(), mBluetoothViewModel);
+            dialogManager.showSetupOptionsDialog();
         });
 
-        binding.buttonEditAPs.setOnClickListener(v -> {
-            mainActivity.wifiViewModel.getWifiConnector().editAPs(mainActivity);
+//        binding.buttonEmulateGimbal.setOnClickListener(v -> {
+//            GimbalEmulator.init(mBluetoothViewModel);
+//            GimbalEmulator.enable();
+//        });
+
+        mWifiViewModel = new ViewModelProvider(requireActivity()).get(WifiViewModel.class);
+        mWifiViewModel.connectionStatus.observe(getViewLifecycleOwner(), wifiConnectionStatusObserver);
+        mWifiViewModel.ssid.observe(getViewLifecycleOwner(), wifiConnectionSsidObserver);
+
+        binding.buttonWifiSetup.setOnClickListener(v -> {
+            mWifiViewModel.getWifiConnector().editAPs(mainActivity);
         });
 
-        binding.buttonConnectToAPs.setOnClickListener(v -> {
-            mainActivity.wifiViewModel.getWifiConnector().askToChooseAP(mainActivity);
+        binding.buttonConnectCamera.setOnClickListener(v -> {
+            mWifiViewModel.getWifiConnector().askToChooseAP(mainActivity);
         });
-
-
-        final ListView mListView = binding.listScanResults;
-        mScanResultListAdapter = new BluetoothScanResultsAdapter(getContext());
-        mListView.setAdapter(mScanResultListAdapter);
-
-        mBluetoothViewModel.feyiuStateUpdated.observe(getViewLifecycleOwner(), mFeyiuStateObserver);
 
         if (!CalibrationFragment.isCalibrated()) {
             binding.textGimbalImageStatus.setText("Not Calibrated!");
@@ -94,18 +89,44 @@ public class GimbalFragment extends Fragment {
             binding.imageGimbalStatus.setImageResource(R.drawable.thumbs_up);
         }
 
-        FeyiuCommandQueueTesting testing = new FeyiuCommandQueueTesting();
-        testing.doTests();
-
         return root;
     }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+    }
+
+    final Observer<String> wifiConnectionSsidObserver = new Observer<String>() {
+        @Override
+        public void onChanged(@Nullable String ssid) {
+            binding.textConnectivityCameraSsid.setText(ssid);
+        }
+    };
+
+    final Observer<String> wifiConnectionStatusObserver = new Observer<String>() {
+        @Override
+        public void onChanged(@Nullable String status) {
+            if (status.equals(WifiConnector.CONNECTED)) {
+                binding.buttonConnectCamera.setEnabled(true);
+                binding.buttonConnectCamera.setText("Connected");
+            } else if (status.equals(WifiConnector.CONNECTING) ||
+                    status.equals(WifiConnector.DISCONNECTING)) {
+                binding.buttonConnectCamera.setEnabled(false);
+                binding.buttonConnectCamera.setText("Connect");
+            } else {
+                binding.buttonConnectCamera.setEnabled(true);
+                binding.buttonConnectCamera.setText("Connect");
+            }
+        }
+    };
 
     private void switchToCamera() {
         NavController navController = Navigation.findNavController(getActivity(), R.id.nav_host_fragment_activity_main);
         navController.navigate(R.id.navigation_camera,
                 null,
                 new NavOptions.Builder()
-                        .setPopUpTo(R.id.navigation_gimbal, true)
+                        .setPopUpTo(R.id.navigation_connectivity, true)
                         .build());
     }
 
@@ -124,20 +145,19 @@ public class GimbalFragment extends Fragment {
             switch (status) {
                 case BluetoothLeService.ACTION_GATT_DISCONNECTED:
                 case BluetoothLeService.ACTION_GATT_CONNECTION_FAILED:
-                    binding.buttonConnect.setEnabled(false);
+                    binding.buttonConnectGimbal.setText("Disconnected");
                     connectToGimbal();
                     break;
                 case BluetoothLeService.ACTION_GATT_CONNECTING:
-                    binding.buttonConnect.setEnabled(false);
+                    binding.buttonConnectGimbal.setText("Connecting");
                     break;
                 case BluetoothLeService.ACTION_GATT_CONNECTED:
-                    binding.buttonConnect.setEnabled(true);
+                    binding.buttonConnectGimbal.setText("Connected");
                     break;
                 case BluetoothLeService.ACTION_GATT_DISCONNECTING:
-                    binding.buttonConnect.setEnabled(false);
+                    binding.buttonConnectGimbal.setText("Disconnecting");
                     break;
                 case BluetoothLeService.ACTION_BT_ENABLED:
-                    binding.buttonConnect.setEnabled(false);
                     connectToGimbal();
                     break;
             }
@@ -149,8 +169,14 @@ public class GimbalFragment extends Fragment {
             if (mBluetoothViewModel.connected.getValue()) {
                 mainActivity.mBluetoothLeService.disconnect();
             } else {
-                mainActivity.mBluetoothLeService.connect(GIMBAL_MAC);
-                Log.d(TAG, "Connecting to gimbal");
+                BluetoothPreferencesManager manager = new BluetoothPreferencesManager(getContext());
+                String mac = manager.getActiveMac();
+                if (mac != null) {
+                    mainActivity.mBluetoothLeService.connect(mac);
+                    Log.d(TAG, "Connecting to gimbal: " + mac);
+                } else {
+                    Log.e(TAG, "Cam't connect, mac is null!");
+                }
             }
         }
     }
@@ -169,7 +195,8 @@ public class GimbalFragment extends Fragment {
                             FeyiuState.getInstance().angle_pan.posToString() + " | " +
                             FeyiuState.getInstance().angle_yaw.posToString());
 
-            Log.d(TAG, "Switching to Camera...");
+//            Log.d(TAG, "Switching to Camera...");
+//            switchToCamera();
 
             if (mBluetoothViewModel.connected.getValue()) {
                 if (!CalibrationFragment.isCalibrated()) {
@@ -179,14 +206,17 @@ public class GimbalFragment extends Fragment {
         }
     };
 
+    final Observer<String> bluetoothConnectivitySsidObserver = new Observer<String>() {
+        @Override
+        public void onChanged(@Nullable final String ssid) {
+            binding.textConnectivityGimbalSsid.setText(ssid);
+        }
+    };
 
     // Create the observer which updates the UI.
-    final Observer<ArrayList<ScanResult>> scanResultsObserver = new Observer<ArrayList<ScanResult>>() {
+    final Observer<ArrayList<ScanResult>> bluetoothScanResultsObserver = new Observer<ArrayList<ScanResult>>() {
         @Override
         public void onChanged(@Nullable final ArrayList<ScanResult> newScanResults) {
-            mScanResultListAdapter.setResults(newScanResults);
-            mScanResultListAdapter.notifyDataSetChanged();
-
             if (!mBluetoothViewModel.connected.getValue()) {
                 connectToGimbal();
             }

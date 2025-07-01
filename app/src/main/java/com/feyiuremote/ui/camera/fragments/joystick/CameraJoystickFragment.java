@@ -39,6 +39,21 @@ public class CameraJoystickFragment extends Fragment {
             Log.d("Joystick", String.valueOf(xPercent) + " yP" + String.valueOf(yPercent));
         });
 
+        binding.buttonJoystickSpeedSlow.setOnClickListener(v -> {
+            FeyiuControls.setPanSensitivity(25);
+            FeyiuControls.setTiltSensitivity(25);
+        });
+
+        binding.buttonJoystickSpeedMed.setOnClickListener(v -> {
+            FeyiuControls.setPanSensitivity(60);
+            FeyiuControls.setTiltSensitivity(60);
+        });
+
+        binding.buttonJoystickSpeedFast.setOnClickListener(v -> {
+            FeyiuControls.setPanSensitivity(230);
+            FeyiuControls.setTiltSensitivity(60);
+        });
+
         init();
 
         return binding.getRoot();

@@ -3,13 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mobile_navigation"
-    app:startDestination="@+id/navigation_gimbal">
+    app:startDestination="@+id/navigation_connectivity">
 
     <fragment
-        android:id="@+id/navigation_gimbal"
-        android:name="com.feyiuremote.ui.gimbal.GimbalFragment"
-        android:label="@string/title_gimbal"
-        tools:layout="@layout/fragment_gimbal" />
+        android:id="@+id/navigation_connectivity"
+        android:name="com.feyiuremote.ui.connectivity.ConnectivityFragment"
+        android:label="@string/title_connectivity"
+        tools:layout="@layout/fragment_connectivity" />
 
     <fragment
         android:id="@+id/navigation_camera"

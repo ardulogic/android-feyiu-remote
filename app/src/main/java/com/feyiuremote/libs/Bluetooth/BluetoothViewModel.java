@@ -24,6 +24,7 @@ public class BluetoothViewModel extends ViewModel {
     private final HashMap<String, MutableLiveData<byte[]>> characteristics;
     public final MutableLiveData<Boolean> isEmulated = new MutableLiveData<>();
     public final MutableLiveData<Long> feyiuStateUpdated = new MutableLiveData<>();
+    public final MutableLiveData<String> ssid = new MutableLiveData<>();
 
 //    public final List<String> CHARACTERISTIC_IDS = new List<String>(){"0000ff02-0000-1000-8000-00805f9b34fb"};
 

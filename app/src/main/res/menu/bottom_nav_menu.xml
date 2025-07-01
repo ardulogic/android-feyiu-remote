@@ -2,9 +2,9 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/navigation_gimbal"
-        android:icon="@drawable/ic_baseline_gimbal_24"
-        android:title="@string/title_gimbal" />
+        android:id="@+id/navigation_connectivity"
+        android:icon="@drawable/ic_baseline_connect_24"
+        android:title="@string/title_connectivity" />
 
     <item
         android:id="@+id/navigation_camera"

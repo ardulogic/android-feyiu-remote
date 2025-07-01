@@ -1,4 +1,4 @@
-package com.feyiuremote.ui.gimbal.adapters;
+package com.feyiuremote.ui.connectivity.adapters;
 
 import android.bluetooth.le.ScanResult;
 import android.content.Context;

@@ -5,7 +5,7 @@ import android.util.Log;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Feiyu.FeyiuState;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
-import com.feyiuremote.ui.gimbal.GimbalEmulator;
+import com.feyiuremote.ui.connectivity.GimbalEmulator;
 
 public class SetTiltSensitivityCommand extends GimbalCommand {
 

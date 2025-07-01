@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothGattService;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.location.LocationManager;
 import android.net.wifi.WifiManager;
@@ -33,11 +34,11 @@ import com.feyiuremote.libs.Bluetooth.BluetoothIntent;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeService;
 import com.feyiuremote.libs.Bluetooth.BluetoothLeUpdateReceiver;
 import com.feyiuremote.libs.Bluetooth.BluetoothPermissions;
+import com.feyiuremote.libs.Bluetooth.BluetoothPreferencesManager;
 import com.feyiuremote.libs.Bluetooth.BluetoothViewModel;
 import com.feyiuremote.libs.Bluetooth.IOnBluetoothServicesDiscovered;
 import com.feyiuremote.libs.Feiyu.FeyiuUtils;
 import com.feyiuremote.libs.Feiyu.calibration.CalibrationDB;
-import com.feyiuremote.libs.Utils.WifiConnector;
 import com.feyiuremote.libs.WiFi.WifiViewModel;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
@@ -72,12 +73,6 @@ public class MainActivity extends AppCompatActivity {
 
     private PowerManager.WakeLock mWakeLock;
     private BluetoothLeUpdateReceiver mGattUpdateReceiver;
-    private WifiConnector mWifiConnector;
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,14 +95,16 @@ public class MainActivity extends AppCompatActivity {
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
         AppBarConfiguration appBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.navigation_gimbal, R.id.navigation_camera, R.id.navigation_calibration)
+                R.id.navigation_connectivity, R.id.navigation_camera, R.id.navigation_calibration)
                 .build();
 
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_activity_main);
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
         NavigationUI.setupWithNavController(binding.navView, navController);
 
+        BluetoothPreferencesManager manager = new BluetoothPreferencesManager(this);
         bluetoothViewModel = new ViewModelProvider(this).get(BluetoothViewModel.class);
+        bluetoothViewModel.ssid.postValue(manager.getActiveSsid());
         startBtService();
 
         mGattUpdateReceiver = new BluetoothLeUpdateReceiver(bluetoothViewModel);
@@ -118,9 +115,12 @@ public class MainActivity extends AppCompatActivity {
         WifiManager.MulticastLock multicastLock = wm.createMulticastLock("multicastLock");
         multicastLock.acquire();
 
-        wifiViewModel = new WifiViewModel(getApplication());
+        wifiViewModel = new ViewModelProvider(this).get(WifiViewModel.class);
         wifiViewModel.saveDefaultAPs();
-        wifiViewModel.getWifiConnector().askToChooseAP(this);
+
+        if (!wifiViewModel.getWifiConnector().isCurrentlyConnectedToWifi()) {
+            wifiViewModel.getWifiConnector().askToChooseAP(this);
+        }
 
         if (!OpenCVLoader.initDebug()) {
             Log.e(this.getClass().getSimpleName(), "  OpenCVLoader.initDebug(), not working.");
@@ -136,6 +136,31 @@ public class MainActivity extends AppCompatActivity {
 
         ensureLocationEnabled();
         ensureBluetoothEnabled();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        try {
+            unregisterReceiver(wifiViewModel.getWifiConnector().wifiReceiver);
+        } catch (IllegalArgumentException ignored) {
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        registerReceiver(
+                wifiViewModel.getWifiConnector().wifiReceiver,
+                new IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION)
+        );
+
+        registerReceiver(
+                wifiViewModel.getWifiConnector().wifiReceiver,
+                new IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION)
+        );
     }
 
     private void startBtService() {

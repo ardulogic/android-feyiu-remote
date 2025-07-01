@@ -4,20 +4,62 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingBottom="60dp"
     tools:context=".ui.camera.fragments.joystick.CameraJoystickFragment">
 
 
-    <com.feyiuremote.ui.camera.fragments.joystick.JoystickView
-        android:id="@+id/joystick"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentBottom="true"
+    <LinearLayout
+        android:id="@+id/joystickLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center|center_horizontal"
+        android:orientation="vertical"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.895"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.057" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.feyiuremote.ui.camera.fragments.joystick.JoystickView
+            android:id="@+id/joystick"
+            android:layout_width="wrap_content"
+            android:layout_height="350dp"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentBottom="true"
+            android:layout_gravity="center_horizontal" />
+
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/toggleButtonJoystickSpeedGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="50dp"
+            android:layout_gravity="center_horizontal"
+            android:gravity="center"
+            app:singleSelection="true">
+
+            <Button
+                android:id="@+id/buttonJoystickSpeedSlow"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="35dip"
+                android:text="Slow" />
+
+            <Button
+                android:id="@+id/buttonJoystickSpeedMed"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="35dip"
+                android:text="Med" />
+
+            <Button
+                android:id="@+id/buttonJoystickSpeedFast"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="35dip"
+                android:text="Fast" />
+
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,4 +1,4 @@
-package com.feyiuremote.ui.gimbal;
+package com.feyiuremote.ui.connectivity;
 
 import android.content.ContentValues;
 import android.os.Handler;

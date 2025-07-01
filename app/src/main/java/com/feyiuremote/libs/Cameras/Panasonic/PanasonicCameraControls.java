@@ -51,6 +51,8 @@ public class PanasonicCameraControls extends CameraControls {
             // Blocking call, waits for a command
             command = commandQueue.take();
             if (command != null) {
+                Log.e(TAG, "Executing queued command...");
+
                 command.execute();
             }
         } catch (InterruptedException e) {
@@ -90,13 +92,16 @@ public class PanasonicCameraControls extends CameraControls {
 
             if (reply != null) {
                 if (reply.contains("ok") || reply.contains("err_non_support")) {
+                    Log.d(TAG, "Enable controls successful");
                     listener.onSuccess();
                 } else if (reply.contains("ok_under_research_no_msg")) {
+                    Log.d(TAG, "Enable controls failed");
                     enable(listener);
                     return;
                 }
             }
 
+            Log.d(TAG, "Enable controls failed");
             listener.onFailure();
         });
     }
@@ -116,8 +121,11 @@ public class PanasonicCameraControls extends CameraControls {
                 camera.state.udn = data.get("UDN");
                 camera.state.available = true;
 
+                Log.d(TAG, "UpdateBaseInfo successful");
                 listener.onSuccess();
             } else {
+                Log.w(TAG, "UpdateBaseInfo failed");
+
                 camera.state.available = false;
                 listener.onFailure();
             }
