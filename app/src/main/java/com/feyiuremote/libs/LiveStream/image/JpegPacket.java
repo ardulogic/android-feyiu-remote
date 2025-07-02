@@ -6,14 +6,10 @@ import android.util.Log;
 
 public class JpegPacket {
     private final static String TAG = JpegPacket.class.getSimpleName();
-
     private static final byte[] JPEG_START_MARKER = {(byte) 0xFF, (byte) 0xD8}; // SOI (Start of Image)
     private static final byte[] JPEG_END_MARKER = {(byte) 0xFF, (byte) 0xD9};   // EOI (End of Image)
-
     private Integer startIndex;
     private Integer endIndex;
-
-    private final byte[] tempBuffer = new byte[45000];
 
     /**
      * Checks if starting/ending marker of frame in stream exists at certain index
@@ -70,21 +66,25 @@ public class JpegPacket {
 
     public Bitmap getBitmapIfAvailable(byte[] packet, int length) {
         startIndex = findStartOfImage(packet, length);
-        endIndex = length;
+        endIndex = length; // GH4 G7 sends it too soon, just use full image
 
-        if (startIndex != null) {
-            int imageLength = endIndex - startIndex;
-            System.arraycopy(packet, startIndex, tempBuffer, 0, imageLength);
+        try {
+            if (startIndex != null) {
+                // It's fast enough, dont need to copy this
+                Bitmap bmp = BitmapFactory.decodeByteArray(packet, startIndex, endIndex - startIndex);
+                if (bmp == null) {
+                    Log.w(TAG, "Returning null bitmap, something went wrong!");
+                    return null;
+                }
 
-            Bitmap bmp = BitmapFactory.decodeByteArray(tempBuffer, 0, imageLength);
-            if (bmp == null) {
-                Log.w(TAG, "Returning null bitmap, something went wrong!");
-                return null;
+                // Use for debugging
+//            return fillTransparentPixelsWithGreen(bmp);
+                return bmp;
+            } else {
+                Log.e(TAG, "Video packet failed!");
             }
-
-            return fillTransparentPixelsWithGreen(bmp);
-        } else {
-            Log.e(TAG, "Video packet failed!");
+        } catch (ArrayIndexOutOfBoundsException e) {
+            Log.e(TAG, "Video packet failed, array index is out of bounds!");
         }
 
         return null;

@@ -44,7 +44,7 @@ public class PanasonicCameraLiveView {
     private ExecutorService displayExecutor;
 
     // Bounded queues for back-pressure
-    private final BlockingQueue<DatagramPacket> packetQueue =
+    private final BlockingQueue<DatagramPacket> decodingQueue =
             new ArrayBlockingQueue<>(PACKET_QUEUE_CAP);
     private final BlockingQueue<PanasonicCameraFrame> frameForDisplayQueue =
             new ArrayBlockingQueue<>(FRAME_QUEUE_CAP);
@@ -101,7 +101,7 @@ public class PanasonicCameraLiveView {
                 new NamedThreadFactory("Camera Frame Display"));
 
         // reset queues & flags
-        packetQueue.clear();
+        decodingQueue.clear();
         frameForDisplayQueue.clear();
         frameSinceStreamRequest = 0;
         prolongingStream = false;
@@ -148,8 +148,35 @@ public class PanasonicCameraLiveView {
                 byte[] buf = new byte[RECEIVE_BUFFER_SZ];
                 DatagramPacket pkt = new DatagramPacket(buf, buf.length);
 
+                long sleepTime = 0;
+                long pktRecvTimeStart, pktRecvTime = 0;
+
                 while (streamActive && socketLoopExceptions < MAX_SOCKET_EXCEPTIONS_UNTIL_STOP) {
                     try {
+                        sleepTime = 25;
+
+                        pktRecvTimeStart = System.currentTimeMillis();
+                        socket.receive(pkt);
+                        pktRecvTime = System.currentTimeMillis() - pktRecvTimeStart;
+
+                        if (pktRecvTime > 60) {
+                            Log.w(TAG, "Long frame packet time:" + pktRecvTime);
+                            sleepTime = 0;
+                        }
+
+                        if (decodingQueue.isEmpty()) {
+                            byte[] data = Arrays.copyOf(pkt.getData(), pkt.getLength());
+                            DatagramPacket copy = new DatagramPacket(data, data.length);
+                            decodingQueue.offer(copy);
+                        } else {
+                            // Connection seems more stable if we receive the packet
+                            Log.w(TAG, "Skipped frame due to decoding:" + decodingQueue.size());
+                        }
+
+                        frameSinceStreamRequest++;
+                        framesSinceSleepPrevention++;
+                        socketLoopExceptions = 0;
+
                         // Prolong the camera stream periodically
                         if (frameSinceStreamRequest > 100 && !prolongingStream) {
                             Log.w(TAG, "Prolonging stream...");
@@ -161,23 +188,7 @@ public class PanasonicCameraLiveView {
                             preventFromSleeping();
                         }
 
-                        long refTime = System.currentTimeMillis();
-                        socket.receive(pkt);
-                        long refEndTime = System.currentTimeMillis() - refTime;
-                        if (refEndTime > 60) {
-                            Log.w(TAG, "Long frame packet time:" + refEndTime);
-                        }
-
-                        byte[] data = Arrays.copyOf(pkt.getData(), pkt.getLength());
-                        DatagramPacket copy = new DatagramPacket(data, data.length);
-                        if (!packetQueue.offer(copy)) {
-                            packetQueue.poll(); // drop oldest
-                            packetQueue.offer(copy);
-                        }
-
-                        frameSinceStreamRequest++;
-                        framesSinceSleepPrevention++;
-                        socketLoopExceptions = 0;
+                        Thread.sleep(sleepTime);
                     } catch (SocketTimeoutException e) {
                         socketLoopExceptions++;
                         mLiveViewReceiver.onWarning("Stream Socket Timed Out:" + socketLoopExceptions);
@@ -256,9 +267,9 @@ public class PanasonicCameraLiveView {
 
                                     DatagramPacket packet = new DatagramPacket(data, data.length);
 
-                                    if (!packetQueue.offer(packet)) {
-                                        packetQueue.poll(); // Drop oldest
-                                        packetQueue.offer(packet);
+                                    if (!decodingQueue.offer(packet)) {
+                                        decodingQueue.poll(); // Drop oldest
+                                        decodingQueue.offer(packet);
                                         Log.w(TAG, "Dropped old packet: queue full");
                                     }
 
@@ -310,9 +321,10 @@ public class PanasonicCameraLiveView {
     private void startDecoderLoop() {
         decodeExecutor.execute(() -> {
             Log.d(TAG, "Decoder loop starting");
+            DatagramPacket pkt;
             while (streamActive) {
                 try {
-                    DatagramPacket pkt = packetQueue.take();
+                    pkt = decodingQueue.take();
                     Bitmap bmp = jpegPacket.getBitmapIfAvailable(pkt.getData(), pkt.getLength());
                     if (bmp == null) {
                         mLiveViewReceiver.onInfo("Could not decode jpeg packet :(");
@@ -330,15 +342,6 @@ public class PanasonicCameraLiveView {
             }
             Log.d(TAG, "Decoder loop exiting");
         });
-    }
-
-    private int indexOf(byte[] data, int b1, int b2) {
-        for (int i = 0; i < data.length - 1; i++) {
-            if ((data[i] & 0xFF) == b1 && (data[i + 1] & 0xFF) == b2) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     //-------------------------------------------------------------------------
