@@ -19,6 +19,7 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.os.Build;
+import android.os.Looper;
 import android.text.InputType;
 import android.util.Log;
 import android.widget.EditText;
@@ -333,6 +334,17 @@ public class WifiConnector {
 
         viewModel.connectionStatus.postValue(CONNECTING);
 
+        android.os.Handler timeoutHandler = new android.os.Handler(Looper.getMainLooper());
+        Runnable timeoutRunnable = () -> {
+            String currentStatus = viewModel.connectionStatus.getValue();
+            if (CONNECTED.equals(currentStatus) || CONNECTING.equals(currentStatus)) {
+                // Only force set DISCONNECTED if it's still stuck
+                viewModel.connectionStatus.postValue(DISCONNECTED);
+                Log.w(TAG, "Connection to " + ap.ssid + " timed out after 5 seconds");
+            }
+        };
+        timeoutHandler.postDelayed(timeoutRunnable, 5000);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             WifiNetworkSpecifier specifier = new WifiNetworkSpecifier.Builder()
                     .setSsid(ap.ssid)
@@ -351,6 +363,7 @@ public class WifiConnector {
                     Log.d(TAG, "Connected to network: " + ap.ssid);
                     connectivityManager.bindProcessToNetwork(network);
                     viewModel.connectionStatus.postValue(CONNECTED);
+                    timeoutHandler.removeCallbacks(timeoutRunnable); // cancel timeout
                 }
 
                 @Override
@@ -358,6 +371,7 @@ public class WifiConnector {
                     super.onLosing(network, maxMsToLive);
                     Log.d(TAG, "Losing connection to network: " + ap.ssid);
                     viewModel.connectionStatus.postValue(DISCONNECTING);
+                    timeoutHandler.removeCallbacks(timeoutRunnable);
                 }
 
                 @Override
@@ -365,6 +379,7 @@ public class WifiConnector {
                     super.onLost(network);
                     Log.d(TAG, "Lost connection to network: " + ap.ssid);
                     viewModel.connectionStatus.postValue(DISCONNECTED);
+                    timeoutHandler.removeCallbacks(timeoutRunnable);
                 }
 
                 @Override
@@ -372,6 +387,7 @@ public class WifiConnector {
                     super.onUnavailable();
                     Log.d(TAG, "Failed to connect to: " + ap.ssid);
                     viewModel.connectionStatus.postValue(DISCONNECTED);
+                    timeoutHandler.removeCallbacks(timeoutRunnable);
                 }
             };
 
