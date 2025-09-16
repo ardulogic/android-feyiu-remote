@@ -18,3 +18,6 @@ The app uses **Bluetooth LE** to communicate with the gimbal, **Wi-Fi** for GH4 
 - Smart framing options: rule-of-thirds, headroom adjustment.
 - Customizable PID/slew-rate settings for smooth tracking.
 - Waypoint system, useful for podcasts or other stationary positions
+
+## Note
+This is a WIP project, so expect some bugs.
